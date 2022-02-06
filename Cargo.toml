@@ -1,0 +1,7 @@
+[workspace]
+
+members = [
+	"cove-core",
+	"cove-server",
+	"cove-tui",
+]
