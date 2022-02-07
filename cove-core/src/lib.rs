@@ -1,25 +1,43 @@
+mod macros;
+
 use serde::{Deserialize, Serialize};
+
+use self::macros::packets;
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Id(pub u128);
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct HelloCmd {
+    pub id: Id,
     pub name: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct HelloRpl {
-    pub msg: String,
+#[serde(tag = "type")]
+pub enum HelloRpl {
+    Success { id: Id },
+    InvalidName { reason: String },
+    NameAlreadyUsed,
+}
+
+// Create a Cmd enum for all commands and a Rpl enum for all replies, as well as
+// TryFrom impls for the individual command and reply structs.
+packets! {
+    Hello(HelloCmd, HelloRpl),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
-pub enum Data {
-    HelloCmd(HelloCmd),
-    HelloRpl(HelloRpl),
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct Packet {
-    pub id: u64,
-    #[serde(flatten)]
-    pub data: Data,
+pub enum Packet {
+    Cmd {
+        id: u64,
+        #[serde(flatten)]
+        cmd: Cmd,
+    },
+    Rpl {
+        id: u64,
+        #[serde(flatten)]
+        rpl: Rpl,
+    },
 }

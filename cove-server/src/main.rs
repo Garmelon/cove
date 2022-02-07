@@ -1,12 +1,11 @@
-use cove_core::{Data, HelloCmd, Packet};
+use cove_core::{HelloCmd, HelloRpl, Id, Packet, Rpl};
 
 fn main() {
-    println!("Hello, world!");
-    let packet = Packet {
+    let packet = Packet::Rpl {
         id: 1337,
-        data: Data::HelloCmd(HelloCmd {
-            name: "Garmy".to_string(),
+        rpl: Rpl::Hello(HelloRpl::InvalidName {
+            reason: "abc".to_string(),
         }),
     };
-    println!("{}", serde_json::to_string(&packet).unwrap());
+    println!("{}", serde_json::to_string_pretty(&packet).unwrap());
 }
