@@ -5,4 +5,7 @@ edition = "2021"
 
 [dependencies]
 cove-core = { path = "../cove-core" }
+futures = "0.3.21"
 serde_json = "1.0.78"
+tokio = { version = "1.16.1", features = ["full"] }
+tokio-tungstenite = "0.16.1"
