@@ -4,4 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+hex = { version = "0.4.3", features = ["serde"] }
 serde = { version = "1.0.136", features = ["derive"] }
+sha2 = "0.10.1"

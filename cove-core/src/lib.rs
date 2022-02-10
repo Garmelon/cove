@@ -1,11 +1,10 @@
+mod id;
 mod macros;
 
 use serde::{Deserialize, Serialize};
 
+pub use self::id::*;
 use self::macros::packets;
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct Id(pub u128);
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct HelloCmd {
