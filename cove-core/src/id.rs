@@ -6,7 +6,7 @@ use sha2::{Digest, Sha256};
 
 // TODO Use base64 representation instead
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 pub struct Id(#[serde(with = "hex")] [u8; 32]);
 
 impl Id {
