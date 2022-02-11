@@ -43,6 +43,12 @@ macro_rules! packets {
                     }
                 }
             }
+
+            impl From<$cmd> for Cmd {
+                fn from(cmd: $cmd) -> Self {
+                    Self::$cmdName(cmd)
+                }
+            }
         )*
 
         #[derive(Debug, Deserialize, Serialize)]
@@ -61,6 +67,12 @@ macro_rules! packets {
                     }
                 }
             }
+
+            impl From<$rpl> for Rpl {
+                fn from(rpl: $rpl) -> Self {
+                    Self::$cmdName(rpl)
+                }
+            }
         )*
 
         #[derive(Debug, Deserialize, Serialize)]
@@ -77,6 +89,12 @@ macro_rules! packets {
                         Ntf::$ntfName(val) => Ok(val),
                         _ => Err(()),
                     }
+                }
+            }
+
+            impl From<$ntf> for Ntf {
+                fn from(ntf: $ntf) -> Self {
+                    Self::$ntfName(ntf)
                 }
             }
         )*

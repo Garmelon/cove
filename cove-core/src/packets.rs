@@ -115,3 +115,23 @@ pub enum Packet {
         ntf: Ntf,
     },
 }
+
+impl Packet {
+    pub fn cmd<C: Into<Cmd>>(id: u64, cmd: C) -> Self {
+        Self::Cmd {
+            id,
+            cmd: cmd.into(),
+        }
+    }
+
+    pub fn rpl<R: Into<Rpl>>(id: u64, rpl: R) -> Self {
+        Self::Rpl {
+            id,
+            rpl: rpl.into(),
+        }
+    }
+
+    pub fn ntf<N: Into<Ntf>>(ntf: N) -> Self {
+        Self::Ntf { ntf: ntf.into() }
+    }
+}
