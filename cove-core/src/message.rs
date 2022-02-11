@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{ Identity, MessageId};
+use crate::{Identity, MessageId};
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Message {
-    pub pred: Option<MessageId>,
+    pub pred: MessageId,
     pub parent: Option<MessageId>,
     pub identity: Identity,
     pub nick: String,
@@ -13,10 +13,7 @@ pub struct Message {
 
 impl Message {
     pub fn id(&self) -> MessageId {
-        let pred = match self.pred {
-            Some(id) => format!("{id}"),
-            None => "none".to_string(),
-        };
+        let pred = self.pred;
         let parent = match self.parent {
             Some(id) => format!("{id}"),
             None => "none".to_string(),

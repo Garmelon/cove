@@ -29,14 +29,13 @@ pub struct NickCmd {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
 pub enum NickRpl {
-    Success { you: User },
+    Success,
     NickTooLong,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SendCmd {
     pub parent: Option<MessageId>,
-    pub nick: Option<String>,
     pub content: String,
 }
 
@@ -49,32 +48,32 @@ pub enum SendRpl {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct WhoCmd;
+pub struct WhoCmd {}
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct WhoRpl {
-    you: User,
-    others: Vec<User>,
+    pub you: User,
+    pub others: Vec<User>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct JoinNtf {
-    user: User,
+    pub user: User,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct NickNtf {
-    user: User,
+    pub user: User,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PartNtf {
-    user: User,
+    pub user: User,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SendNtf {
-    message: Message,
+    pub message: Message,
 }
 
 // Create a Cmd enum for all commands, a Rpl enum for all replies and a Ntf enum

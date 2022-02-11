@@ -2,9 +2,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Identity, SessionId};
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct User {
-    nick: String,
-    identity: Identity,
-    sid: SessionId,
+    pub nick: String,
+    pub identity: Identity,
+    pub sid: SessionId,
 }
