@@ -4,13 +4,15 @@ use hex::ToHex;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+use crate::macros::id_alias;
+
 // TODO Use base64 representation instead
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
-pub struct Id(#[serde(with = "hex")] [u8; 32]);
+struct Id(#[serde(with = "hex")] [u8; 32]);
 
 impl Id {
-    pub fn of(str: &str) -> Self {
+    fn of(str: &str) -> Self {
         let mut hasher = Sha256::new();
         hasher.update(str);
         Self(hasher.finalize().into())
@@ -22,3 +24,8 @@ impl fmt::Display for Id {
         write!(f, "{}", self.0.encode_hex::<String>())
     }
 }
+
+// Prevent misuse of one id as another by only making the aliases public.
+id_alias!(MessageId);
+id_alias!(SessionId);
+id_alias!(Identity);
