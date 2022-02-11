@@ -2,8 +2,8 @@ mod id;
 mod macros;
 mod message;
 pub mod packets;
-mod user;
+mod session;
 
 pub use self::id::*;
 pub use self::message::*;
-pub use self::user::*;
+pub use self::session::*;

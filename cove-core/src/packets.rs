@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::macros::packets;
-use crate::{Message, MessageId, User};
+use crate::{Message, MessageId, Session};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct HelloCmd {
@@ -14,8 +14,8 @@ pub struct HelloCmd {
 #[serde(tag = "type")]
 pub enum HelloRpl {
     Success {
-        you: User,
-        others: Vec<User>,
+        you: Session,
+        others: Vec<Session>,
         last_message: MessageId,
     },
     InvalidRoom {
@@ -60,23 +60,23 @@ pub struct WhoCmd {}
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct WhoRpl {
-    pub you: User,
-    pub others: Vec<User>,
+    pub you: Session,
+    pub others: Vec<Session>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct JoinNtf {
-    pub user: User,
+    pub who: Session,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct NickNtf {
-    pub user: User,
+    pub who: Session,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PartNtf {
-    pub user: User,
+    pub who: Session,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

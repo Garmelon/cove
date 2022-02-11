@@ -2,16 +2,17 @@ use cove_core::packets::{
     Cmd, HelloCmd, HelloRpl, JoinNtf, NickCmd, NickNtf, NickRpl, Ntf, Packet, PartNtf, Rpl,
     SendCmd, SendNtf, SendRpl, WhoCmd, WhoRpl,
 };
-use cove_core::{Identity, Message, MessageId, SessionId, User};
+use cove_core::{Identity, Message, MessageId, Session, SessionId};
 use futures::{future, StreamExt, TryStreamExt};
 use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::mpsc::Sender;
 
 #[tokio::main]
 async fn main() {
-    let user = User {
+    let session = Session {
+        id: SessionId::of("12345"),
         nick: "Garmy".to_string(),
         identity: Identity::of("random garbage"),
-        sid: SessionId::of("12345"),
     };
     let message = Message {
         pred: MessageId::of("pred"),
@@ -37,7 +38,7 @@ async fn main() {
         serde_json::to_string_pretty(&Packet::Rpl {
             id: 67890,
             rpl: Rpl::Hello(HelloRpl::Success {
-                you: user.clone(),
+                you: session.clone(),
                 others: vec![],
                 last_message: MessageId::of("Blarg")
             })
@@ -127,7 +128,7 @@ async fn main() {
         serde_json::to_string_pretty(&Packet::Rpl {
             id: 67890,
             rpl: Rpl::Who(WhoRpl {
-                you: user.clone(),
+                you: session.clone(),
                 others: vec![]
             })
         })
@@ -136,21 +137,27 @@ async fn main() {
     println!(
         "{}",
         serde_json::to_string_pretty(&Packet::Ntf {
-            ntf: Ntf::Join(JoinNtf { user: user.clone() })
+            ntf: Ntf::Join(JoinNtf {
+                who: session.clone()
+            })
         })
         .unwrap()
     );
     println!(
         "{}",
         serde_json::to_string_pretty(&Packet::Ntf {
-            ntf: Ntf::Nick(NickNtf { user: user.clone() })
+            ntf: Ntf::Nick(NickNtf {
+                who: session.clone()
+            })
         })
         .unwrap()
     );
     println!(
         "{}",
         serde_json::to_string_pretty(&Packet::Ntf {
-            ntf: Ntf::Part(PartNtf { user: user.clone() })
+            ntf: Ntf::Part(PartNtf {
+                who: session.clone()
+            })
         })
         .unwrap()
     );
