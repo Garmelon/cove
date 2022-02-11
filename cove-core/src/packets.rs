@@ -5,6 +5,7 @@ use crate::{Message, MessageId, User};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct HelloCmd {
+    pub room: String,
     pub nick: String,
     pub identity: String,
 }
@@ -17,8 +18,15 @@ pub enum HelloRpl {
         others: Vec<User>,
         last_message: MessageId,
     },
-    NickTooLong,
-    IdentityTooLong,
+    InvalidRoom {
+        reason: String,
+    },
+    InvalidNick {
+        reason: String,
+    },
+    InvalidIdentity {
+        reason: String,
+    },
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -30,7 +38,7 @@ pub struct NickCmd {
 #[serde(tag = "type")]
 pub enum NickRpl {
     Success,
-    NickTooLong,
+    InvalidNick { reason: String },
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -43,8 +51,8 @@ pub struct SendCmd {
 #[serde(tag = "type")]
 pub enum SendRpl {
     Success { message: Message },
-    NickTooLong,
-    ContentTooLong,
+    InvalidNick { reason: String },
+    InvalidContent { reason: String },
 }
 
 #[derive(Debug, Deserialize, Serialize)]

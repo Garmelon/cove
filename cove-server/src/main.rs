@@ -25,6 +25,7 @@ async fn main() {
         serde_json::to_string_pretty(&Packet::Cmd {
             id: 12345,
             cmd: Cmd::Hello(HelloCmd {
+                room: "welcome".to_string(),
                 nick: "Garmy".to_string(),
                 identity: "random garbage".to_string()
             })
@@ -47,7 +48,9 @@ async fn main() {
         "{}",
         serde_json::to_string_pretty(&Packet::Rpl {
             id: 67890,
-            rpl: Rpl::Hello(HelloRpl::NickTooLong)
+            rpl: Rpl::Hello(HelloRpl::InvalidNick {
+                reason: "foo".to_string()
+            })
         })
         .unwrap()
     );
@@ -73,7 +76,9 @@ async fn main() {
         "{}",
         serde_json::to_string_pretty(&Packet::Rpl {
             id: 67890,
-            rpl: Rpl::Nick(NickRpl::NickTooLong)
+            rpl: Rpl::Nick(NickRpl::InvalidNick {
+                reason: "foo".to_string()
+            })
         })
         .unwrap()
     );
@@ -103,7 +108,9 @@ async fn main() {
         "{}",
         serde_json::to_string_pretty(&Packet::Rpl {
             id: 67890,
-            rpl: Rpl::Send(SendRpl::ContentTooLong)
+            rpl: Rpl::Send(SendRpl::InvalidContent {
+                reason: "foo".to_string()
+            })
         })
         .unwrap()
     );
