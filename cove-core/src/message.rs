@@ -4,7 +4,7 @@ use crate::{Identity, MessageId};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Message {
-    pub time: i128,
+    pub time: u128,
     pub pred: MessageId,
     pub parent: Option<MessageId>,
     pub identity: Identity,
