@@ -9,7 +9,6 @@ use rand::Rng;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
-use tokio::try_join;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_tungstenite::tungstenite::{self, Message};
 use tokio_tungstenite::WebSocketStream;
@@ -104,7 +103,7 @@ impl fmt::Debug for ConnMaintenance {
 
 impl ConnMaintenance {
     pub async fn perform(self) -> Result<()> {
-        let result = try_join!(
+        let result = tokio::try_join!(
             Self::shovel(self.rx, self.ws_tx),
             Self::ping_pong(self.tx, self.ping_delay, self.last_ping_payload)
         );
@@ -149,11 +148,11 @@ impl ConnMaintenance {
     }
 }
 
-pub async fn new(
-    stream: TcpStream,
+pub fn new(
+    stream: WebSocketStream<TcpStream>,
     ping_delay: Duration,
 ) -> Result<(ConnTx, ConnRx, ConnMaintenance)> {
-    let (ws_tx, ws_rx) = tokio_tungstenite::accept_async(stream).await?.split();
+    let (ws_tx, ws_rx) = stream.split();
     let (tx, rx) = mpsc::unbounded_channel();
     let last_ping_payload = Arc::new(Mutex::new(vec![]));
 
