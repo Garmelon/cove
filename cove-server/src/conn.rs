@@ -43,8 +43,8 @@ impl fmt::Debug for ConnTx {
 
 impl ConnTx {
     pub fn send(&self, packet: &Packet) -> Result<()> {
-        let msg = Message::Text(serde_json::to_string(packet)?);
-        self.tx.send(msg)?;
+        let str = serde_json::to_string(packet).expect("unserializable packet");
+        self.tx.send(Message::Text(str))?;
         Ok(())
     }
 }
