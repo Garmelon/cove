@@ -1,6 +1,6 @@
-use std::result;
 use std::sync::Arc;
 use std::time::Duration;
+use std::{fmt, result};
 
 use cove_core::packets::Packet;
 use futures::stream::{SplitSink, SplitStream};
@@ -35,6 +35,12 @@ pub struct ConnTx {
     tx: UnboundedSender<Message>,
 }
 
+impl fmt::Debug for ConnTx {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ConnTx").finish_non_exhaustive()
+    }
+}
+
 impl ConnTx {
     pub fn send(&self, packet: &Packet) -> Result<()> {
         let msg = Message::Text(serde_json::to_string(packet)?);
@@ -46,6 +52,12 @@ impl ConnTx {
 pub struct ConnRx {
     ws_rx: SplitStream<WebSocketStream<TcpStream>>,
     last_ping_payload: Arc<Mutex<Vec<u8>>>,
+}
+
+impl fmt::Debug for ConnRx {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ConnRx").finish_non_exhaustive()
+    }
 }
 
 impl ConnRx {
@@ -82,6 +94,12 @@ pub struct ConnMaintenance {
     tx: UnboundedSender<Message>,
     ping_delay: Duration,
     last_ping_payload: Arc<Mutex<Vec<u8>>>,
+}
+
+impl fmt::Debug for ConnMaintenance {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ConnMaintenance").finish_non_exhaustive()
+    }
 }
 
 impl ConnMaintenance {
