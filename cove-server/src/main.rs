@@ -1,23 +1,22 @@
+// TODO Logging
+
 mod conn;
 mod util;
 
-use std::any;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use anyhow::anyhow;
 use conn::{ConnMaintenance, ConnRx, ConnTx};
 use cove_core::packets::{
-    Cmd, HelloCmd, HelloRpl, JoinNtf, NickCmd, NickNtf, NickRpl, Ntf, Packet, PartNtf, SendCmd,
-    SendNtf, SendRpl, WhoCmd,
+    Cmd, HelloCmd, HelloRpl, JoinNtf, NickCmd, NickNtf, NickRpl, Packet, PartNtf, SendCmd, SendNtf,
+    SendRpl, WhoCmd, WhoRpl,
 };
 use cove_core::{Identity, Message, MessageId, Session, SessionId};
 use rand::Rng;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
-use tokio_tungstenite::tungstenite::http::header::LAST_MODIFIED;
-use util::timestamp;
 
 #[derive(Debug, Clone)]
 struct Client {
@@ -63,20 +62,26 @@ impl Room {
         }
     }
 
+    fn join(&mut self, client: Client) {
+        if self.clients.contains_key(&client.session.id) {
+            // Session ids are generated randomly and a collision should be very
+            // unlikely.
+            panic!("duplicated session id");
+        }
+
+        self.notify_all(&Packet::ntf(JoinNtf {
+            who: client.session.clone(),
+        }));
+
+        self.clients.insert(client.session.id, client);
+    }
+
     fn part(&mut self, id: SessionId) {
         let client = self.clients.remove(&id).expect("invalid session id");
 
         self.notify_all(&Packet::ntf(PartNtf {
             who: client.session,
         }));
-    }
-
-    fn join(&mut self, client: Client) {
-        self.notify_all(&Packet::ntf(JoinNtf {
-            who: client.session.clone(),
-        }));
-
-        self.clients.insert(client.session.id, client);
     }
 
     fn nick(&mut self, id: SessionId, nick: String) {
@@ -112,6 +117,17 @@ impl Room {
 
         message
     }
+
+    fn who(&self, id: SessionId) -> (Session, Vec<Session>) {
+        let session = self.client(id).session.clone();
+        let others = self
+            .clients
+            .values()
+            .filter(|client| client.session.id != id)
+            .map(|client| client.session.clone())
+            .collect();
+        (session, others)
+    }
 }
 
 #[derive(Debug)]
@@ -123,15 +139,6 @@ struct ServerSession {
 }
 
 impl ServerSession {
-    fn new(tx: ConnTx, rx: ConnRx, room: Arc<Mutex<Room>>, session: Session) -> Self {
-        Self {
-            tx,
-            rx,
-            room,
-            session,
-        }
-    }
-
     async fn handle_nick(&mut self, id: u64, cmd: NickCmd) -> anyhow::Result<()> {
         if let Some(reason) = util::check_nick(&cmd.nick) {
             self.tx
@@ -165,8 +172,10 @@ impl ServerSession {
         Ok(())
     }
 
-    async fn handle_who(&mut self, id: u64, cmd: WhoCmd) -> anyhow::Result<()> {
-        todo!()
+    async fn handle_who(&mut self, id: u64, _cmd: WhoCmd) -> anyhow::Result<()> {
+        let (you, others) = self.room.lock().await.who(self.session.id);
+        self.tx.send(&Packet::rpl(id, WhoRpl { you, others }))?;
+        Ok(())
     }
 
     async fn handle_packet(&mut self, packet: Packet) -> anyhow::Result<()> {
@@ -304,7 +313,6 @@ impl Server {
     }
 
     async fn on_conn(self, stream: TcpStream) -> anyhow::Result<()> {
-        // TODO Ping-pong starting from the beginning (not just after hello)
         println!("Connection from {}", stream.peer_addr().unwrap());
         let stream = tokio_tungstenite::accept_async(stream).await.unwrap();
         let (tx, rx, maintenance) = conn::new(stream, Duration::from_secs(10))?;
