@@ -51,7 +51,6 @@ pub struct SendCmd {
 #[serde(tag = "type")]
 pub enum SendRpl {
     Success { message: Message },
-    InvalidNick { reason: String },
     InvalidContent { reason: String },
 }
 
