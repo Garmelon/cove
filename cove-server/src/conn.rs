@@ -129,19 +129,18 @@ impl ConnMaintenance {
         let mut payload = [0u8; 8];
 
         rand::thread_rng().fill(&mut payload);
-        // debug!("Sending first ping with payload {:?}", payload);
         tx.send(Message::Ping(payload.to_vec()))?;
         tokio::time::sleep(ping_delay).await;
 
         loop {
-            let last_payload = last_ping_payload.lock().await;
-            if (&payload as &[u8]) != (&last_payload as &[u8]) {
-                // warn!("Invalid ping payload, client probably dead");
-                return Err(Error::NoPong);
-            }
+            {
+                let last_payload = last_ping_payload.lock().await;
+                if (&payload as &[u8]) != (&last_payload as &[u8]) {
+                    return Err(Error::NoPong);
+                }
+            };
 
             rand::thread_rng().fill(&mut payload);
-            // debug!("Sending ping with payload {:?}", payload);
             tx.send(Message::Ping(payload.to_vec()))?;
             tokio::time::sleep(ping_delay).await;
         }
