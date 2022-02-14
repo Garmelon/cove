@@ -14,6 +14,7 @@ use cove_core::packets::{
     SendRpl, WhoCmd, WhoRpl,
 };
 use cove_core::{Identity, Message, MessageId, Session, SessionId};
+use log::{info, warn};
 use rand::Rng;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
@@ -255,7 +256,8 @@ impl Server {
                     id,
                     cmd: Cmd::Hello(cmd),
                 }) => (id, cmd),
-                _ => return Err(anyhow!("not a Hello command")),
+                Some(_) => return Err(anyhow!("not a Hello packet")),
+                None => return Err(anyhow!("connection closed during greeting")),
             };
 
             if let Some((room, session)) = self.handle_hello(&tx, id, cmd).await? {
@@ -312,17 +314,30 @@ impl Server {
         Ok(())
     }
 
-    async fn on_conn(self, stream: TcpStream) -> anyhow::Result<()> {
-        println!("Connection from {}", stream.peer_addr().unwrap());
-        let stream = tokio_tungstenite::accept_async(stream).await.unwrap();
+    async fn handle_conn(&self, stream: TcpStream) -> anyhow::Result<()> {
+        let stream = tokio_tungstenite::accept_async(stream).await?;
         let (tx, rx, maintenance) = conn::new(stream, Duration::from_secs(10))?;
         tokio::try_join!(self.greet_and_run(tx, rx), Self::maintain(maintenance))?;
+        Ok(())
+    }
+
+    async fn on_conn(self, stream: TcpStream) -> anyhow::Result<()> {
+        let peer_addr = stream.peer_addr()?;
+        info!("<{peer_addr}> Connected");
+
+        if let Err(e) = self.handle_conn(stream).await {
+            warn!("<{peer_addr}> Err: {e}");
+        }
+
+        info!("<{peer_addr}> Disconnected");
         Ok(())
     }
 }
 
 #[tokio::main]
 async fn main() {
+    env_logger::init();
+
     let server = Server::new();
     let listener = TcpListener::bind(("::0", 40080)).await.unwrap();
     while let Ok((stream, _)) = listener.accept().await {

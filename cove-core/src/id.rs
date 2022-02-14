@@ -19,6 +19,8 @@ impl Id {
     }
 }
 
+// TODO Impl better fmt::Debug for Id and aliases
+
 impl fmt::Display for Id {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0.encode_hex::<String>())

@@ -6,7 +6,9 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.53"
 cove-core = { path = "../cove-core" }
+env_logger = "0.9.0"
 futures = "0.3.21"
+log = "0.4.14"
 rand = "0.8.4"
 serde_json = "1.0.78"
 thiserror = "1.0.30"
