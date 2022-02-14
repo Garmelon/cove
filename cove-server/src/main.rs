@@ -27,14 +27,16 @@ struct Client {
 
 #[derive(Debug)]
 struct Room {
+    name: String,
     clients: HashMap<SessionId, Client>,
     last_message: MessageId,
     last_timestamp: u128,
 }
 
 impl Room {
-    fn new() -> Self {
+    fn new(name: String) -> Self {
         Self {
+            name,
             clients: HashMap::new(),
             last_message: MessageId::of(&format!("{}", rand::thread_rng().gen::<u64>())),
             last_timestamp: util::timestamp(),
@@ -108,6 +110,12 @@ impl Room {
             nick: client.session.nick.clone(),
             content,
         };
+
+        self.last_message = message.id();
+        info!(
+            "&{} now at {} ({})",
+            self.name, self.last_message, self.last_timestamp
+        );
 
         self.notify_except(
             id,
@@ -216,8 +224,8 @@ impl Server {
         self.rooms
             .lock()
             .await
-            .entry(name)
-            .or_insert_with(|| Arc::new(Mutex::new(Room::new())))
+            .entry(name.clone())
+            .or_insert_with(|| Arc::new(Mutex::new(Room::new(name))))
             .clone()
     }
 
