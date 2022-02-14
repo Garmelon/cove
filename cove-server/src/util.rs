@@ -13,7 +13,7 @@ pub fn timestamp_after(previous: u128) -> u128 {
 }
 
 pub fn check_room(room: &str) -> Option<String> {
-    if !room.is_empty() {
+    if room.is_empty() {
         return Some("is empty".to_string());
     }
     if !room.is_ascii() {
@@ -32,10 +32,10 @@ pub fn check_room(room: &str) -> Option<String> {
 }
 
 pub fn check_nick(nick: &str) -> Option<String> {
-    if !nick.is_empty() {
+    if nick.is_empty() {
         return Some("is empty".to_string());
     }
-    if !nick.trim().is_empty() {
+    if nick.trim().is_empty() {
         return Some("contains only whitespace".to_string());
     }
     let nick = nick.trim();
