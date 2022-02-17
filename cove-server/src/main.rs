@@ -1,6 +1,5 @@
 // TODO Logging
 
-mod conn;
 mod util;
 
 use std::collections::HashMap;
@@ -8,7 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::anyhow;
-use conn::{ConnMaintenance, ConnRx, ConnTx};
+use cove_core::conn::{self, ConnMaintenance, ConnRx, ConnTx};
 use cove_core::packets::{
     Cmd, HelloCmd, HelloRpl, JoinNtf, NickCmd, NickNtf, NickRpl, Packet, PartNtf, SendCmd, SendNtf,
     SendRpl, WhoCmd, WhoRpl,

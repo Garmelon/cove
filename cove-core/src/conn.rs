@@ -3,7 +3,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::{fmt, io, result};
 
-use cove_core::packets::Packet;
 use futures::stream::{SplitSink, SplitStream};
 use futures::StreamExt;
 use log::debug;
@@ -14,6 +13,8 @@ use tokio::sync::Mutex;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_tungstenite::tungstenite::{self, Message};
 use tokio_tungstenite::WebSocketStream;
+
+use crate::packets::Packet;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

@@ -1,3 +1,4 @@
+pub mod conn;
 mod id;
 mod macros;
 mod message;

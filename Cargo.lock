@@ -86,9 +86,17 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 name = "cove-core"
 version = "0.1.0"
 dependencies = [
+ "futures",
  "hex",
+ "log",
+ "rand",
  "serde",
+ "serde_json",
  "sha2",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "tokio-tungstenite",
 ]
 
 [[package]]
