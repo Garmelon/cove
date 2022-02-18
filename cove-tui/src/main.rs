@@ -1,4 +1,5 @@
 mod replies;
+mod room;
 
 use std::io::{self, Stdout};
 use std::time::Duration;
