@@ -9,14 +9,15 @@ use std::time::Duration;
 use anyhow::anyhow;
 use cove_core::conn::{self, ConnMaintenance, ConnRx, ConnTx};
 use cove_core::packets::{
-    Cmd, HelloCmd, HelloRpl, JoinNtf, NickCmd, NickNtf, NickRpl, Packet, PartNtf, SendCmd, SendNtf,
-    SendRpl, WhoCmd, WhoRpl,
+    Cmd, IdentifyCmd, IdentifyRpl, JoinNtf, NickCmd, NickNtf, NickRpl, Packet, PartNtf, SendCmd,
+    SendNtf, SendRpl, WhoCmd, WhoRpl,
 };
 use cove_core::{Identity, Message, MessageId, Session, SessionId};
 use log::{info, warn};
 use rand::Rng;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
+use tokio_tungstenite::MaybeTlsStream;
 
 #[derive(Debug, Clone)]
 struct Client {
@@ -155,7 +156,12 @@ impl ServerSession {
         }
 
         self.session.nick = cmd.nick.clone();
-        self.tx.send(&Packet::rpl(id, NickRpl::Success))?;
+        self.tx.send(&Packet::rpl(
+            id,
+            NickRpl::Success {
+                you: self.session.clone(),
+            },
+        ))?;
         self.room.lock().await.nick(self.session.id, cmd.nick);
 
         Ok(())
@@ -189,7 +195,8 @@ impl ServerSession {
     async fn handle_packet(&mut self, packet: Packet) -> anyhow::Result<()> {
         match packet {
             Packet::Cmd { id, cmd } => match cmd {
-                Cmd::Hello(_) => Err(anyhow!("unexpected Hello cmd")),
+                Cmd::Room(_) => Err(anyhow!("unexpected Room cmd")),
+                Cmd::Identify(_) => Err(anyhow!("unexpected Identify cmd")),
                 Cmd::Nick(cmd) => self.handle_nick(id, cmd).await,
                 Cmd::Send(cmd) => self.handle_send(id, cmd).await,
                 Cmd::Who(cmd) => self.handle_who(id, cmd).await,
@@ -228,90 +235,92 @@ impl Server {
             .clone()
     }
 
-    async fn handle_hello(
-        &self,
-        tx: &ConnTx,
-        id: u64,
-        cmd: HelloCmd,
-    ) -> anyhow::Result<Option<(String, Session)>> {
-        if let Some(reason) = util::check_room(&cmd.room) {
-            tx.send(&Packet::rpl(id, HelloRpl::InvalidRoom { reason }))?;
-            return Ok(None);
-        }
-        if let Some(reason) = util::check_nick(&cmd.nick) {
-            tx.send(&Packet::rpl(id, HelloRpl::InvalidNick { reason }))?;
-            return Ok(None);
-        }
-        if let Some(reason) = util::check_identity(&cmd.identity) {
-            tx.send(&Packet::rpl(id, HelloRpl::InvalidIdentity { reason }))?;
-            return Ok(None);
-        }
+    // async fn handle_hello(
+    //     &self,
+    //     tx: &ConnTx,
+    //     id: u64,
+    //     cmd: IdentifyCmd,
+    // ) -> anyhow::Result<Option<(String, Session)>> {
+    //     if let Some(reason) = util::check_room(&cmd.room) {
+    //         tx.send(&Packet::rpl(id, IdentifyRpl::InvalidRoom { reason }))?;
+    //         return Ok(None);
+    //     }
+    //     if let Some(reason) = util::check_nick(&cmd.nick) {
+    //         tx.send(&Packet::rpl(id, IdentifyRpl::InvalidNick { reason }))?;
+    //         return Ok(None);
+    //     }
+    //     if let Some(reason) = util::check_identity(&cmd.identity) {
+    //         tx.send(&Packet::rpl(id, IdentifyRpl::InvalidIdentity { reason }))?;
+    //         return Ok(None);
+    //     }
 
-        let session = Session {
-            id: SessionId::of(&format!("{}", rand::thread_rng().gen::<u64>())),
-            nick: cmd.nick,
-            identity: Identity::of(&cmd.identity),
-        };
+    //     let session = Session {
+    //         id: SessionId::of(&format!("{}", rand::thread_rng().gen::<u64>())),
+    //         nick: cmd.nick,
+    //         identity: Identity::of(&cmd.identity),
+    //     };
 
-        Ok(Some((cmd.room, session)))
-    }
+    //     Ok(Some((cmd.room, session)))
+    // }
 
-    async fn greet(&self, tx: ConnTx, mut rx: ConnRx) -> anyhow::Result<ServerSession> {
-        let (id, room, session) = loop {
-            let (id, cmd) = match rx.recv().await? {
-                Some(Packet::Cmd {
-                    id,
-                    cmd: Cmd::Hello(cmd),
-                }) => (id, cmd),
-                Some(_) => return Err(anyhow!("not a Hello packet")),
-                None => return Err(anyhow!("connection closed during greeting")),
-            };
+    // async fn greet(&self, tx: ConnTx, mut rx: ConnRx) -> anyhow::Result<ServerSession> {
+    //     let (id, room, session) = loop {
+    //         let (id, cmd) = match rx.recv().await? {
+    //             Some(Packet::Cmd {
+    //                 id,
+    //                 cmd: Cmd::Hello(cmd),
+    //             }) => (id, cmd),
+    //             Some(_) => return Err(anyhow!("not a Hello packet")),
+    //             None => return Err(anyhow!("connection closed during greeting")),
+    //         };
 
-            if let Some((room, session)) = self.handle_hello(&tx, id, cmd).await? {
-                break (id, room, session);
-            }
-        };
+    //         if let Some((room, session)) = self.handle_hello(&tx, id, cmd).await? {
+    //             break (id, room, session);
+    //         }
+    //     };
 
-        let room = self.room(room).await;
+    //     let room = self.room(room).await;
 
-        {
-            let mut room = room.lock().await;
+    //     {
+    //         let mut room = room.lock().await;
 
-            let you = session.clone();
-            let others = room
-                .clients
-                .values()
-                .map(|client| client.session.clone())
-                .collect::<Vec<_>>();
-            let last_message = room.last_message;
+    //         let you = session.clone();
+    //         let others = room
+    //             .clients
+    //             .values()
+    //             .map(|client| client.session.clone())
+    //             .collect::<Vec<_>>();
+    //         let last_message = room.last_message;
 
-            tx.send(&Packet::rpl(
-                id,
-                HelloRpl::Success {
-                    you,
-                    others,
-                    last_message,
-                },
-            ))?;
+    //         tx.send(&Packet::rpl(
+    //             id,
+    //             IdentifyRpl::Success {
+    //                 you,
+    //                 others,
+    //                 last_message,
+    //             },
+    //         ))?;
 
-            room.join(Client {
-                session: session.clone(),
-                send: tx.clone(),
-            });
-        }
+    //         room.join(Client {
+    //             session: session.clone(),
+    //             send: tx.clone(),
+    //         });
+    //     }
 
-        Ok(ServerSession {
-            tx,
-            rx,
-            room,
-            session,
-        })
-    }
+    //     Ok(ServerSession {
+    //         tx,
+    //         rx,
+    //         room,
+    //         session,
+    //     })
+    // }
+
     async fn greet_and_run(&self, tx: ConnTx, rx: ConnRx) -> anyhow::Result<()> {
-        let mut session = self.greet(tx, rx).await?;
-        let result = session.run().await;
-        session.room.lock().await.part(session.session.id);
-        result
+        // let mut session = self.greet(tx, rx).await?;
+        // let result = session.run().await;
+        // session.room.lock().await.part(session.session.id);
+        // result
+        todo!()
     }
 
     /// Wrapper for [`ConnMaintenance::perform`] so it returns an
@@ -322,6 +331,7 @@ impl Server {
     }
 
     async fn handle_conn(&self, stream: TcpStream) -> anyhow::Result<()> {
+        let stream = MaybeTlsStream::Plain(stream);
         let stream = tokio_tungstenite::accept_async(stream).await?;
         let (tx, rx, maintenance) = conn::new(stream, Duration::from_secs(10))?;
         tokio::try_join!(self.greet_and_run(tx, rx), Self::maintain(maintenance))?;

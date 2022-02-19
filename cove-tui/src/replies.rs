@@ -6,8 +6,11 @@ use std::time::Duration;
 use tokio::sync::oneshot::{self, Receiver, Sender};
 use tokio::time;
 
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("timed out")]
     TimedOut,
+    #[error("canceled")]
     Canceled,
 }
 
@@ -35,7 +38,14 @@ pub struct Replies<I, R> {
 }
 
 impl<I: Eq + Hash, R> Replies<I, R> {
-    pub async fn wait_for(&mut self, id: I) -> PendingReply<R> {
+    pub fn new(timeout: Duration) -> Self {
+        Self {
+            timeout,
+            pending: HashMap::new(),
+        }
+    }
+
+    pub fn wait_for(&mut self, id: I) -> PendingReply<R> {
         let (tx, rx) = oneshot::channel();
         self.pending.insert(id, tx);
         PendingReply {

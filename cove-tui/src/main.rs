@@ -1,9 +1,12 @@
 mod replies;
 mod room;
+mod config;
+mod never;
 
 use std::io::{self, Stdout};
 use std::time::Duration;
 
+use config::Config;
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
 use crossterm::execute;
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
@@ -23,6 +26,8 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> anyhow::Resul
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let config = Config::load();
+
     let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
 
     crossterm::terminal::enable_raw_mode()?;

@@ -12,7 +12,7 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_tungstenite::tungstenite::{self, Message};
-use tokio_tungstenite::WebSocketStream;
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 use crate::packets::Packet;
 
@@ -34,9 +34,10 @@ pub enum Error {
 
 pub type Result<T> = result::Result<T, Error>;
 
+type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
+
 #[derive(Clone)]
 pub struct ConnTx {
-    peer_addr: SocketAddr,
     tx: UnboundedSender<Message>,
 }
 
@@ -49,16 +50,14 @@ impl fmt::Debug for ConnTx {
 impl ConnTx {
     pub fn send(&self, packet: &Packet) -> Result<()> {
         let str = serde_json::to_string(packet).expect("unserializable packet");
-        // TODO Format somewhat nicer?
-        debug!("<{}> ↑ {}", self.peer_addr, str.trim());
+        debug!("↑ {}", str.trim()); // TODO Format somewhat nicer?
         self.tx.send(Message::Text(str))?;
         Ok(())
     }
 }
 
 pub struct ConnRx {
-    peer_addr: SocketAddr,
-    ws_rx: SplitStream<WebSocketStream<TcpStream>>,
+    ws_rx: SplitStream<WsStream>,
     last_ping_payload: Arc<Mutex<Vec<u8>>>,
 }
 
@@ -92,8 +91,7 @@ impl ConnRx {
 
             let packet = serde_json::from_str(&str)?;
 
-            // TODO Format somewhat nicer?
-            debug!("<{}> ↓ {}", self.peer_addr, str.trim());
+            debug!("↓ {}", str.trim()); // TODO Format somewhat nicer?
 
             return Ok(Some(packet));
         }
@@ -103,7 +101,7 @@ impl ConnRx {
 pub struct ConnMaintenance {
     // Shoveling packets into the WS connection
     rx: UnboundedReceiver<Message>,
-    ws_tx: SplitSink<WebSocketStream<TcpStream>, Message>,
+    ws_tx: SplitSink<WsStream, Message>,
     // Pinging and ponging
     tx: UnboundedSender<Message>,
     ping_delay: Duration,
@@ -127,7 +125,7 @@ impl ConnMaintenance {
 
     async fn shovel(
         rx: UnboundedReceiver<Message>,
-        ws_tx: SplitSink<WebSocketStream<TcpStream>, Message>,
+        ws_tx: SplitSink<WsStream, Message>,
     ) -> Result<()> {
         UnboundedReceiverStream::new(rx)
             .map(Ok)
@@ -163,22 +161,13 @@ impl ConnMaintenance {
     }
 }
 
-pub fn new(
-    stream: WebSocketStream<TcpStream>,
-    ping_delay: Duration,
-) -> Result<(ConnTx, ConnRx, ConnMaintenance)> {
-    let peer_addr = stream.get_ref().peer_addr()?;
-
+pub fn new(stream: WsStream, ping_delay: Duration) -> Result<(ConnTx, ConnRx, ConnMaintenance)> {
     let (ws_tx, ws_rx) = stream.split();
     let (tx, rx) = mpsc::unbounded_channel();
     let last_ping_payload = Arc::new(Mutex::new(vec![]));
 
-    let conn_tx = ConnTx {
-        peer_addr,
-        tx: tx.clone(),
-    };
+    let conn_tx = ConnTx { tx: tx.clone() };
     let conn_rx = ConnRx {
-        peer_addr,
         ws_rx,
         last_ping_payload: last_ping_payload.clone(),
     };

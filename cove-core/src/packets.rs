@@ -4,22 +4,29 @@ use crate::macros::packets;
 use crate::{Message, MessageId, Session};
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct HelloCmd {
-    pub room: String,
+pub struct RoomCmd {
+    pub name: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub enum RoomRpl {
+    Success,
+    InvalidRoom { reason: String },
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct IdentifyCmd {
     pub nick: String,
     pub identity: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
-pub enum HelloRpl {
+pub enum IdentifyRpl {
     Success {
         you: Session,
         others: Vec<Session>,
         last_message: MessageId,
-    },
-    InvalidRoom {
-        reason: String,
     },
     InvalidNick {
         reason: String,
@@ -37,7 +44,7 @@ pub struct NickCmd {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
 pub enum NickRpl {
-    Success,
+    Success { you: Session },
     InvalidNick { reason: String },
 }
 
@@ -86,7 +93,8 @@ pub struct SendNtf {
 // Create a Cmd enum for all commands, a Rpl enum for all replies and a Ntf enum
 // for all notifications, as well as TryFrom impls for the individual structs.
 packets! {
-    cmd Hello(HelloCmd, HelloRpl),
+    cmd Room(RoomCmd, RoomRpl),
+    cmd Identify(IdentifyCmd, IdentifyRpl),
     cmd Nick(NickCmd, NickRpl),
     cmd Send(SendCmd, SendRpl),
     cmd Who(WhoCmd, WhoRpl),

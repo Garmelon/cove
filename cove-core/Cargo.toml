@@ -14,4 +14,6 @@ sha2 = "0.10.1"
 thiserror = "1.0.30"
 tokio = { version = "1.16.1", features = ["full"] }
 tokio-stream = "0.1.8"
-tokio-tungstenite = "0.16.1"
+tokio-tungstenite = { version = "0.16.1", features = [
+    "rustls-tls-native-roots",
+] }
