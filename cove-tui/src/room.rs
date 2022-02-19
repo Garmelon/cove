@@ -162,6 +162,7 @@ impl Room {
             Rpl::Room(RoomRpl::Success) => {
                 *room_verified = true;
                 if let Some(nick) = &self.initial_nick {
+                    // TODO Use previous nick if there is one
                     tokio::spawn(Self::identify(
                         room.clone(),
                         nick.clone(),
