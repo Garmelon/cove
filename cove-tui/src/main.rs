@@ -4,21 +4,18 @@ mod replies;
 mod room;
 
 use std::io::{self, Stdout};
-use std::time::Duration;
 
 use config::Config;
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
 use crossterm::execute;
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
 use palette::rgb::Rgb;
-use palette::{FromColor, Hsl, Hsv, Saturate, Srgb};
-use tokio::time;
+use palette::{FromColor, Hsl, Srgb};
 use tui::backend::CrosstermBackend;
-use tui::layout::{Constraint, Corner, Direction, Layout};
+use tui::layout::{Constraint, Direction, Layout};
 use tui::style::{Color, Modifier, Style};
-use tui::symbols::line::VERTICAL;
 use tui::text::{Span, Spans};
-use tui::widgets::{Block, Borders, Cell, List, ListItem, ListState, Paragraph, Row, Table, Tabs};
+use tui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
 use tui::Terminal;
 
 async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> anyhow::Result<()> {
@@ -107,7 +104,10 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> anyhow::Resul
                 ListItem::new(Span::styled("SuperGeek", userstyle(192, 242, 203))),
                 ListItem::new(Span::styled("certainlyhominid", userstyle(192, 242, 209))),
                 ListItem::new(Span::styled("Plugh", userstyle(192, 242, 215))),
-                ListItem::new(Span::styled("🎼\u{fe0e}🎷🎷🎷🎼\u{fe0e}", userstyle(242, 192, 192))),
+                ListItem::new(Span::styled(
+                    "🎼\u{fe0e}🎷🎷🎷🎼\u{fe0e}",
+                    userstyle(242, 192, 192),
+                )),
             ]),
             nchunks[1],
         );

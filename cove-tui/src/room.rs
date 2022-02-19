@@ -1,13 +1,10 @@
-use std::any;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::bail;
 use cove_core::conn::{self, ConnMaintenance, ConnRx, ConnTx};
 use cove_core::packets::{
-    Cmd, IdentifyCmd, IdentifyRpl, JoinNtf, NickRpl, Ntf, Packet, RoomCmd, RoomRpl, Rpl, SendRpl,
-    WhoRpl,
+    Cmd, IdentifyCmd, IdentifyRpl, NickRpl, Ntf, Packet, RoomRpl, Rpl, SendRpl, WhoRpl,
 };
 use cove_core::{Session, SessionId};
 use tokio::sync::oneshot::{self, Sender};

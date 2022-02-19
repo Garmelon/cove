@@ -9,10 +9,10 @@ use std::time::Duration;
 use anyhow::anyhow;
 use cove_core::conn::{self, ConnMaintenance, ConnRx, ConnTx};
 use cove_core::packets::{
-    Cmd, IdentifyCmd, IdentifyRpl, JoinNtf, NickCmd, NickNtf, NickRpl, Packet, PartNtf, SendCmd,
-    SendNtf, SendRpl, WhoCmd, WhoRpl,
+    Cmd, JoinNtf, NickCmd, NickNtf, NickRpl, Packet, PartNtf, SendCmd, SendNtf, SendRpl, WhoCmd,
+    WhoRpl,
 };
-use cove_core::{Identity, Message, MessageId, Session, SessionId};
+use cove_core::{Message, MessageId, Session, SessionId};
 use log::{info, warn};
 use rand::Rng;
 use tokio::net::{TcpListener, TcpStream};
