@@ -18,3 +18,4 @@ tokio-tungstenite = { version = "0.16.1", features = [
     "rustls-tls-native-roots",
 ] }
 tui = "0.17.0"
+unicode-width = "0.1.9"
