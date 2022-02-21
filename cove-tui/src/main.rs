@@ -11,6 +11,8 @@ use crossterm::execute;
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
 use textline::{TextLine, TextLineState};
 use tui::backend::{Backend, CrosstermBackend};
+use tui::layout::{Constraint, Direction, Layout, Margin, Rect};
+use tui::widgets::{Block, Borders};
 use tui::{Frame, Terminal};
 
 #[derive(Debug, Default)]
@@ -20,8 +22,22 @@ struct Ui {
 
 impl Ui {
     fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
-        f.render_stateful_widget(TextLine, f.size(), &mut self.text);
-        self.text.set_cursor(f, f.size());
+        let outer = Rect {
+            x: 0,
+            y: 0,
+            width: 50 + 2,
+            height: 1 + 2,
+        };
+        let inner = Rect {
+            x: 1,
+            y: 1,
+            width: 50,
+            height: 1,
+        };
+
+        f.render_widget(Block::default().borders(Borders::ALL), outer);
+        f.render_stateful_widget(TextLine, inner, &mut self.text);
+        self.text.set_cursor(f, inner);
     }
 }
 
