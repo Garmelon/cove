@@ -197,6 +197,7 @@ dependencies = [
  "clap",
  "cove-core",
  "crossterm",
+ "futures",
  "palette",
  "thiserror",
  "tokio",
@@ -222,6 +223,7 @@ checksum = "c85525306c4291d1b73ce93c8acf9c339f9b213aef6c1d85c3830cbf1c16325c"
 dependencies = [
  "bitflags",
  "crossterm_winapi",
+ "futures-core",
  "libc",
  "mio",
  "parking_lot",
