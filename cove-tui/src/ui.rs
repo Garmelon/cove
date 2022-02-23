@@ -2,6 +2,7 @@ use std::io::Stdout;
 
 use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, MouseEvent, MouseEventKind};
 use futures::StreamExt;
+use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tui::backend::CrosstermBackend;
 use tui::layout::{Constraint, Direction, Layout};
@@ -78,19 +79,28 @@ impl Ui {
             terminal.flush_backend()?;
             terminal.swap_buffers();
 
-            // 2. Handle events
-            let event = event_rx.recv().await;
-            self.log.push(format!("{event:?}"));
-            let result = match event {
-                Some(UiEvent::Term(Event::Key(event))) => self.handle_key_event(event).await?,
-                Some(UiEvent::Term(Event::Mouse(event))) => self.handle_mouse_event(event).await?,
-                Some(UiEvent::Term(Event::Resize(_, _))) => EventHandleResult::Continue,
-                Some(UiEvent::Redraw) => EventHandleResult::Continue,
-                None => EventHandleResult::Stop,
+            // 2. Handle events (in batches)
+            let mut event = match event_rx.recv().await {
+                Some(event) => event,
+                None => return Ok(()),
             };
-            match result {
-                EventHandleResult::Continue => {}
-                EventHandleResult::Stop => break Ok(()),
+            loop {
+                self.log.push(format!("{event:?}"));
+                let result = match event {
+                    UiEvent::Term(Event::Key(event)) => self.handle_key_event(event).await?,
+                    UiEvent::Term(Event::Mouse(event)) => self.handle_mouse_event(event).await?,
+                    UiEvent::Term(Event::Resize(_, _)) => EventHandleResult::Continue,
+                    UiEvent::Redraw => EventHandleResult::Continue,
+                };
+                match result {
+                    EventHandleResult::Continue => {}
+                    EventHandleResult::Stop => return Ok(()),
+                }
+                event = match event_rx.try_recv() {
+                    Ok(event) => event,
+                    Err(TryRecvError::Empty) => break,
+                    Err(TryRecvError::Disconnected) => return Ok(()),
+                };
             }
         }
     }
