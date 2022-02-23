@@ -1,3 +1,5 @@
+mod rooms;
+
 use std::io::Stdout;
 
 use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, MouseEvent, MouseEventKind};
@@ -6,8 +8,10 @@ use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tui::backend::CrosstermBackend;
 use tui::layout::{Constraint, Direction, Layout};
-use tui::widgets::{Block, Borders, Paragraph};
+use tui::widgets::Paragraph;
 use tui::{Frame, Terminal};
+
+use self::rooms::{Rooms, RoomsState};
 
 pub type Backend = CrosstermBackend<Stdout>;
 
@@ -24,8 +28,7 @@ enum EventHandleResult {
 
 pub struct Ui {
     event_tx: UnboundedSender<UiEvent>,
-    rooms_width: u16,
-    rooms_dragging: bool,
+    rooms_state: RoomsState,
     log: Vec<String>,
 }
 
@@ -33,8 +36,7 @@ impl Ui {
     fn new(event_tx: UnboundedSender<UiEvent>) -> Self {
         Self {
             event_tx,
-            rooms_width: 24,
-            rooms_dragging: false,
+            rooms_state: RoomsState::default(),
             log: vec!["Hello world!".to_string()],
         }
     }
@@ -130,17 +132,13 @@ impl Ui {
     }
 
     async fn handle_mouse_event(&mut self, event: MouseEvent) -> anyhow::Result<EventHandleResult> {
+        let rooms_width = event.column + 1;
+        let over_rooms = self.rooms_state.width() == rooms_width;
         match event.kind {
-            MouseEventKind::Down(_) if event.column == self.rooms_width => {
-                self.rooms_dragging = true;
-            }
-            MouseEventKind::Up(_) => {
-                self.rooms_dragging = false;
-            }
-            MouseEventKind::Drag(_) if self.rooms_dragging => {
-                self.rooms_width = event.column;
-            }
-            // MouseEventKind::Moved => todo!(),
+            MouseEventKind::Moved => self.rooms_state.hover(over_rooms),
+            MouseEventKind::Down(_) => self.rooms_state.drag(over_rooms),
+            MouseEventKind::Up(_) => self.rooms_state.drag(false),
+            MouseEventKind::Drag(_) => self.rooms_state.drag_to(rooms_width),
             // MouseEventKind::ScrollDown => todo!(),
             // MouseEventKind::ScrollUp => todo!(),
             _ => {}
@@ -152,23 +150,23 @@ impl Ui {
         let outer = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
-                Constraint::Length(self.rooms_width),
-                Constraint::Length(1),
+                Constraint::Length(self.rooms_state.width()),
                 Constraint::Min(0),
             ])
             .split(frame.size());
 
-        frame.render_widget(Block::default().borders(Borders::RIGHT), outer[1]);
+        frame.render_stateful_widget(Rooms::new(), outer[0], &mut self.rooms_state);
 
-        let scroll = if self.log.len() as u16 > outer[2].height {
-            self.log.len() as u16 - outer[2].height
+        let scroll = if self.log.len() as u16 > outer[1].height {
+            self.log.len() as u16 - outer[1].height
         } else {
             0
         };
         frame.render_widget(
             Paragraph::new(self.log.join("\n")).scroll((scroll, 0)),
-            outer[2],
+            outer[1],
         );
+
         Ok(())
     }
 }
