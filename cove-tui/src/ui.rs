@@ -1,15 +1,20 @@
 mod rooms;
 
+use std::collections::HashMap;
 use std::io::Stdout;
+use std::sync::Arc;
 
 use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, MouseEvent, MouseEventKind};
 use futures::StreamExt;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use tokio::sync::Mutex;
 use tui::backend::CrosstermBackend;
 use tui::layout::{Constraint, Direction, Layout};
 use tui::widgets::Paragraph;
 use tui::{Frame, Terminal};
+
+use crate::room::Room;
 
 use self::rooms::{Rooms, RoomsState};
 
@@ -28,6 +33,7 @@ enum EventHandleResult {
 
 pub struct Ui {
     event_tx: UnboundedSender<UiEvent>,
+    rooms: HashMap<String, Arc<Mutex<Room>>>,
     rooms_state: RoomsState,
     log: Vec<String>,
 }
@@ -36,6 +42,7 @@ impl Ui {
     fn new(event_tx: UnboundedSender<UiEvent>) -> Self {
         Self {
             event_tx,
+            rooms: HashMap::new(),
             rooms_state: RoomsState::default(),
             log: vec!["Hello world!".to_string()],
         }
@@ -155,7 +162,8 @@ impl Ui {
             ])
             .split(frame.size());
 
-        frame.render_stateful_widget(Rooms::new(), outer[0], &mut self.rooms_state);
+        // frame.render_stateful_widget(Rooms::new(&self.rooms), outer[0], &mut self.rooms_state);
+        frame.render_stateful_widget(Rooms::dummy(), outer[0], &mut self.rooms_state);
 
         let scroll = if self.log.len() as u16 > outer[1].height {
             self.log.len() as u16 - outer[1].height
