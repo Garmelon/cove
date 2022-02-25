@@ -1,4 +1,5 @@
 mod rooms;
+mod textline;
 
 use std::collections::HashMap;
 use std::io::Stdout;

@@ -2,7 +2,6 @@ mod config;
 mod never;
 mod replies;
 mod room;
-mod textline;
 mod ui;
 
 use std::io;
