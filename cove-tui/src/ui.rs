@@ -162,8 +162,8 @@ impl Ui {
             ])
             .split(frame.size());
 
-        // frame.render_stateful_widget(Rooms::new(&self.rooms), outer[0], &mut self.rooms_state);
-        frame.render_stateful_widget(Rooms::dummy(), outer[0], &mut self.rooms_state);
+        frame.render_stateful_widget(Rooms::new(&self.rooms), outer[0], &mut self.rooms_state);
+        // frame.render_stateful_widget(Rooms::dummy(), outer[0], &mut self.rooms_state);
 
         let scroll = if self.log.len() as u16 > outer[1].height {
             self.log.len() as u16 - outer[1].height

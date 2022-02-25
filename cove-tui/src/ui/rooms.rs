@@ -65,9 +65,6 @@ impl StatefulWidget for Rooms {
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         let title_style = Style::default().add_modifier(Modifier::BOLD);
-        let empty_style = Style::default()
-            .fg(Color::Gray)
-            .add_modifier(Modifier::ITALIC);
         let room_style = Style::default().fg(Color::LightBlue);
         let selected_room_style = room_style.add_modifier(Modifier::BOLD);
 
@@ -78,13 +75,12 @@ impl StatefulWidget for Rooms {
             width: area.width - 1,
             ..area
         };
-        let mut lines = vec![Spans::from(Span::styled("Rooms", title_style))];
-        if self.rooms.is_empty() {
-            lines.push(Spans::from(vec![
-                Span::raw("\r\n"),
-                Span::styled("none", empty_style),
-            ]));
-        }
+        let title = if let Some(selected) = self.selected {
+            format!("Rooms ({}/{})", selected + 1, self.rooms.len())
+        } else {
+            format!("Rooms ({})", self.rooms.len())
+        };
+        let mut lines = vec![Spans::from(Span::styled(title, title_style))];
         for (i, room) in self.rooms.iter().enumerate() {
             let name = format!("&{}", room.name);
             if Some(i) == self.selected {
