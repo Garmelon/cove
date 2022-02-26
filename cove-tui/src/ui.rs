@@ -1,6 +1,7 @@
 mod input;
 mod layout;
 mod overlays;
+mod room;
 mod rooms;
 mod textline;
 
@@ -24,6 +25,7 @@ use crate::ui::overlays::OverlayReaction;
 
 use self::input::EventHandler;
 use self::overlays::{JoinRoom, JoinRoomState};
+use self::room::RoomInfo;
 use self::rooms::{Rooms, RoomsState};
 
 pub type Backend = CrosstermBackend<Stdout>;
@@ -48,6 +50,7 @@ pub struct Ui {
     event_tx: UnboundedSender<UiEvent>,
     rooms: HashMap<String, Arc<Mutex<Room>>>,
     rooms_state: RoomsState,
+    room: Option<RoomInfo>,
     overlay: Option<Overlay>,
 }
 
@@ -58,6 +61,7 @@ impl Ui {
             event_tx,
             rooms: HashMap::new(),
             rooms_state: RoomsState::default(),
+            room: None,
             overlay: None,
         }
     }
@@ -225,13 +229,16 @@ impl Ui {
     }
 
     async fn switch_to_room(&mut self, name: String) {
-        match self.rooms.entry(name.clone()) {
-            Entry::Occupied(_) => {}
+        let room = match self.rooms.entry(name.clone()) {
+            Entry::Occupied(entry) => entry.get().clone(),
             Entry::Vacant(entry) => {
-                entry.insert(
-                    Room::new(name, self.config.cove_identity.clone(), None, self.config).await,
-                );
+                let identity = self.config.cove_identity.clone();
+                let room = Room::new(name.clone(), identity, None, self.config).await;
+                entry.insert(room.clone());
+                room
             }
-        }
+        };
+
+        self.room = Some(RoomInfo::new(name, room))
     }
 }
