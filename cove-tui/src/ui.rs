@@ -1,3 +1,6 @@
+mod input;
+mod layout;
+mod overlays;
 mod rooms;
 mod textline;
 
@@ -12,11 +15,13 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
 use tui::backend::CrosstermBackend;
 use tui::layout::{Constraint, Direction, Layout};
-use tui::widgets::Paragraph;
 use tui::{Frame, Terminal};
 
 use crate::room::Room;
+use crate::ui::overlays::OverlayReaction;
 
+use self::input::EventHandler;
+use self::overlays::{JoinRoom, JoinRoomState};
 use self::rooms::{Rooms, RoomsState};
 
 pub type Backend = CrosstermBackend<Stdout>;
@@ -32,11 +37,15 @@ enum EventHandleResult {
     Stop,
 }
 
+enum Overlay {
+    JoinRoom(JoinRoomState),
+}
+
 pub struct Ui {
     event_tx: UnboundedSender<UiEvent>,
     rooms: HashMap<String, Arc<Mutex<Room>>>,
     rooms_state: RoomsState,
-    log: Vec<String>,
+    overlay: Option<Overlay>,
 }
 
 impl Ui {
@@ -45,7 +54,7 @@ impl Ui {
             event_tx,
             rooms: HashMap::new(),
             rooms_state: RoomsState::default(),
-            log: vec!["Hello world!".to_string()],
+            overlay: None,
         }
     }
 
@@ -95,7 +104,6 @@ impl Ui {
                 None => return Ok(()),
             };
             loop {
-                self.log.push(format!("{event:?}"));
                 let result = match event {
                     UiEvent::Term(Event::Key(event)) => self.handle_key_event(event).await?,
                     UiEvent::Term(Event::Mouse(event)) => self.handle_mouse_event(event).await?,
@@ -116,27 +124,36 @@ impl Ui {
     }
 
     async fn handle_key_event(&mut self, event: KeyEvent) -> anyhow::Result<EventHandleResult> {
-        Ok(match event.code {
-            // KeyCode::Backspace => todo!(),
-            // KeyCode::Enter => todo!(),
-            // KeyCode::Left => todo!(),
-            // KeyCode::Right => todo!(),
-            // KeyCode::Up => todo!(),
-            // KeyCode::Down => todo!(),
-            // KeyCode::Home => todo!(),
-            // KeyCode::End => todo!(),
-            // KeyCode::PageUp => todo!(),
-            // KeyCode::PageDown => todo!(),
-            // KeyCode::Tab => todo!(),
-            // KeyCode::BackTab => todo!(),
-            // KeyCode::Delete => todo!(),
-            // KeyCode::Insert => todo!(),
-            // KeyCode::F(_) => todo!(),
-            // KeyCode::Char(_) => todo!(),
-            // KeyCode::Null => todo!(),
-            KeyCode::Esc => EventHandleResult::Stop,
-            _ => EventHandleResult::Continue,
-        })
+        const CONTINUE: anyhow::Result<EventHandleResult> = Ok(EventHandleResult::Continue);
+        const STOP: anyhow::Result<EventHandleResult> = Ok(EventHandleResult::Stop);
+
+        // Overlay
+        if let Some(overlay) = &mut self.overlay {
+            let reaction = match overlay {
+                Overlay::JoinRoom(state) => state.handle_key(event),
+            };
+            if let Some(reaction) = reaction {
+                match reaction {
+                    OverlayReaction::Handled => {}
+                    OverlayReaction::Close => self.overlay = None,
+                    OverlayReaction::JoinRoom(name) => todo!(),
+                }
+            }
+            return CONTINUE;
+        }
+
+        // Main panel
+        // TODO Implement
+
+        // Otherwise, global bindings
+        match event.code {
+            KeyCode::Char('q') => STOP,
+            KeyCode::Char('c') => {
+                self.overlay = Some(Overlay::JoinRoom(JoinRoomState::default()));
+                CONTINUE
+            }
+            _ => CONTINUE,
+        }
     }
 
     async fn handle_mouse_event(&mut self, event: MouseEvent) -> anyhow::Result<EventHandleResult> {
@@ -155,26 +172,35 @@ impl Ui {
     }
 
     async fn render(&mut self, frame: &mut Frame<'_, Backend>) -> anyhow::Result<()> {
-        let outer = Layout::default()
+        let entire_area = frame.size();
+        let areas = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
-                Constraint::Length(self.rooms_state.width()),
-                Constraint::Min(0),
+                Constraint::Length(self.rooms_state.width()), // Rooms list
+                Constraint::Min(1),                           // Main panel
             ])
-            .split(frame.size());
+            .split(entire_area);
+        let rooms_list_area = areas[0];
+        let main_panel_area = areas[1];
 
-        frame.render_stateful_widget(Rooms::new(&self.rooms), outer[0], &mut self.rooms_state);
-        // frame.render_stateful_widget(Rooms::dummy(), outer[0], &mut self.rooms_state);
-
-        let scroll = if self.log.len() as u16 > outer[1].height {
-            self.log.len() as u16 - outer[1].height
-        } else {
-            0
-        };
-        frame.render_widget(
-            Paragraph::new(self.log.join("\n")).scroll((scroll, 0)),
-            outer[1],
+        // Rooms list
+        frame.render_stateful_widget(
+            Rooms::new(&self.rooms),
+            rooms_list_area,
+            &mut self.rooms_state,
         );
+
+        // Main panel
+        // TODO Implement
+
+        // Overlays
+        if let Some(overlay) = &mut self.overlay {
+            match overlay {
+                Overlay::JoinRoom(state) => {
+                    frame.render_stateful_widget(JoinRoom, entire_area, state)
+                }
+            }
+        }
 
         Ok(())
     }

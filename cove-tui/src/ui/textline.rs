@@ -1,12 +1,14 @@
 use std::cmp;
 
-use crossterm::event::{Event, KeyCode};
+use crossterm::event::{KeyCode, KeyEvent};
 use tui::backend::Backend;
 use tui::buffer::Buffer;
 use tui::layout::Rect;
 use tui::widgets::{Paragraph, StatefulWidget, Widget};
 use tui::Frame;
 use unicode_width::UnicodeWidthStr;
+
+use super::input::EventHandler;
 
 /// A simple single-line text box.
 pub struct TextLine;
@@ -28,6 +30,11 @@ pub struct TextLineState {
 }
 
 impl TextLineState {
+    pub fn content(&self) -> String {
+        self.content.clone()
+    }
+
+    /// Set a frame's cursor position to this text line's cursor position
     pub fn set_cursor<B: Backend>(&self, f: &mut Frame<B>, area: Rect) {
         let prefix = self.content.chars().take(self.cursor).collect::<String>();
         let position = prefix.width() as u16;
@@ -64,27 +71,50 @@ impl TextLineState {
             .map(|(i, _)| i)
             .unwrap_or_else(|| self.content.len())
     }
+}
 
-    pub fn process_input(&mut self, event: Event) {
-        if let Event::Key(k) = event {
-            match k.code {
-                KeyCode::Backspace if self.cursor > 0 => {
-                    self.move_cursor_left();
-                    self.content.remove(self.cursor_byte_offset());
-                }
-                KeyCode::Left => self.move_cursor_left(),
-                KeyCode::Right => self.move_cursor_right(),
-                KeyCode::Home => self.move_cursor_start(),
-                KeyCode::End => self.move_cursor_end(),
-                KeyCode::Delete if self.cursor < self.chars() => {
-                    self.content.remove(self.cursor_byte_offset());
-                }
-                KeyCode::Char(c) => {
-                    self.content.insert(self.cursor_byte_offset(), c);
-                    self.move_cursor_right();
-                }
-                _ => {}
+pub enum TextLineReaction {
+    Handled,
+    Close,
+}
+
+impl EventHandler for TextLineState {
+    type Reaction = TextLineReaction;
+
+    fn handle_key(&mut self, event: KeyEvent) -> Option<Self::Reaction> {
+        match event.code {
+            KeyCode::Backspace if self.cursor > 0 => {
+                self.move_cursor_left();
+                self.content.remove(self.cursor_byte_offset());
+                Some(TextLineReaction::Handled)
             }
+            KeyCode::Left => {
+                self.move_cursor_left();
+                Some(TextLineReaction::Handled)
+            }
+            KeyCode::Right => {
+                self.move_cursor_right();
+                Some(TextLineReaction::Handled)
+            }
+            KeyCode::Home => {
+                self.move_cursor_start();
+                Some(TextLineReaction::Handled)
+            }
+            KeyCode::End => {
+                self.move_cursor_end();
+                Some(TextLineReaction::Handled)
+            }
+            KeyCode::Delete if self.cursor < self.chars() => {
+                self.content.remove(self.cursor_byte_offset());
+                Some(TextLineReaction::Handled)
+            }
+            KeyCode::Char(c) => {
+                self.content.insert(self.cursor_byte_offset(), c);
+                self.move_cursor_right();
+                Some(TextLineReaction::Handled)
+            }
+            KeyCode::Esc => Some(TextLineReaction::Close),
+            _ => None,
         }
     }
 }
