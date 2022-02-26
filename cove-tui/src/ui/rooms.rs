@@ -1,4 +1,3 @@
-use std::cmp;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -7,7 +6,7 @@ use tui::buffer::Buffer;
 use tui::layout::Rect;
 use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
-use tui::widgets::{Block, Borders, Paragraph, StatefulWidget, Widget};
+use tui::widgets::{Paragraph, Widget};
 
 use crate::room::Room;
 
@@ -60,21 +59,12 @@ impl Rooms {
     }
 }
 
-impl StatefulWidget for Rooms {
-    type State = RoomsState;
-
-    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+impl Widget for Rooms {
+    fn render(self, area: Rect, buf: &mut Buffer) {
         let title_style = Style::default().add_modifier(Modifier::BOLD);
         let room_style = Style::default().fg(Color::LightBlue);
         let selected_room_style = room_style.add_modifier(Modifier::BOLD);
 
-        state.width = cmp::min(state.width, area.width);
-
-        // Actual room names
-        let left = Rect {
-            width: area.width - 1,
-            ..area
-        };
         let title = if let Some(selected) = self.selected {
             format!("Rooms ({}/{})", selected + 1, self.rooms.len())
         } else {
@@ -95,60 +85,6 @@ impl StatefulWidget for Rooms {
                 ]));
             }
         }
-        Paragraph::new(lines).render(left, buf);
-
-        // The panel's border
-        let right = Rect {
-            x: area.right() - 1,
-            width: 1,
-            ..area
-        };
-        let style = if state.hovering {
-            Style::default().add_modifier(Modifier::REVERSED)
-        } else {
-            Style::default()
-        };
-        Block::default()
-            .borders(Borders::RIGHT)
-            .style(style)
-            .render(right, buf);
-    }
-}
-
-// TODO Figure out some sort of scroll offset solution
-#[derive(Debug)]
-pub struct RoomsState {
-    width: u16,
-    hovering: bool,
-    dragging: bool,
-}
-
-impl Default for RoomsState {
-    fn default() -> Self {
-        Self {
-            width: 24,
-            hovering: false,
-            dragging: false,
-        }
-    }
-}
-
-impl RoomsState {
-    pub fn width(&self) -> u16 {
-        self.width
-    }
-
-    pub fn hover(&mut self, active: bool) {
-        self.hovering = active;
-    }
-
-    pub fn drag(&mut self, active: bool) {
-        self.dragging = active;
-    }
-
-    pub fn drag_to(&mut self, width: u16) {
-        if self.dragging {
-            self.width = width;
-        }
+        Paragraph::new(lines).render(area, buf);
     }
 }

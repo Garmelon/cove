@@ -1,6 +1,7 @@
 mod input;
 mod layout;
 mod overlays;
+mod pane;
 mod room;
 mod rooms;
 mod textline;
@@ -16,7 +17,7 @@ use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
 use tui::backend::CrosstermBackend;
-use tui::layout::{Constraint, Direction, Layout};
+use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::{Frame, Terminal};
 
 use crate::config::Config;
@@ -25,8 +26,9 @@ use crate::ui::overlays::OverlayReaction;
 
 use self::input::EventHandler;
 use self::overlays::{JoinRoom, JoinRoomState};
+use self::pane::PaneInfo;
 use self::room::RoomInfo;
-use self::rooms::{Rooms, RoomsState};
+use self::rooms::Rooms;
 
 pub type Backend = CrosstermBackend<Stdout>;
 
@@ -49,9 +51,14 @@ pub struct Ui {
     config: &'static Config,
     event_tx: UnboundedSender<UiEvent>,
     rooms: HashMap<String, Arc<Mutex<Room>>>,
-    rooms_state: RoomsState,
+
+    rooms_pane: PaneInfo,
+    users_pane: PaneInfo,
+
     room: Option<RoomInfo>,
     overlay: Option<Overlay>,
+
+    last_area: Rect,
 }
 
 impl Ui {
@@ -60,9 +67,14 @@ impl Ui {
             config,
             event_tx,
             rooms: HashMap::new(),
-            rooms_state: RoomsState::default(),
+
+            rooms_pane: PaneInfo::default(),
+            users_pane: PaneInfo::default(),
+
             room: None,
             overlay: None,
+
+            last_area: Rect::default(),
         }
     }
 
@@ -98,6 +110,7 @@ impl Ui {
             terminal.autoresize()?;
 
             let mut frame = terminal.get_frame();
+            self.last_area = frame.size();
             self.render(&mut frame).await?;
 
             // Do a little dance to please the borrow checker
@@ -178,13 +191,27 @@ impl Ui {
     }
 
     async fn handle_mouse_event(&mut self, event: MouseEvent) -> anyhow::Result<EventHandleResult> {
-        let rooms_width = event.column + 1;
-        let over_rooms = self.rooms_state.width() == rooms_width;
+        let rooms_width = event.column;
+        let users_width = self.last_area.width - event.column - 1;
+        let rooms_hover = rooms_width == self.rooms_pane.width();
+        let users_hover = users_width == self.users_pane.width();
         match event.kind {
-            MouseEventKind::Moved => self.rooms_state.hover(over_rooms),
-            MouseEventKind::Down(_) => self.rooms_state.drag(over_rooms),
-            MouseEventKind::Up(_) => self.rooms_state.drag(false),
-            MouseEventKind::Drag(_) => self.rooms_state.drag_to(rooms_width),
+            MouseEventKind::Moved => {
+                self.rooms_pane.hover(rooms_hover);
+                self.users_pane.hover(users_hover);
+            }
+            MouseEventKind::Down(_) => {
+                self.rooms_pane.drag(rooms_hover);
+                self.users_pane.drag(users_hover);
+            }
+            MouseEventKind::Up(_) => {
+                self.rooms_pane.drag(false);
+                self.users_pane.drag(false);
+            }
+            MouseEventKind::Drag(_) => {
+                self.rooms_pane.drag_to(rooms_width);
+                self.users_pane.drag_to(users_width);
+            }
             // MouseEventKind::ScrollDown => todo!(),
             // MouseEventKind::ScrollUp => todo!(),
             _ => {}
@@ -197,22 +224,29 @@ impl Ui {
         let areas = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
-                Constraint::Length(self.rooms_state.width()), // Rooms list
-                Constraint::Min(1),                           // Main panel
+                Constraint::Length(self.rooms_pane.width()),
+                Constraint::Length(1),
+                Constraint::Min(0),
+                Constraint::Length(1),
+                Constraint::Length(self.users_pane.width()),
             ])
             .split(entire_area);
-        let rooms_list_area = areas[0];
-        let main_panel_area = areas[1];
+        let rooms_pane_area = areas[0];
+        let rooms_pane_border = areas[1];
+        let main_pane_area = areas[2];
+        let users_pane_border = areas[3];
+        let users_pane_area = areas[4];
 
-        // Rooms list
-        frame.render_stateful_widget(
-            Rooms::new(&self.rooms),
-            rooms_list_area,
-            &mut self.rooms_state,
-        );
+        // Rooms pane
+        frame.render_widget(Rooms::new(&self.rooms), rooms_pane_area);
 
-        // Main panel
-        // TODO Implement
+        // TODO Main pane and users pane
+
+        // Pane borders and width
+        self.rooms_pane.restrict_width(rooms_pane_area.width);
+        frame.render_widget(self.rooms_pane.border(), rooms_pane_border);
+        self.users_pane.restrict_width(users_pane_area.width);
+        frame.render_widget(self.users_pane.border(), users_pane_border);
 
         // Overlays
         if let Some(overlay) = &mut self.overlay {
