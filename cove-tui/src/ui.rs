@@ -4,6 +4,7 @@ mod overlays;
 mod rooms;
 mod textline;
 
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::io::Stdout;
 use std::sync::Arc;
@@ -15,9 +16,9 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
 use tui::backend::CrosstermBackend;
 use tui::layout::{Constraint, Direction, Layout};
-use tui::widgets::Paragraph;
 use tui::{Frame, Terminal};
 
+use crate::config::Config;
 use crate::room::Room;
 use crate::ui::overlays::OverlayReaction;
 
@@ -43,6 +44,7 @@ enum Overlay {
 }
 
 pub struct Ui {
+    config: &'static Config,
     event_tx: UnboundedSender<UiEvent>,
     rooms: HashMap<String, Arc<Mutex<Room>>>,
     rooms_state: RoomsState,
@@ -50,8 +52,9 @@ pub struct Ui {
 }
 
 impl Ui {
-    fn new(event_tx: UnboundedSender<UiEvent>) -> Self {
+    fn new(config: &'static Config, event_tx: UnboundedSender<UiEvent>) -> Self {
         Self {
+            config,
             event_tx,
             rooms: HashMap::new(),
             rooms_state: RoomsState::default(),
@@ -59,9 +62,12 @@ impl Ui {
         }
     }
 
-    pub async fn run(terminal: &mut Terminal<Backend>) -> anyhow::Result<()> {
+    pub async fn run(
+        config: &'static Config,
+        terminal: &mut Terminal<Backend>,
+    ) -> anyhow::Result<()> {
         let (event_tx, mut event_rx) = mpsc::unbounded_channel();
-        let mut ui = Self::new(event_tx.clone());
+        let mut ui = Self::new(config, event_tx.clone());
 
         tokio::select! {
             e = ui.run_main(terminal, &mut event_rx) => e,
@@ -134,14 +140,7 @@ impl Ui {
                 Overlay::JoinRoom(state) => state.handle_key(event),
             };
             if let Some(reaction) = reaction {
-                match reaction {
-                    OverlayReaction::Handled => {}
-                    OverlayReaction::Close => self.overlay = None,
-                    OverlayReaction::JoinRoom(name) => {
-                        self.overlay = None;
-                        // TODO Join room
-                    }
-                }
+                self.handle_overlay_reaction(reaction).await;
             }
             return CONTINUE;
         }
@@ -157,6 +156,20 @@ impl Ui {
                 CONTINUE
             }
             _ => CONTINUE,
+        }
+    }
+
+    async fn handle_overlay_reaction(&mut self, reaction: OverlayReaction) {
+        match reaction {
+            OverlayReaction::Handled => {}
+            OverlayReaction::Close => self.overlay = None,
+            OverlayReaction::JoinRoom(name) => {
+                let name = name.trim();
+                if !name.is_empty() {
+                    self.overlay = None;
+                    self.switch_to_room(name.to_string()).await;
+                }
+            }
         }
     }
 
@@ -209,5 +222,16 @@ impl Ui {
         }
 
         Ok(())
+    }
+
+    async fn switch_to_room(&mut self, name: String) {
+        match self.rooms.entry(name.clone()) {
+            Entry::Occupied(_) => {}
+            Entry::Vacant(entry) => {
+                entry.insert(
+                    Room::new(name, self.config.cove_identity.clone(), None, self.config).await,
+                );
+            }
+        }
     }
 }
