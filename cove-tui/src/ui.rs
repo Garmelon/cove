@@ -15,6 +15,7 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
 use tui::backend::CrosstermBackend;
 use tui::layout::{Constraint, Direction, Layout};
+use tui::widgets::Paragraph;
 use tui::{Frame, Terminal};
 
 use crate::room::Room;
@@ -92,9 +93,9 @@ impl Ui {
             // Do a little dance to please the borrow checker
             let cursor = frame.cursor();
             drop(frame);
-            terminal.set_cursor_opt(cursor)?;
 
             terminal.flush()?;
+            terminal.set_cursor_opt(cursor)?; // Must happen after flush
             terminal.flush_backend()?;
             terminal.swap_buffers();
 
@@ -136,7 +137,10 @@ impl Ui {
                 match reaction {
                     OverlayReaction::Handled => {}
                     OverlayReaction::Close => self.overlay = None,
-                    OverlayReaction::JoinRoom(name) => todo!(),
+                    OverlayReaction::JoinRoom(name) => {
+                        self.overlay = None;
+                        // TODO Join room
+                    }
                 }
             }
             return CONTINUE;
@@ -197,7 +201,9 @@ impl Ui {
         if let Some(overlay) = &mut self.overlay {
             match overlay {
                 Overlay::JoinRoom(state) => {
-                    frame.render_stateful_widget(JoinRoom, entire_area, state)
+                    frame.render_stateful_widget(JoinRoom, entire_area, state);
+                    let (x, y) = state.last_cursor_pos();
+                    frame.set_cursor(x, y);
                 }
             }
         }

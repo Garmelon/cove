@@ -44,3 +44,9 @@ impl EventHandler for JoinRoomState {
         })
     }
 }
+
+impl JoinRoomState {
+    pub fn last_cursor_pos(&self) -> (u16, u16) {
+        self.room.last_cursor_pos()
+    }
+}

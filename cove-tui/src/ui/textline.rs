@@ -18,7 +18,12 @@ impl StatefulWidget for TextLine {
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         Paragraph::new(&state.content as &str).render(area, buf);
-        // Paragraph::new("foo").render(area, buf);
+
+        // Determine cursor position
+        let prefix = state.content.chars().take(state.cursor).collect::<String>();
+        let position = prefix.width() as u16;
+        let x = area.x + position.min(area.width);
+        state.last_cursor_pos = (x, area.y);
     }
 }
 
@@ -27,6 +32,7 @@ impl StatefulWidget for TextLine {
 pub struct TextLineState {
     content: String,
     cursor: usize,
+    last_cursor_pos: (u16, u16),
 }
 
 impl TextLineState {
@@ -34,12 +40,9 @@ impl TextLineState {
         self.content.clone()
     }
 
-    /// Set a frame's cursor position to this text line's cursor position
-    pub fn set_cursor<B: Backend>(&self, f: &mut Frame<B>, area: Rect) {
-        let prefix = self.content.chars().take(self.cursor).collect::<String>();
-        let position = prefix.width() as u16;
-        let x = area.x + cmp::min(position, area.width);
-        f.set_cursor(x, area.y);
+    /// The cursor's position from when the widget was last rendered.
+    pub fn last_cursor_pos(&self) -> (u16, u16) {
+        self.last_cursor_pos
     }
 
     fn chars(&self) -> usize {
