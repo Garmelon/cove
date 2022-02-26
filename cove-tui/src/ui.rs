@@ -237,10 +237,18 @@ impl Ui {
         let users_pane_border = areas[3];
         let users_pane_area = areas[4];
 
-        // Rooms pane
-        frame.render_widget(Rooms::new(&self.rooms), rooms_pane_area);
+        // Main pane and users pane
+        if let Some(room) = &mut self.room {
+            room.render_main(frame, main_pane_area).await;
+            room.render_users(frame, users_pane_area).await;
+        }
 
-        // TODO Main pane and users pane
+        // Rooms pane
+        let mut rooms = Rooms::new(&self.rooms);
+        if let Some(room) = &self.room {
+            rooms = rooms.select(room.name());
+        }
+        frame.render_widget(rooms, rooms_pane_area);
 
         // Pane borders and width
         self.rooms_pane.restrict_width(rooms_pane_area.width);
@@ -248,7 +256,7 @@ impl Ui {
         self.users_pane.restrict_width(users_pane_area.width);
         frame.render_widget(self.users_pane.border(), users_pane_border);
 
-        // Overlays
+        // Overlay
         if let Some(overlay) = &mut self.overlay {
             match overlay {
                 Overlay::JoinRoom(state) => {

@@ -36,9 +36,9 @@ struct Connected {
 }
 
 /// State for when a client has fully joined a room.
-struct Present {
-    session: Session,
-    others: HashMap<SessionId, Session>,
+pub struct Present {
+    pub session: Session,
+    pub others: HashMap<SessionId, Session>,
 }
 
 enum Status {
@@ -93,6 +93,10 @@ impl Room {
         });
 
         room
+    }
+
+    pub fn present(&self) -> Option<&Present> {
+        self.present.as_ref()
     }
 
     async fn bg_task(room: Arc<Mutex<Room>>, config: &'static Config) {

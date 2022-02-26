@@ -41,22 +41,6 @@ impl Rooms {
         }
         self
     }
-
-    pub fn dummy() -> Self {
-        fn r(s: &str) -> RoomInfo {
-            RoomInfo {
-                name: s.to_string(),
-            }
-        }
-
-        let mut rooms = vec![r("xkcd"), r("test"), r("welcome"), r("music")];
-        rooms.sort();
-        Rooms {
-            rooms,
-            selected: None,
-        }
-        .select("welcome")
-    }
 }
 
 impl Widget for Rooms {
