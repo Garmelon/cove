@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use tui::buffer::Buffer;
 use tui::layout::Rect;
-use tui::widgets::{Block, Borders, StatefulWidget, Widget};
+use tui::widgets::{Block, Borders, StatefulWidget, Widget, Clear};
 
 use crate::ui::input::EventHandler;
 use crate::ui::layout;
@@ -16,6 +16,7 @@ impl StatefulWidget for JoinRoom {
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         let area = layout::centered(50, 3, area);
+        Clear.render(area, buf);
 
         let block = Block::default().title("Join room").borders(Borders::ALL);
         let inner_area = block.inner(area);

@@ -1,11 +1,9 @@
 use std::cmp;
 
 use crossterm::event::{KeyCode, KeyEvent};
-use tui::backend::Backend;
 use tui::buffer::Buffer;
 use tui::layout::Rect;
 use tui::widgets::{Paragraph, StatefulWidget, Widget};
-use tui::Frame;
 use unicode_width::UnicodeWidthStr;
 
 use super::input::EventHandler;
