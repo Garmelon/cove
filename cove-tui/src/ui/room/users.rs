@@ -9,6 +9,7 @@ use tui::text::{Span, Spans};
 use tui::widgets::{Paragraph, Widget};
 
 use crate::room::Present;
+use crate::ui::styles;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct UserInfo {
@@ -42,8 +43,6 @@ impl Users {
 
 impl Widget for Users {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let title_style = Style::default().add_modifier(Modifier::BOLD);
-
         let sessions = self.users.len();
         let identities = self
             .users
@@ -53,7 +52,7 @@ impl Widget for Users {
             .len();
         let title = format!("Users ({identities}/{sessions})");
 
-        let mut lines = vec![Spans::from(Span::styled(title, title_style))];
+        let mut lines = vec![Spans::from(Span::styled(title, styles::title()))];
         for user in self.users {
             // TODO Colour users based on identity
             lines.push(Spans::from(Span::from(user.nick)));

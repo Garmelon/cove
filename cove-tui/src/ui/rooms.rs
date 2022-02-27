@@ -10,6 +10,8 @@ use tui::widgets::{Paragraph, Widget};
 
 use crate::room::Room;
 
+use super::styles;
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct RoomInfo {
     name: String,
@@ -45,27 +47,23 @@ impl Rooms {
 
 impl Widget for Rooms {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let title_style = Style::default().add_modifier(Modifier::BOLD);
-        let room_style = Style::default().fg(Color::LightBlue);
-        let selected_room_style = room_style.add_modifier(Modifier::BOLD);
-
         let title = if let Some(selected) = self.selected {
             format!("Rooms ({}/{})", selected + 1, self.rooms.len())
         } else {
             format!("Rooms ({})", self.rooms.len())
         };
-        let mut lines = vec![Spans::from(Span::styled(title, title_style))];
+        let mut lines = vec![Spans::from(Span::styled(title, styles::title()))];
         for (i, room) in self.rooms.iter().enumerate() {
             let name = format!("&{}", room.name);
             if Some(i) == self.selected {
                 lines.push(Spans::from(vec![
                     Span::raw("\n>"),
-                    Span::styled(name, selected_room_style),
+                    Span::styled(name, styles::selected_room()),
                 ]));
             } else {
                 lines.push(Spans::from(vec![
                     Span::raw("\n "),
-                    Span::styled(name, room_style),
+                    Span::styled(name, styles::room()),
                 ]));
             }
         }

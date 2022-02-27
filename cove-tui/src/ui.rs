@@ -5,6 +5,7 @@ mod pane;
 mod room;
 mod rooms;
 mod textline;
+mod styles;
 
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;

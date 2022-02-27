@@ -9,6 +9,7 @@ use cove_core::packets::{
 use cove_core::{Session, SessionId};
 use tokio::sync::oneshot::{self, Sender};
 use tokio::sync::Mutex;
+use tui::widgets::StatefulWidget;
 
 use crate::config::Config;
 use crate::never::Never;
@@ -41,18 +42,15 @@ pub struct Present {
     pub others: HashMap<SessionId, Session>,
 }
 
-enum Status {
+pub enum Status {
     /// No action required by the UI.
     Nominal,
     /// User must enter a nick.
     NickRequired,
-    /// Identifying to the server. No action required by the UI.
-    Identifying,
     CouldNotConnect,
     InvalidRoom(String),
     InvalidNick(String),
     InvalidIdentity(String),
-    InvalidContent(String),
 }
 
 pub struct Room {
@@ -93,6 +91,14 @@ impl Room {
         });
 
         room
+    }
+
+    pub fn status(&self) -> &Status {
+        &self.status
+    }
+
+    pub fn connected(&self) -> bool {
+        self.connected.is_some()
     }
 
     pub fn present(&self) -> Option<&Present> {
@@ -209,9 +215,7 @@ impl Room {
             Rpl::Send(SendRpl::Success { message }) => {
                 // TODO Send message to store
             }
-            Rpl::Send(SendRpl::InvalidContent { reason }) => {
-                self.status = Status::InvalidContent(reason.clone());
-            }
+            Rpl::Send(SendRpl::InvalidContent { reason }) => {}
             Rpl::Who(WhoRpl { you, others }) => {
                 if let Some(present) = &mut self.present {
                     present.session = you.clone();
