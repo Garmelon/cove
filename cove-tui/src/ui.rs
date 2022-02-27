@@ -164,9 +164,21 @@ impl Ui {
 
         // Otherwise, global bindings
         match event.code {
-            KeyCode::Char('q') => STOP,
+            KeyCode::Char('Q') => STOP,
             KeyCode::Char('s') => {
                 self.overlay = Some(Overlay::SwitchRoom(SwitchRoomState::default()));
+                CONTINUE
+            }
+            KeyCode::Char('J') => {
+                self.switch_to_next_room();
+                CONTINUE
+            }
+            KeyCode::Char('K') => {
+                self.switch_to_prev_room();
+                CONTINUE
+            }
+            KeyCode::Char('D') => {
+                self.remove_current_room();
                 CONTINUE
             }
             _ => CONTINUE,
@@ -279,5 +291,57 @@ impl Ui {
         };
 
         self.room = Some(RoomInfo::new(name, room))
+    }
+
+    fn get_room_index(&self) -> Option<(usize, &str)> {
+        let name = self.room.as_ref()?.name();
+
+        let mut rooms = self.rooms.keys().collect::<Vec<_>>();
+        if rooms.is_empty() {
+            return None;
+        }
+        rooms.sort();
+
+        let index = rooms.iter().position(|n| n as &str == name)?;
+
+        Some((index, name))
+    }
+
+    fn set_room_index(&mut self, index: usize) {
+        let mut rooms = self.rooms.keys().collect::<Vec<_>>();
+        if rooms.is_empty() {
+            self.room = None;
+            return;
+        }
+        rooms.sort();
+
+        let name = rooms[index % rooms.len()];
+        let room = self.rooms[name].clone();
+        self.room = Some(RoomInfo::new(name.clone(), room))
+    }
+
+    fn switch_to_next_room(&mut self) {
+        if let Some((index, _)) = self.get_room_index() {
+            self.set_room_index(index + 1);
+        }
+    }
+
+    fn switch_to_prev_room(&mut self) {
+        if let Some((index, _)) = self.get_room_index() {
+            self.set_room_index(index + self.rooms.len() - 1);
+        }
+    }
+
+    fn remove_current_room(&mut self) {
+        if let Some((index, name)) = self.get_room_index() {
+            let name = name.to_string();
+            self.rooms.remove(&name);
+            let index = if self.rooms.is_empty() {
+                0
+            } else {
+                index.min(self.rooms.len() - 1)
+            };
+            self.set_room_index(index);
+        }
     }
 }
