@@ -6,13 +6,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use cove_core::conn::{self, ConnMaintenance, ConnRx, ConnTx};
 use cove_core::packets::{
-    Cmd, JoinNtf, NickCmd, NickNtf, NickRpl, Packet, PartNtf, SendCmd, SendNtf, SendRpl, WhoCmd,
-    WhoRpl,
+    Cmd, IdentifyCmd, IdentifyRpl, JoinNtf, NickCmd, NickNtf, NickRpl, Packet, PartNtf, RoomCmd,
+    RoomRpl, SendCmd, SendNtf, SendRpl, WhoCmd, WhoRpl,
 };
-use cove_core::{Message, MessageId, Session, SessionId};
+use cove_core::{Identity, Message, MessageId, Session, SessionId};
 use log::{info, warn};
 use rand::Rng;
 use tokio::net::{TcpListener, TcpStream};
@@ -235,92 +235,105 @@ impl Server {
             .clone()
     }
 
-    // async fn handle_hello(
-    //     &self,
-    //     tx: &ConnTx,
-    //     id: u64,
-    //     cmd: IdentifyCmd,
-    // ) -> anyhow::Result<Option<(String, Session)>> {
-    //     if let Some(reason) = util::check_room(&cmd.room) {
-    //         tx.send(&Packet::rpl(id, IdentifyRpl::InvalidRoom { reason }))?;
-    //         return Ok(None);
-    //     }
-    //     if let Some(reason) = util::check_nick(&cmd.nick) {
-    //         tx.send(&Packet::rpl(id, IdentifyRpl::InvalidNick { reason }))?;
-    //         return Ok(None);
-    //     }
-    //     if let Some(reason) = util::check_identity(&cmd.identity) {
-    //         tx.send(&Packet::rpl(id, IdentifyRpl::InvalidIdentity { reason }))?;
-    //         return Ok(None);
-    //     }
+    async fn negotiate_room(tx: &ConnTx, rx: &mut ConnRx) -> anyhow::Result<String> {
+        loop {
+            match rx.recv().await? {
+                Some(Packet::Cmd {
+                    id,
+                    cmd: Cmd::Room(RoomCmd { name }),
+                }) => {
+                    if let Some(reason) = util::check_room(&name) {
+                        tx.send(&Packet::rpl(id, RoomRpl::InvalidRoom { reason }))?;
+                        continue;
+                    }
+                    tx.send(&Packet::rpl(id, RoomRpl::Success))?;
+                    return Ok(name);
+                }
+                Some(_) => bail!("invalid packet during room negotiation"),
+                None => bail!("connection closed during room negotiation"),
+            }
+        }
+    }
 
-    //     let session = Session {
-    //         id: SessionId::of(&format!("{}", rand::thread_rng().gen::<u64>())),
-    //         nick: cmd.nick,
-    //         identity: Identity::of(&cmd.identity),
-    //     };
+    async fn negotiate_identity(tx: &ConnTx, rx: &mut ConnRx) -> anyhow::Result<(u64, Session)> {
+        loop {
+            match rx.recv().await? {
+                Some(Packet::Cmd {
+                    id,
+                    cmd: Cmd::Identify(IdentifyCmd { nick, identity }),
+                }) => {
+                    if let Some(reason) = util::check_identity(&identity) {
+                        tx.send(&Packet::rpl(id, IdentifyRpl::InvalidNick { reason }))?;
+                        continue;
+                    }
+                    if let Some(reason) = util::check_nick(&nick) {
+                        tx.send(&Packet::rpl(id, IdentifyRpl::InvalidNick { reason }))?;
+                        continue;
+                    }
+                    let session = Session {
+                        id: SessionId::of(&format!("{}", rand::thread_rng().gen::<u64>())),
+                        nick,
+                        identity: Identity::of(&identity),
+                    };
+                    return Ok((id, session));
+                }
+                Some(_) => bail!("invalid packet during room negotiation"),
+                None => bail!("connection closed during room negotiation"),
+            }
+        }
+    }
 
-    //     Ok(Some((cmd.room, session)))
-    // }
+    fn welcome(id: u64, you: Session, room: &Room, tx: &ConnTx) -> anyhow::Result<()> {
+        let others = room
+            .clients
+            .values()
+            .map(|client| client.session.clone())
+            .collect::<Vec<_>>();
+        let last_message = room.last_message;
 
-    // async fn greet(&self, tx: ConnTx, mut rx: ConnRx) -> anyhow::Result<ServerSession> {
-    //     let (id, room, session) = loop {
-    //         let (id, cmd) = match rx.recv().await? {
-    //             Some(Packet::Cmd {
-    //                 id,
-    //                 cmd: Cmd::Hello(cmd),
-    //             }) => (id, cmd),
-    //             Some(_) => return Err(anyhow!("not a Hello packet")),
-    //             None => return Err(anyhow!("connection closed during greeting")),
-    //         };
+        tx.send(&Packet::rpl(
+            id,
+            IdentifyRpl::Success {
+                you,
+                others,
+                last_message,
+            },
+        ))?;
 
-    //         if let Some((room, session)) = self.handle_hello(&tx, id, cmd).await? {
-    //             break (id, room, session);
-    //         }
-    //     };
+        Ok(())
+    }
 
-    //     let room = self.room(room).await;
+    async fn greet(&self, tx: ConnTx, mut rx: ConnRx) -> anyhow::Result<ServerSession> {
+        let room = Self::negotiate_room(&tx, &mut rx).await?;
+        let (id, session) = Self::negotiate_identity(&tx, &mut rx).await?;
 
-    //     {
-    //         let mut room = room.lock().await;
+        let room = self.room(room).await;
+        {
+            let mut room = room.lock().await;
+            // Reply to successful identify command in the same lock as joining
+            // the room so the client doesn' miss any messages.
+            Self::welcome(id, session.clone(), &*room, &tx)?;
+            // Join room only after welcome so current session is not yet
+            // present in room during welcome.
+            room.join(Client {
+                session: session.clone(),
+                send: tx.clone(),
+            });
+        }
 
-    //         let you = session.clone();
-    //         let others = room
-    //             .clients
-    //             .values()
-    //             .map(|client| client.session.clone())
-    //             .collect::<Vec<_>>();
-    //         let last_message = room.last_message;
-
-    //         tx.send(&Packet::rpl(
-    //             id,
-    //             IdentifyRpl::Success {
-    //                 you,
-    //                 others,
-    //                 last_message,
-    //             },
-    //         ))?;
-
-    //         room.join(Client {
-    //             session: session.clone(),
-    //             send: tx.clone(),
-    //         });
-    //     }
-
-    //     Ok(ServerSession {
-    //         tx,
-    //         rx,
-    //         room,
-    //         session,
-    //     })
-    // }
+        Ok(ServerSession {
+            tx,
+            rx,
+            room,
+            session,
+        })
+    }
 
     async fn greet_and_run(&self, tx: ConnTx, rx: ConnRx) -> anyhow::Result<()> {
-        // let mut session = self.greet(tx, rx).await?;
-        // let result = session.run().await;
-        // session.room.lock().await.part(session.session.id);
-        // result
-        todo!()
+        let mut session = self.greet(tx, rx).await?;
+        let result = session.run().await;
+        session.room.lock().await.part(session.session.id);
+        result
     }
 
     /// Wrapper for [`ConnMaintenance::perform`] so it returns an
