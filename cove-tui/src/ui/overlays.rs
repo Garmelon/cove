@@ -1,9 +1,13 @@
-mod join_room;
+mod switch_room;
 
-pub use join_room::*;
+pub use switch_room::*;
+
+pub enum Overlay {
+    SwitchRoom(SwitchRoomState),
+}
 
 pub enum OverlayReaction {
     Handled,
     Close,
-    JoinRoom(String),
+    SwitchRoom(String),
 }

@@ -9,10 +9,10 @@ use crate::ui::textline::{TextLine, TextLineReaction, TextLineState};
 
 use super::OverlayReaction;
 
-pub struct JoinRoom;
+pub struct SwitchRoom;
 
-impl StatefulWidget for JoinRoom {
-    type State = JoinRoomState;
+impl StatefulWidget for SwitchRoom {
+    type State = SwitchRoomState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         let area = layout::centered(50, 3, area);
@@ -27,16 +27,16 @@ impl StatefulWidget for JoinRoom {
 }
 
 #[derive(Debug, Default)]
-pub struct JoinRoomState {
+pub struct SwitchRoomState {
     room: TextLineState,
 }
 
-impl EventHandler for JoinRoomState {
+impl EventHandler for SwitchRoomState {
     type Reaction = OverlayReaction;
 
     fn handle_key(&mut self, event: KeyEvent) -> Option<Self::Reaction> {
         if event.code == KeyCode::Enter {
-            return Some(Self::Reaction::JoinRoom(self.room.content()));
+            return Some(Self::Reaction::SwitchRoom(self.room.content()));
         }
 
         self.room.handle_key(event).map(|r| match r {
@@ -46,7 +46,7 @@ impl EventHandler for JoinRoomState {
     }
 }
 
-impl JoinRoomState {
+impl SwitchRoomState {
     pub fn last_cursor_pos(&self) -> (u16, u16) {
         self.room.last_cursor_pos()
     }

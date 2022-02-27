@@ -26,7 +26,7 @@ use crate::room::Room;
 use crate::ui::overlays::OverlayReaction;
 
 use self::input::EventHandler;
-use self::overlays::{JoinRoom, JoinRoomState};
+use self::overlays::{Overlay, SwitchRoom, SwitchRoomState};
 use self::pane::PaneInfo;
 use self::room::RoomInfo;
 use self::rooms::Rooms;
@@ -42,10 +42,6 @@ pub enum UiEvent {
 enum EventHandleResult {
     Continue,
     Stop,
-}
-
-enum Overlay {
-    JoinRoom(JoinRoomState),
 }
 
 pub struct Ui {
@@ -155,7 +151,7 @@ impl Ui {
         // Overlay
         if let Some(overlay) = &mut self.overlay {
             let reaction = match overlay {
-                Overlay::JoinRoom(state) => state.handle_key(event),
+                Overlay::SwitchRoom(state) => state.handle_key(event),
             };
             if let Some(reaction) = reaction {
                 self.handle_overlay_reaction(reaction).await;
@@ -169,8 +165,8 @@ impl Ui {
         // Otherwise, global bindings
         match event.code {
             KeyCode::Char('q') => STOP,
-            KeyCode::Char('c') => {
-                self.overlay = Some(Overlay::JoinRoom(JoinRoomState::default()));
+            KeyCode::Char('s') => {
+                self.overlay = Some(Overlay::SwitchRoom(SwitchRoomState::default()));
                 CONTINUE
             }
             _ => CONTINUE,
@@ -181,7 +177,7 @@ impl Ui {
         match reaction {
             OverlayReaction::Handled => {}
             OverlayReaction::Close => self.overlay = None,
-            OverlayReaction::JoinRoom(name) => {
+            OverlayReaction::SwitchRoom(name) => {
                 let name = name.trim();
                 if !name.is_empty() {
                     self.overlay = None;
@@ -260,8 +256,8 @@ impl Ui {
         // Overlay
         if let Some(overlay) = &mut self.overlay {
             match overlay {
-                Overlay::JoinRoom(state) => {
-                    frame.render_stateful_widget(JoinRoom, entire_area, state);
+                Overlay::SwitchRoom(state) => {
+                    frame.render_stateful_widget(SwitchRoom, entire_area, state);
                     let (x, y) = state.last_cursor_pos();
                     frame.set_cursor(x, y);
                 }
