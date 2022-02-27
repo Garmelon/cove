@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use tui::buffer::Buffer;
 use tui::layout::Rect;
-use tui::widgets::{Block, Borders, StatefulWidget, Widget, Clear};
+use tui::widgets::{Block, Borders, Clear, StatefulWidget, Widget};
 
 use crate::ui::input::EventHandler;
 use crate::ui::layout;

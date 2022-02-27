@@ -4,7 +4,7 @@ pub fn title() -> Style {
     Style::default().add_modifier(Modifier::BOLD)
 }
 
-pub fn error()->Style{
+pub fn error() -> Style {
     Style::default().fg(Color::Red)
 }
 
