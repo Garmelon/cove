@@ -1,17 +1,30 @@
+/*
+Idea:
+Identification etc. runs per-connection
+Put connection into another Arc<Mutex<_>>
+Give reference to connection to identify thread?
+
+On the other hand...
+UI may also do weird things when setting nick during identification
+Maybe use same mechanism here?
+
+Also...
+Maybe have a look at what an euph room would require?
+Maybe start working on euph room in parallel?
+*/
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::bail;
 use cove_core::conn::{self, ConnMaintenance, ConnRx, ConnTx};
 use cove_core::packets::{
     Cmd, IdentifyCmd, IdentifyRpl, NickRpl, Ntf, Packet, RoomCmd, RoomRpl, Rpl, SendRpl, WhoRpl,
 };
 use cove_core::{Session, SessionId};
+use futures::io::Repeat;
 use tokio::sync::oneshot::{self, Sender};
 use tokio::sync::Mutex;
-use tokio_tungstenite::connect_async;
-use tui::widgets::StatefulWidget;
 
 use crate::config::Config;
 use crate::never::Never;
@@ -31,6 +44,31 @@ pub enum Error {
     Replies(#[from] replies::Error),
 }
 
+pub enum Status {
+    ChoosingRoom,
+    Identifying,
+    /// User must enter a nick. May contain error message about previous nick.
+    NickRequired(Option<String>),
+}
+
+pub struct Connected {
+    status: Status,
+    tx: ConnTx,
+    next_id: u64,
+    replies: Replies<u64, Rpl>,
+}
+
+impl Connected {
+    fn new(tx: ConnTx, timeout: Duration) -> Self {
+        Self {
+            status: Status::ChoosingRoom,
+            tx,
+            next_id: 0,
+            replies: Replies::new(timeout),
+        }
+    }
+}
+
 pub enum StopReason {
     CouldNotConnect(conn::Error),
     InvalidRoom(String),
@@ -39,34 +77,36 @@ pub enum StopReason {
     SomethingWentWrong,
 }
 
-/// General state of the room connection.
-pub enum Status {
-    /// Connecting to the room for the first time.
+pub enum Connection {
     Connecting,
-    /// Reconnecting to the room after being connected at least once.
     Reconnecting,
-    /// Identifying with the server after a connection has been established.
-    /// This occurs when an initial nick has been set on room creation.
-    Identifying,
-    /// User must enter a nick. May contain error message about previous nick.
-    NickRequired(Option<String>),
-    /// Fully connected.
-    Nominal,
-    /// Not connected and not attempting any reconnects. This is likely due to
-    /// factors out of the application's control (e. g. no internet connection,
-    /// room does not exist), meaning that retrying without user intervention
-    /// doesn't make sense.
+    Connected(Connected),
     Stopped(StopReason),
 }
 
-/// State for when a websocket connection exists.
-struct Connected {
-    tx: ConnTx,
-    next_id: u64,
-    replies: Replies<u64, Rpl>,
+impl Connection {
+    fn connected(&self) -> Option<&Connected> {
+        match self {
+            Connection::Connected(connected) => Some(connected),
+            Connection::Connecting | Connection::Reconnecting | Connection::Stopped(_) => None,
+        }
+    }
+
+    fn connected_mut(&mut self) -> Option<&mut Connected> {
+        match self {
+            Connection::Connected(connected) => Some(connected),
+            Connection::Connecting | Connection::Reconnecting | Connection::Stopped(_) => None,
+        }
+    }
+
+    fn stopped(&self) -> bool {
+        match self {
+            Connection::Stopped(_) => true,
+            Connection::Connecting | Connection::Reconnecting | Connection::Connected(_) => false,
+        }
+    }
 }
 
-/// State for when a client has fully joined a room.
 pub struct Present {
     session: Session,
     others: HashMap<SessionId, Session>,
@@ -75,12 +115,15 @@ pub struct Present {
 pub struct RoomState {
     identity: String,
     initial_nick: Option<String>,
-    status: Status,
-    connected: Option<Connected>,
+    connection: Connection,
     present: Option<Present>,
 }
 
 impl RoomState {
+    fn modified(&self) {
+        // TODO Send render event to main thread
+    }
+
     fn on_rpl(
         &mut self,
         id: u64,
@@ -241,8 +284,7 @@ impl Room {
             state: Arc::new(Mutex::new(RoomState {
                 identity,
                 initial_nick,
-                status: Status::Connecting,
-                connected: None,
+                connection: Connection::Connecting,
                 present: None,
             })),
             dead_mans_switch: tx,
@@ -268,12 +310,18 @@ impl Room {
             // Try to connect and run
             match Self::connect(&config.cove_url, config.timeout).await {
                 Ok((tx, rx, mt)) => {
-                    state.lock().await.connected = Some(Connected {
-                        tx,
-                        next_id: 0,
-                        replies: Replies::new(config.timeout),
-                    });
+                    // Update state
+                    {
+                        let mut state = state.lock().await;
+                        if state.connection.stopped() {
+                            return;
+                        }
+                        state.connection =
+                            Connection::Connected(Connected::new(tx, config.timeout));
+                    }
 
+                    // Stay connected
+                    // TODO Start select_room_and_identify task
                     tokio::select! {
                         _ = mt.perform() => {}
                         _ = Self::receive(&state, rx, &mut room_verified) => {}
