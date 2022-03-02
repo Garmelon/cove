@@ -346,7 +346,7 @@ impl Server {
     async fn handle_conn(&self, stream: TcpStream) -> anyhow::Result<()> {
         let stream = MaybeTlsStream::Plain(stream);
         let stream = tokio_tungstenite::accept_async(stream).await?;
-        let (tx, rx, maintenance) = conn::new(stream, Duration::from_secs(10))?;
+        let (tx, rx, maintenance) = conn::new(stream, Duration::from_secs(10));
         tokio::try_join!(self.greet_and_run(tx, rx), Self::maintain(maintenance))?;
         Ok(())
     }

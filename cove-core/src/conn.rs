@@ -160,7 +160,7 @@ impl ConnMaintenance {
     }
 }
 
-pub fn new(stream: WsStream, ping_delay: Duration) -> Result<(ConnTx, ConnRx, ConnMaintenance)> {
+pub fn new(stream: WsStream, ping_delay: Duration) -> (ConnTx, ConnRx, ConnMaintenance) {
     let (ws_tx, ws_rx) = stream.split();
     let (tx, rx) = mpsc::unbounded_channel();
     let last_ping_payload = Arc::new(Mutex::new(vec![]));
@@ -178,5 +178,5 @@ pub fn new(stream: WsStream, ping_delay: Duration) -> Result<(ConnTx, ConnRx, Co
         last_ping_payload,
     };
 
-    Ok((conn_tx, conn_rx, conn_maintenance))
+    (conn_tx, conn_rx, conn_maintenance)
 }

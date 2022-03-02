@@ -257,7 +257,7 @@ impl CoveConnMt {
         timeout: Duration,
     ) -> Result<(ConnTx, ConnRx, ConnMaintenance), conn::Error> {
         let stream = tokio_tungstenite::connect_async(url).await?.0;
-        let conn = conn::new(stream, timeout)?;
+        let conn = conn::new(stream, timeout);
         Ok(conn)
     }
 
