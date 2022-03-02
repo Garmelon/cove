@@ -154,6 +154,7 @@ impl CoveConnMt {
         *self.conn.lock().await = CoveConn::Connected(Connected::new(tx, self.timeout));
         self.ev_tx.send(Event::StateChanged);
 
+        // TODO Spawn task to join room
         let result = tokio::select! {
             result = Self::recv(&self.conn, &self.ev_tx, rx) => result,
             _ = mt.perform() => Err(Error::MaintenanceAborted),
@@ -204,7 +205,9 @@ impl CoveConnMt {
         };
 
         match &rpl {
-            Rpl::Room(RoomRpl::Success) => {}
+            Rpl::Room(RoomRpl::Success) => {
+                // TODO Send event that joining room was successful?
+            }
             Rpl::Room(RoomRpl::InvalidRoom { reason }) => {
                 return Err(Error::InvalidRoom(reason.clone()))
             }

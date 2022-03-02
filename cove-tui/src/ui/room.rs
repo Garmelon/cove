@@ -123,7 +123,7 @@ impl RoomInfo {
         match &mut self.main {
             Main::Empty => {}
             Main::Connecting => {
-                let text = "Connecing...";
+                let text = "Connecting...";
                 let area = layout::centered(text.width() as u16, 1, area);
                 frame.render_widget(Paragraph::new(Span::styled(text, styles::title())), area);
             }
