@@ -383,8 +383,8 @@ pub async fn new(
     url: String,
     room: String,
     timeout: Duration,
-) -> (Arc<Mutex<CoveConn>>, CoveConnMt, UnboundedReceiver<Event>) {
-    let (ev_tx, ev_rx) = mpsc::unbounded_channel();
+    ev_tx: UnboundedSender<Event>,
+) -> (Arc<Mutex<CoveConn>>, CoveConnMt) {
     let conn = Arc::new(Mutex::new(CoveConn {
         state: State::Connecting,
         ev_tx: ev_tx.clone(),
@@ -396,5 +396,5 @@ pub async fn new(
         conn,
         ev_tx,
     };
-    (mt.conn.clone(), mt, ev_rx)
+    (mt.conn.clone(), mt)
 }
