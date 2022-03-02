@@ -17,6 +17,8 @@ use crate::replies::{self, Replies};
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("{0}")]
+    CouldNotConnect(conn::Error),
+    #[error("{0}")]
     Conn(#[from] conn::Error),
     #[error("{0}")]
     Reply(#[from] replies::Error),
@@ -233,7 +235,7 @@ impl CoveConnMt {
             Err(e) => {
                 *self.conn.lock().await.state_mut() = State::Stopped;
                 self.ev_tx.send(Event::StateChanged);
-                return Err(Error::Conn(e));
+                return Err(Error::CouldNotConnect(e));
             }
         };
 
