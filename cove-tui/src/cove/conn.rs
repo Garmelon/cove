@@ -125,6 +125,7 @@ impl Connected {
 pub enum State {
     Connecting,
     Connected(Connected),
+    // TODO Include reason for stop
     Stopped,
 }
 

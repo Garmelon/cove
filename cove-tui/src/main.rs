@@ -1,9 +1,8 @@
 mod config;
+mod cove;
 mod never;
 mod replies;
-mod room;
 mod ui;
-mod cove;
 
 use std::io;
 
