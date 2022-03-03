@@ -1,2 +1,2 @@
-mod conn;
-mod room;
+pub mod conn;
+pub mod room;

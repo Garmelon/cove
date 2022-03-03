@@ -40,8 +40,8 @@ pub enum Event {
 }
 
 pub struct Present {
-    session: Session,
-    others: HashMap<SessionId, Session>,
+    pub session: Session,
+    pub others: HashMap<SessionId, Session>,
 }
 
 impl Present {

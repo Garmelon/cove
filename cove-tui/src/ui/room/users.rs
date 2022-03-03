@@ -4,11 +4,10 @@ use std::iter;
 use cove_core::{Identity, Session};
 use tui::buffer::Buffer;
 use tui::layout::Rect;
-use tui::style::{Modifier, Style};
 use tui::text::{Span, Spans};
 use tui::widgets::{Paragraph, Widget};
 
-use crate::room::Present;
+use crate::cove::conn::Present;
 use crate::ui::styles;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
