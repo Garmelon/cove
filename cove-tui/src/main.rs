@@ -3,7 +3,6 @@
 mod config;
 mod cove;
 mod never;
-mod replies;
 mod ui;
 
 use std::io;

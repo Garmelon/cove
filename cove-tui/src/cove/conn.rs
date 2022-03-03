@@ -7,11 +7,10 @@ use cove_core::packets::{
     Cmd, IdentifyCmd, IdentifyRpl, JoinNtf, NickNtf, NickRpl, Ntf, Packet, PartNtf, RoomCmd,
     RoomRpl, Rpl, SendNtf, SendRpl, WhoRpl,
 };
-use cove_core::{Session, SessionId};
+use cove_core::replies::Replies;
+use cove_core::{replies, Session, SessionId};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::Mutex;
-
-use crate::replies::{self, Replies};
 
 // TODO Split into "interacting" and "maintenance" parts?
 #[derive(Debug, thiserror::Error)]
