@@ -1,5 +1,7 @@
 // TODO Logging
 
+#![warn(clippy::use_self)]
+
 mod util;
 
 use std::collections::HashMap;

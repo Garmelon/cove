@@ -1,3 +1,5 @@
+#![warn(clippy::use_self)]
+
 mod config;
 mod cove;
 mod never;

@@ -1,3 +1,5 @@
+#![warn(clippy::use_self)]
+
 pub mod conn;
 mod id;
 mod macros;
