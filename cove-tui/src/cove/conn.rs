@@ -68,15 +68,15 @@ impl Present {
         self.session = session.clone();
     }
 
-    fn join(&self, who: Session) {
+    fn join(&mut self, who: Session) {
         self.others.insert(who.id, who);
     }
 
-    fn nick(&self, who: Session) {
+    fn nick(&mut self, who: Session) {
         self.others.insert(who.id, who);
     }
 
-    fn part(&self, who: Session) {
+    fn part(&mut self, who: Session) {
         self.others.remove(&who.id);
     }
 }

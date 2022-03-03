@@ -1,14 +1,12 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use tokio::sync::Mutex;
 use tui::buffer::Buffer;
 use tui::layout::Rect;
-use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
 use tui::widgets::{Paragraph, Widget};
 
-use crate::room::Room;
+use crate::cove::room::CoveRoom;
 
 use super::styles;
 
@@ -23,8 +21,8 @@ pub struct Rooms {
 }
 
 impl Rooms {
-    pub fn new(rooms: &HashMap<String, Arc<Mutex<Room>>>) -> Self {
-        let mut rooms = rooms
+    pub fn new(cove_rooms: &HashMap<String, CoveRoom>) -> Self {
+        let mut rooms = cove_rooms
             .iter()
             .map(|(name, _room)| RoomInfo { name: name.clone() })
             .collect::<Vec<_>>();

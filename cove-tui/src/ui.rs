@@ -2,33 +2,29 @@ mod input;
 mod layout;
 mod overlays;
 mod pane;
-mod room;
 mod rooms;
 mod styles;
 mod textline;
 
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::io::Stdout;
-use std::sync::Arc;
 
 use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, MouseEvent, MouseEventKind};
 use futures::StreamExt;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
-use tokio::sync::Mutex;
 use tui::backend::CrosstermBackend;
 use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::{Frame, Terminal};
 
 use crate::config::Config;
-use crate::room::Room;
+use crate::cove;
+use crate::cove::room::CoveRoom;
 use crate::ui::overlays::OverlayReaction;
 
 use self::input::EventHandler;
 use self::overlays::{Overlay, SwitchRoom, SwitchRoomState};
 use self::pane::PaneInfo;
-use self::room::RoomInfo;
 use self::rooms::Rooms;
 
 pub type Backend = CrosstermBackend<Stdout>;
@@ -39,6 +35,12 @@ pub enum UiEvent {
     Redraw,
 }
 
+impl From<cove::conn::Event> for UiEvent {
+    fn from(_: cove::conn::Event) -> Self {
+        Self::Redraw
+    }
+}
+
 enum EventHandleResult {
     Continue,
     Stop,
@@ -47,12 +49,12 @@ enum EventHandleResult {
 pub struct Ui {
     config: &'static Config,
     event_tx: UnboundedSender<UiEvent>,
-    rooms: HashMap<String, Arc<Mutex<Room>>>,
+    cove_rooms: HashMap<String, CoveRoom>,
 
     rooms_pane: PaneInfo,
     users_pane: PaneInfo,
 
-    room: Option<RoomInfo>,
+    // room: Option<RoomInfo>,
     overlay: Option<Overlay>,
 
     last_area: Rect,
@@ -63,12 +65,12 @@ impl Ui {
         Self {
             config,
             event_tx,
-            rooms: HashMap::new(),
+            cove_rooms: HashMap::new(),
 
             rooms_pane: PaneInfo::default(),
             users_pane: PaneInfo::default(),
 
-            room: None,
+            // room: None,
             overlay: None,
 
             last_area: Rect::default(),
@@ -169,18 +171,18 @@ impl Ui {
                 self.overlay = Some(Overlay::SwitchRoom(SwitchRoomState::default()));
                 CONTINUE
             }
-            KeyCode::Char('J') => {
-                self.switch_to_next_room();
-                CONTINUE
-            }
-            KeyCode::Char('K') => {
-                self.switch_to_prev_room();
-                CONTINUE
-            }
-            KeyCode::Char('D') => {
-                self.remove_current_room();
-                CONTINUE
-            }
+            // KeyCode::Char('J') => {
+            //     self.switch_to_next_room();
+            //     CONTINUE
+            // }
+            // KeyCode::Char('K') => {
+            //     self.switch_to_prev_room();
+            //     CONTINUE
+            // }
+            // KeyCode::Char('D') => {
+            //     self.remove_current_room();
+            //     CONTINUE
+            // }
             _ => CONTINUE,
         }
     }
@@ -193,7 +195,7 @@ impl Ui {
                 let name = name.trim();
                 if !name.is_empty() {
                     self.overlay = None;
-                    self.switch_to_room(name.to_string()).await;
+                    // self.switch_to_room(name.to_string()).await;
                 }
             }
         }
@@ -247,16 +249,16 @@ impl Ui {
         let users_pane_area = areas[4];
 
         // Main pane and users pane
-        if let Some(room) = &mut self.room {
-            room.render_main(frame, main_pane_area).await;
-            room.render_users(frame, users_pane_area).await;
-        }
+        // if let Some(room) = &mut self.room {
+        //     room.render_main(frame, main_pane_area).await;
+        //     room.render_users(frame, users_pane_area).await;
+        // }
 
         // Rooms pane
-        let mut rooms = Rooms::new(&self.rooms);
-        if let Some(room) = &self.room {
-            rooms = rooms.select(room.name());
-        }
+        let mut rooms = Rooms::new(&self.cove_rooms);
+        // if let Some(room) = &self.room {
+        //     rooms = rooms.select(room.name());
+        // }
         frame.render_widget(rooms, rooms_pane_area);
 
         // Pane borders and width
@@ -279,69 +281,69 @@ impl Ui {
         Ok(())
     }
 
-    async fn switch_to_room(&mut self, name: String) {
-        let room = match self.rooms.entry(name.clone()) {
-            Entry::Occupied(entry) => entry.get().clone(),
-            Entry::Vacant(entry) => {
-                let identity = self.config.cove_identity.clone();
-                let room = Room::new(name.clone(), identity, None, self.config).await;
-                entry.insert(room.clone());
-                room
-            }
-        };
+    // async fn switch_to_room(&mut self, name: String) {
+    //     let room = match self.rooms.entry(name.clone()) {
+    //         Entry::Occupied(entry) => entry.get().clone(),
+    //         Entry::Vacant(entry) => {
+    //             let identity = self.config.cove_identity.clone();
+    //             let room = Room::new(name.clone(), identity, None, self.config).await;
+    //             entry.insert(room.clone());
+    //             room
+    //         }
+    //     };
 
-        self.room = Some(RoomInfo::new(name, room))
-    }
+    //     self.room = Some(RoomInfo::new(name, room))
+    // }
 
-    fn get_room_index(&self) -> Option<(usize, &str)> {
-        let name = self.room.as_ref()?.name();
+    // fn get_room_index(&self) -> Option<(usize, &str)> {
+    //     let name = self.room.as_ref()?.name();
 
-        let mut rooms = self.rooms.keys().collect::<Vec<_>>();
-        if rooms.is_empty() {
-            return None;
-        }
-        rooms.sort();
+    //     let mut rooms = self.rooms.keys().collect::<Vec<_>>();
+    //     if rooms.is_empty() {
+    //         return None;
+    //     }
+    //     rooms.sort();
 
-        let index = rooms.iter().position(|n| n as &str == name)?;
+    //     let index = rooms.iter().position(|n| n as &str == name)?;
 
-        Some((index, name))
-    }
+    //     Some((index, name))
+    // }
 
-    fn set_room_index(&mut self, index: usize) {
-        let mut rooms = self.rooms.keys().collect::<Vec<_>>();
-        if rooms.is_empty() {
-            self.room = None;
-            return;
-        }
-        rooms.sort();
+    // fn set_room_index(&mut self, index: usize) {
+    //     let mut rooms = self.rooms.keys().collect::<Vec<_>>();
+    //     if rooms.is_empty() {
+    //         self.room = None;
+    //         return;
+    //     }
+    //     rooms.sort();
 
-        let name = rooms[index % rooms.len()];
-        let room = self.rooms[name].clone();
-        self.room = Some(RoomInfo::new(name.clone(), room))
-    }
+    //     let name = rooms[index % rooms.len()];
+    //     let room = self.rooms[name].clone();
+    //     self.room = Some(RoomInfo::new(name.clone(), room))
+    // }
 
-    fn switch_to_next_room(&mut self) {
-        if let Some((index, _)) = self.get_room_index() {
-            self.set_room_index(index + 1);
-        }
-    }
+    // fn switch_to_next_room(&mut self) {
+    //     if let Some((index, _)) = self.get_room_index() {
+    //         self.set_room_index(index + 1);
+    //     }
+    // }
 
-    fn switch_to_prev_room(&mut self) {
-        if let Some((index, _)) = self.get_room_index() {
-            self.set_room_index(index + self.rooms.len() - 1);
-        }
-    }
+    // fn switch_to_prev_room(&mut self) {
+    //     if let Some((index, _)) = self.get_room_index() {
+    //         self.set_room_index(index + self.rooms.len() - 1);
+    //     }
+    // }
 
-    fn remove_current_room(&mut self) {
-        if let Some((index, name)) = self.get_room_index() {
-            let name = name.to_string();
-            self.rooms.remove(&name);
-            let index = if self.rooms.is_empty() {
-                0
-            } else {
-                index.min(self.rooms.len() - 1)
-            };
-            self.set_room_index(index);
-        }
-    }
+    // fn remove_current_room(&mut self) {
+    //     if let Some((index, name)) = self.get_room_index() {
+    //         let name = name.to_string();
+    //         self.rooms.remove(&name);
+    //         let index = if self.rooms.is_empty() {
+    //             0
+    //         } else {
+    //             index.min(self.rooms.len() - 1)
+    //         };
+    //         self.set_room_index(index);
+    //     }
+    // }
 }
