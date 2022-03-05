@@ -1,5 +1,6 @@
 mod users;
 
+use crossterm::event::KeyEvent;
 use tui::backend::Backend;
 use tui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use tui::text::Span;
@@ -10,6 +11,7 @@ use crate::client::cove::room::CoveRoom;
 
 use self::users::CoveUsers;
 
+use super::input::EventHandler;
 use super::styles;
 
 pub struct CoveUi {
@@ -68,5 +70,13 @@ impl CoveUi {
         if let Some(present) = self.room.conn().await.state().await.present() {
             frame.render_widget(CoveUsers::new(present), area);
         }
+    }
+}
+
+impl EventHandler for CoveUi {
+    type Reaction = ();
+
+    fn handle_key(&mut self, event: KeyEvent) -> Option<Self::Reaction> {
+        None
     }
 }

@@ -138,7 +138,7 @@ impl Ui {
             };
             loop {
                 let result = match event {
-                    UiEvent::Term(Event::Key(event)) => self.handle_key_event(event).await?,
+                    UiEvent::Term(Event::Key(event)) => self.handle_key_event(event).await,
                     UiEvent::Term(Event::Mouse(event)) => self.handle_mouse_event(event).await?,
                     UiEvent::Term(Event::Resize(_, _)) => EventHandleResult::Continue,
                     UiEvent::Cove(name, event) => self.handle_cove_event(name, event).await?,
@@ -156,55 +156,78 @@ impl Ui {
         }
     }
 
-    async fn handle_key_event(&mut self, event: KeyEvent) -> anyhow::Result<EventHandleResult> {
-        const CONTINUE: anyhow::Result<EventHandleResult> = Ok(EventHandleResult::Continue);
-        const STOP: anyhow::Result<EventHandleResult> = Ok(EventHandleResult::Stop);
+    async fn handle_key_event(&mut self, event: KeyEvent) -> EventHandleResult {
+        if let Some(result) = self.handle_key_event_for_overlay(event).await {
+            return result;
+        }
 
-        // Overlay
+        if let Some(result) = self.handle_key_event_for_main_panel(event).await {
+            return result;
+        }
+
+        if let Some(result) = self.handle_key_event_for_ui(event).await {
+            return result;
+        }
+
+        EventHandleResult::Continue
+    }
+
+    async fn handle_key_event_for_overlay(&mut self, event: KeyEvent) -> Option<EventHandleResult> {
         if let Some(overlay) = &mut self.overlay {
             let reaction = match overlay {
                 Overlay::SwitchRoom(state) => state.handle_key(event),
             };
-            if let Some(reaction) = reaction {
-                self.handle_overlay_reaction(reaction).await;
+            match reaction {
+                Some(OverlayReaction::Handled) => {}
+                Some(OverlayReaction::Close) => self.overlay = None,
+                Some(OverlayReaction::SwitchRoom(id)) => {
+                    self.overlay = None;
+                    self.switch_to_room(id).await;
+                }
+                None => {}
             }
-            return CONTINUE;
-        }
-
-        // Main panel
-        // TODO Implement
-
-        // Otherwise, global bindings
-        match event.code {
-            KeyCode::Char('Q') => STOP,
-            KeyCode::Char('s') => {
-                self.overlay = Some(Overlay::SwitchRoom(SwitchRoomState::default()));
-                CONTINUE
-            }
-            KeyCode::Char('J') => {
-                self.switch_to_next_room();
-                CONTINUE
-            }
-            KeyCode::Char('K') => {
-                self.switch_to_prev_room();
-                CONTINUE
-            }
-            KeyCode::Char('D') => {
-                self.remove_current_room();
-                CONTINUE
-            }
-            _ => CONTINUE,
+            Some(EventHandleResult::Continue)
+        } else {
+            None
         }
     }
 
-    async fn handle_overlay_reaction(&mut self, reaction: OverlayReaction) {
-        match reaction {
-            OverlayReaction::Handled => {}
-            OverlayReaction::Close => self.overlay = None,
-            OverlayReaction::SwitchRoom(id) => {
-                self.overlay = None;
-                self.switch_to_room(id).await;
+    async fn handle_key_event_for_main_panel(
+        &mut self,
+        event: KeyEvent,
+    ) -> Option<EventHandleResult> {
+        match &self.room {
+            Some(RoomId::Cove(name)) => {
+                if let Some(ui) = self.cove_rooms.get_mut(name) {
+                    ui.handle_key(event).map(|_| EventHandleResult::Continue)
+                } else {
+                    None
+                }
             }
+            None => None,
+        }
+    }
+
+    async fn handle_key_event_for_ui(&mut self, event: KeyEvent) -> Option<EventHandleResult> {
+        match event.code {
+            KeyCode::Char('Q') => Some(EventHandleResult::Stop),
+            KeyCode::Char('s') => {
+                self.overlay = Some(Overlay::SwitchRoom(SwitchRoomState::default()));
+                Some(EventHandleResult::Continue)
+            }
+            KeyCode::Char('J') => {
+                self.switch_to_next_room();
+                Some(EventHandleResult::Continue)
+            }
+            KeyCode::Char('K') => {
+                self.switch_to_prev_room();
+                Some(EventHandleResult::Continue)
+            }
+            KeyCode::Char('D') => {
+                self.remove_current_room();
+                Some(EventHandleResult::Continue)
+            }
+            _ => None,
         }
     }
 
