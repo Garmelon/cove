@@ -91,6 +91,10 @@ impl CoveRoom {
         &self.name
     }
 
+    pub async fn identify(&self, nick: &str, identity: &str) {
+        self.conn().await.identify(nick, identity).await;
+    }
+
     // TODO Disallow modification via this MutexGuard
     pub async fn conn(&self) -> MutexGuard<'_, CoveConn> {
         self.conn.lock().await

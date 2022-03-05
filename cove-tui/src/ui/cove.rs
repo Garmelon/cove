@@ -10,7 +10,7 @@ use tui::Frame;
 
 use crate::client::cove::room::CoveRoom;
 
-use self::body::Body;
+use self::body::{Body, Reaction};
 use self::users::CoveUsers;
 
 use super::input::EventHandler;
@@ -78,12 +78,14 @@ impl CoveUi {
             frame.render_widget(CoveUsers::new(present), area);
         }
     }
-}
 
-impl EventHandler for CoveUi {
-    type Reaction = ();
-
-    fn handle_key(&mut self, event: KeyEvent) -> Option<Self::Reaction> {
-        None
+    pub async fn handle_key(&mut self, event: KeyEvent) -> Option<()> {
+        match self.body.handle_key(event)? {
+            Reaction::Handled => Some(()),
+            Reaction::Identify(nick) => {
+                self.room.identify(&nick, &nick).await;
+                Some(())
+            }
+        }
     }
 }

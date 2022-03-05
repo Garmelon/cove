@@ -267,11 +267,14 @@ impl Ui {
         event: KeyEvent,
     ) -> Option<EventHandleResult> {
         match &self.room {
-            Some(RoomId::Cove(name)) => self
-                .cove_rooms
-                .get_mut(name)
-                .and_then(|ui| ui.handle_key(event))
-                .and(Some(EventHandleResult::Continue)),
+            Some(RoomId::Cove(name)) => {
+                if let Some(ui) = self.cove_rooms.get_mut(name) {
+                    ui.handle_key(event).await;
+                    Some(EventHandleResult::Continue)
+                } else {
+                    None
+                }
+            }
             None => None,
         }
     }

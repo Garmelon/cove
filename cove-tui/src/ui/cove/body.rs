@@ -1,3 +1,4 @@
+use crossterm::event::{KeyCode, KeyEvent};
 use tui::backend::Backend;
 use tui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use tui::text::Span;
@@ -7,6 +8,7 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::client::cove::conn::{State, Status};
 use crate::client::cove::room::CoveRoom;
+use crate::ui::input::EventHandler;
 use crate::ui::textline::{TextLine, TextLineState};
 use crate::ui::{layout, styles};
 
@@ -86,10 +88,11 @@ impl Body {
                 let text_area = areas[1];
 
                 frame.render_widget(
-                    Paragraph::new(Span::styled("Choose a nick:", styles::title())),
+                    Paragraph::new(Span::styled("Choose a nick:", styles::title()))
+                        .alignment(Alignment::Center),
                     title_area,
                 );
-                frame.render_stateful_widget(TextLine, text_area, nick);
+                frame.render_stateful_widget(TextLine, layout::centered(50, 1, text_area), nick);
             }
             Body::ChooseNick {
                 nick,
@@ -109,12 +112,14 @@ impl Body {
                 let error_area = areas[2];
 
                 frame.render_widget(
-                    Paragraph::new(Span::styled("Choose a nick:", styles::title())),
+                    Paragraph::new(Span::styled("Choose a nick:", styles::title()))
+                        .alignment(Alignment::Center),
                     title_area,
                 );
-                frame.render_stateful_widget(TextLine, text_area, nick);
+                frame.render_stateful_widget(TextLine, layout::centered(50, 1, text_area), nick);
                 frame.render_widget(
-                    Paragraph::new(Span::styled(error as &str, styles::error())),
+                    Paragraph::new(Span::styled(error as &str, styles::error()))
+                        .alignment(Alignment::Center),
                     error_area,
                 );
             }
@@ -128,6 +133,29 @@ impl Body {
                 let area = layout::centered(text.width() as u16, 1, area);
                 frame.render_widget(Paragraph::new(Span::styled(text, styles::title())), area);
             }
+        }
+    }
+}
+
+pub enum Reaction {
+    Handled,
+    Identify(String),
+}
+
+impl EventHandler for Body {
+    type Reaction = Reaction;
+
+    fn handle_key(&mut self, event: KeyEvent) -> Option<Self::Reaction> {
+        match self {
+            Body::ChooseNick { nick, .. } => {
+                if event.code == KeyCode::Enter {
+                    Some(Reaction::Identify(nick.content().to_string()))
+                } else {
+                    nick.handle_key(event).and(Some(Reaction::Handled))
+                }
+            }
+            Body::Present => None, // TODO Implement
+            _ => None,
         }
     }
 }
