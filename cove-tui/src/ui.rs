@@ -1,3 +1,4 @@
+mod cove;
 mod input;
 mod layout;
 mod overlays;
@@ -18,10 +19,9 @@ use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::{Frame, Terminal};
 
 use crate::config::Config;
-use crate::cove;
-use crate::cove::room::CoveRoom;
 use crate::ui::overlays::OverlayReaction;
 
+use self::cove::CoveUi;
 use self::input::EventHandler;
 use self::overlays::{Overlay, SwitchRoom, SwitchRoomState};
 use self::pane::PaneInfo;
@@ -35,8 +35,8 @@ pub enum UiEvent {
     Redraw,
 }
 
-impl From<cove::conn::Event> for UiEvent {
-    fn from(_: cove::conn::Event) -> Self {
+impl From<crate::cove::conn::Event> for UiEvent {
+    fn from(_: crate::cove::conn::Event) -> Self {
         Self::Redraw
     }
 }
@@ -49,7 +49,8 @@ enum EventHandleResult {
 pub struct Ui {
     config: &'static Config,
     event_tx: UnboundedSender<UiEvent>,
-    cove_rooms: HashMap<String, CoveRoom>,
+
+    cove_rooms: HashMap<String, CoveUi>,
 
     rooms_pane: PaneInfo,
     users_pane: PaneInfo,

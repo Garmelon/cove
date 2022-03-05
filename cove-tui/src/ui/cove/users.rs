@@ -18,18 +18,18 @@ struct UserInfo {
 
 impl From<&Session> for UserInfo {
     fn from(s: &Session) -> Self {
-        UserInfo {
+        Self {
             nick: s.nick.clone(),
             identity: s.identity,
         }
     }
 }
 
-pub struct Users {
+pub struct CoveUsers {
     users: Vec<UserInfo>,
 }
 
-impl Users {
+impl CoveUsers {
     pub fn new(present: &Present) -> Self {
         let mut users: Vec<UserInfo> = iter::once(&present.session)
             .chain(present.others.values())
@@ -40,7 +40,7 @@ impl Users {
     }
 }
 
-impl Widget for Users {
+impl Widget for CoveUsers {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let sessions = self.users.len();
         let identities = self

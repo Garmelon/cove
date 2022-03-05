@@ -1,13 +1,11 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use tui::buffer::Buffer;
 use tui::layout::Rect;
 use tui::text::{Span, Spans};
 use tui::widgets::{Paragraph, Widget};
 
-use crate::cove::room::CoveRoom;
-
+use super::cove::CoveUi;
 use super::styles;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -21,10 +19,10 @@ pub struct Rooms {
 }
 
 impl Rooms {
-    pub fn new(cove_rooms: &HashMap<String, CoveRoom>) -> Self {
+    pub fn new(cove_rooms: &HashMap<String, CoveUi>) -> Self {
         let mut rooms = cove_rooms
             .iter()
-            .map(|(name, _room)| RoomInfo { name: name.clone() })
+            .map(|(name, _)| RoomInfo { name: name.clone() })
             .collect::<Vec<_>>();
         rooms.sort();
         Self {
