@@ -34,16 +34,16 @@ impl CoveUi {
                 Constraint::Min(0),
             ])
             .split(area);
-        let room_name_area = areas[0];
+        let title_area = areas[0];
         let separator_area = areas[1];
-        let main_area = areas[2];
+        let body_area = areas[2];
 
-        self.render_banner(frame, room_name_area).await;
+        self.render_title(frame, title_area).await;
         self.render_separator(frame, separator_area).await;
-        self.render_main_inner(frame, main_area).await;
+        self.render_body(frame, body_area).await;
     }
 
-    async fn render_banner<B: Backend>(&mut self, frame: &mut Frame<'_, B>, area: Rect) {
+    async fn render_title<B: Backend>(&mut self, frame: &mut Frame<'_, B>, area: Rect) {
         // TODO Show current nick as well, if applicable
         let room_name = Paragraph::new(Span::styled(
             format!("&{}", self.name()),
@@ -60,7 +60,7 @@ impl CoveUi {
         frame.render_widget(separator, area);
     }
 
-    async fn render_main_inner<B: Backend>(&mut self, frame: &mut Frame<'_, B>, area: Rect) {
+    async fn render_body<B: Backend>(&mut self, frame: &mut Frame<'_, B>, area: Rect) {
         // TODO Implement
     }
 
