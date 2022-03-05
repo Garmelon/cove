@@ -156,6 +156,76 @@ impl Ui {
         }
     }
 
+    async fn render(&mut self, frame: &mut Frame<'_, Backend>) -> anyhow::Result<()> {
+        let entire_area = frame.size();
+        let areas = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Length(self.rooms_pane.width()),
+                Constraint::Length(1),
+                Constraint::Min(0),
+                Constraint::Length(1),
+                Constraint::Length(self.users_pane.width()),
+            ])
+            .split(entire_area);
+        let rooms_pane_area = areas[0];
+        let rooms_pane_border = areas[1];
+        let main_pane_area = areas[2];
+        let users_pane_border = areas[3];
+        let users_pane_area = areas[4];
+
+        // Main pane and users pane
+        self.render_room(frame, main_pane_area, users_pane_area)
+            .await;
+
+        // Rooms pane
+        let mut rooms = Rooms::new(&self.cove_rooms);
+        if let Some(RoomId::Cove(name)) = &self.room {
+            rooms = rooms.select(name);
+        }
+        frame.render_widget(rooms, rooms_pane_area);
+
+        // Pane borders and width
+        self.rooms_pane.restrict_width(rooms_pane_area.width);
+        frame.render_widget(self.rooms_pane.border(), rooms_pane_border);
+        self.users_pane.restrict_width(users_pane_area.width);
+        frame.render_widget(self.users_pane.border(), users_pane_border);
+
+        // Overlay
+        if let Some(overlay) = &mut self.overlay {
+            match overlay {
+                Overlay::SwitchRoom(state) => {
+                    frame.render_stateful_widget(SwitchRoom, entire_area, state);
+                    let (x, y) = state.last_cursor_pos();
+                    frame.set_cursor(x, y);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn render_room(
+        &mut self,
+        frame: &mut Frame<'_, Backend>,
+        main_pane_area: Rect,
+        users_pane_area: Rect,
+    ) {
+        match &self.room {
+            Some(RoomId::Cove(name)) => {
+                if let Some(ui) = self.cove_rooms.get_mut(name) {
+                    ui.render_main(frame, main_pane_area).await;
+                    ui.render_users(frame, users_pane_area).await;
+                } else {
+                    self.room = None;
+                }
+            }
+            None => {
+                // TODO Render welcome screen
+            }
+        }
+    }
+
     async fn handle_key_event(&mut self, event: KeyEvent) -> EventHandleResult {
         if let Some(result) = self.handle_key_event_for_overlay(event).await {
             return result;
@@ -270,76 +340,6 @@ impl Ui {
             }
         }
         Ok(EventHandleResult::Continue)
-    }
-
-    async fn render(&mut self, frame: &mut Frame<'_, Backend>) -> anyhow::Result<()> {
-        let entire_area = frame.size();
-        let areas = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Length(self.rooms_pane.width()),
-                Constraint::Length(1),
-                Constraint::Min(0),
-                Constraint::Length(1),
-                Constraint::Length(self.users_pane.width()),
-            ])
-            .split(entire_area);
-        let rooms_pane_area = areas[0];
-        let rooms_pane_border = areas[1];
-        let main_pane_area = areas[2];
-        let users_pane_border = areas[3];
-        let users_pane_area = areas[4];
-
-        // Main pane and users pane
-        self.render_room(frame, main_pane_area, users_pane_area)
-            .await;
-
-        // Rooms pane
-        let mut rooms = Rooms::new(&self.cove_rooms);
-        if let Some(RoomId::Cove(name)) = &self.room {
-            rooms = rooms.select(name);
-        }
-        frame.render_widget(rooms, rooms_pane_area);
-
-        // Pane borders and width
-        self.rooms_pane.restrict_width(rooms_pane_area.width);
-        frame.render_widget(self.rooms_pane.border(), rooms_pane_border);
-        self.users_pane.restrict_width(users_pane_area.width);
-        frame.render_widget(self.users_pane.border(), users_pane_border);
-
-        // Overlay
-        if let Some(overlay) = &mut self.overlay {
-            match overlay {
-                Overlay::SwitchRoom(state) => {
-                    frame.render_stateful_widget(SwitchRoom, entire_area, state);
-                    let (x, y) = state.last_cursor_pos();
-                    frame.set_cursor(x, y);
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    async fn render_room(
-        &mut self,
-        frame: &mut Frame<'_, Backend>,
-        main_pane_area: Rect,
-        users_pane_area: Rect,
-    ) {
-        match &self.room {
-            Some(RoomId::Cove(name)) => {
-                if let Some(ui) = self.cove_rooms.get_mut(name) {
-                    ui.render_main(frame, main_pane_area).await;
-                    ui.render_users(frame, users_pane_area).await;
-                } else {
-                    self.room = None;
-                }
-            }
-            None => {
-                // TODO Render welcome screen
-            }
-        }
     }
 
     fn switch_to_room(&mut self, id: RoomId) {
