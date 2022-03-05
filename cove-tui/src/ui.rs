@@ -360,7 +360,7 @@ impl Ui {
             return;
         }
 
-        let id = rooms[index & rooms.len()].clone();
+        let id = rooms[index % rooms.len()].clone();
         self.room = Some(id);
     }
 
