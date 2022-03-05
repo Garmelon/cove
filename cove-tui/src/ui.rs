@@ -11,7 +11,9 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::io::Stdout;
 
-use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, MouseEvent, MouseEventKind};
+use crossterm::event::{
+    Event as CEvent, EventStream, KeyCode, KeyEvent, MouseEvent, MouseEventKind,
+};
 use futures::StreamExt;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -19,8 +21,10 @@ use tui::backend::CrosstermBackend;
 use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::{Frame, Terminal};
 
+use crate::backend::cove::conn::Event as CoveEvent;
+use crate::backend::cove::room::CoveRoom;
+use crate::backend::Event as BEvent;
 use crate::config::Config;
-use crate::cove::room::CoveRoom;
 use crate::ui::overlays::OverlayReaction;
 
 use self::cove::CoveUi;
@@ -31,22 +35,22 @@ use self::rooms::Rooms;
 
 pub type Backend = CrosstermBackend<Stdout>;
 
-#[derive(Debug)]
-pub enum UiEvent {
-    Term(Event),
-    Redraw,
-    // TODO Add room events
-}
-
-impl From<crate::cove::conn::Event> for UiEvent {
-    fn from(_: crate::cove::conn::Event) -> Self {
-        Self::Redraw
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RoomId {
     Cove(String),
+}
+
+#[derive(Debug)]
+pub enum UiEvent {
+    Term(CEvent),
+    Room(BEvent),
+    Redraw,
+}
+
+impl From<BEvent> for UiEvent {
+    fn from(event: BEvent) -> Self {
+        Self::Room(event)
+    }
 }
 
 enum EventHandleResult {
@@ -138,9 +142,12 @@ impl Ui {
             };
             loop {
                 let result = match event {
-                    UiEvent::Term(Event::Key(event)) => self.handle_key_event(event).await?,
-                    UiEvent::Term(Event::Mouse(event)) => self.handle_mouse_event(event).await?,
-                    UiEvent::Term(Event::Resize(_, _)) => EventHandleResult::Continue,
+                    UiEvent::Term(CEvent::Key(event)) => self.handle_key_event(event).await?,
+                    UiEvent::Term(CEvent::Mouse(event)) => self.handle_mouse_event(event).await?,
+                    UiEvent::Term(CEvent::Resize(_, _)) => EventHandleResult::Continue,
+                    UiEvent::Room(BEvent::Cove(name, event)) => {
+                        self.handle_cove_event(name, event).await?
+                    }
                     UiEvent::Redraw => EventHandleResult::Continue,
                 };
                 match result {
@@ -233,6 +240,20 @@ impl Ui {
             // MouseEventKind::ScrollDown => todo!(),
             // MouseEventKind::ScrollUp => todo!(),
             _ => {}
+        }
+        Ok(EventHandleResult::Continue)
+    }
+
+    async fn handle_cove_event(
+        &mut self,
+        name: String,
+        event: CoveEvent,
+    ) -> anyhow::Result<EventHandleResult> {
+        match event {
+            CoveEvent::StateChanged => {}
+            CoveEvent::IdentificationRequired => {
+                // TODO Send identification if default nick is set in config
+            }
         }
         Ok(EventHandleResult::Continue)
     }

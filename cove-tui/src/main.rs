@@ -1,7 +1,7 @@
 #![warn(clippy::use_self)]
 
+pub mod backend;
 mod config;
-mod cove;
 mod never;
 mod ui;
 

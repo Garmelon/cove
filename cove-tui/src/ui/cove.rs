@@ -4,7 +4,7 @@ use tui::backend::Backend;
 use tui::layout::Rect;
 use tui::Frame;
 
-use crate::cove::room::CoveRoom;
+use crate::backend::cove::room::CoveRoom;
 
 pub struct CoveUi {
     room: CoveRoom,

@@ -8,13 +8,14 @@ use tokio::sync::Mutex;
 use crate::config::Config;
 use crate::never::Never;
 
-use super::conn::{self, CoveConn, CoveConnMt, Event};
+use super::super::Event;
+use super::conn::{self, CoveConn, CoveConnMt};
 
 struct ConnConfig {
     url: String,
     room: String,
     timeout: Duration,
-    ev_tx: UnboundedSender<Event>,
+    ev_tx: UnboundedSender<conn::Event>,
 }
 
 impl ConnConfig {
@@ -59,7 +60,7 @@ impl CoveRoom {
         let (conn, mt) = conf.new_conn().await;
 
         let room = Self {
-            name,
+            name: name.clone(),
             conn: Arc::new(Mutex::new(conn)),
             dead_mans_switch: tx,
         };
@@ -68,7 +69,7 @@ impl CoveRoom {
         tokio::spawn(async move {
             tokio::select! {
                 _ = rx => {} // Watch dead man's switch
-                _ = Self::shovel_events(ev_rx, outer_ev_tx) => {}
+                _ = Self::shovel_events(ev_rx, outer_ev_tx, name) => {}
                 _ = Self::run(conn_clone, mt, conf) => {}
             }
         });
@@ -76,11 +77,15 @@ impl CoveRoom {
         room
     }
 
-    async fn shovel_events<E>(mut ev_rx: UnboundedReceiver<Event>, ev_tx: UnboundedSender<E>)
-    where
+    async fn shovel_events<E>(
+        mut ev_rx: UnboundedReceiver<conn::Event>,
+        ev_tx: UnboundedSender<E>,
+        name: String,
+    ) where
         Event: Into<E>,
     {
         while let Some(event) = ev_rx.recv().await {
+            let event = Event::Cove(name.clone(), event);
             if ev_tx.send(event.into()).is_err() {
                 break;
             }

@@ -33,9 +33,10 @@ pub enum Error {
     IncorrectReplyType,
 }
 
+#[derive(Debug)]
 pub enum Event {
     StateChanged,
-    // TODO Add IdentificationRequired event
+    IdentificationRequired,
     // TODO Add events for joining, parting, sending, ...
 }
 
@@ -278,7 +279,7 @@ impl CoveConnMt {
         match &rpl {
             Rpl::Room(RoomRpl::Success) => {
                 connected.status = Status::IdRequired(None);
-                conn.ev_tx.send(Event::StateChanged);
+                conn.ev_tx.send(Event::IdentificationRequired);
             }
             Rpl::Room(RoomRpl::InvalidRoom { reason }) => {
                 return Err(Error::InvalidRoom(reason.clone()))
@@ -289,7 +290,7 @@ impl CoveConnMt {
             }
             Rpl::Identify(IdentifyRpl::InvalidNick { reason }) => {
                 connected.status = Status::IdRequired(Some(reason.clone()));
-                conn.ev_tx.send(Event::StateChanged);
+                conn.ev_tx.send(Event::IdentificationRequired);
             }
             Rpl::Identify(IdentifyRpl::InvalidIdentity { reason }) => {
                 return Err(Error::InvalidIdentity(reason.clone()))

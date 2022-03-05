@@ -7,7 +7,7 @@ use tui::layout::Rect;
 use tui::text::{Span, Spans};
 use tui::widgets::{Paragraph, Widget};
 
-use crate::cove::conn::Present;
+use crate::backend::cove::conn::Present;
 use crate::ui::styles;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
