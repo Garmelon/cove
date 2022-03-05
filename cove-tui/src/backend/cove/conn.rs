@@ -10,7 +10,7 @@ use cove_core::packets::{
 use cove_core::replies::Replies;
 use cove_core::{replies, Session, SessionId};
 use tokio::sync::mpsc::UnboundedSender;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, MutexGuard};
 
 // TODO Split into "interacting" and "maintenance" parts?
 #[derive(Debug, thiserror::Error)]
@@ -121,6 +121,10 @@ impl Connected {
             status: Status::ChoosingRoom,
         }
     }
+
+    pub fn present(&self) -> Option<&Present> {
+        self.status.present()
+    }
 }
 
 // The warning about enum variant sizes shouldn't matter since a connection will
@@ -147,6 +151,10 @@ impl State {
             Self::Connecting | Self::Stopped => None,
         }
     }
+
+    pub fn present(&self) -> Option<&Present> {
+        self.connected()?.present()
+    }
 }
 
 #[derive(Clone)]
@@ -156,6 +164,11 @@ pub struct CoveConn {
 }
 
 impl CoveConn {
+    // TODO Disallow modification via this MutexGuard
+    pub async fn state(&self) -> MutexGuard<'_, State> {
+        self.state.lock().await
+    }
+
     async fn cmd<C, R>(&self, cmd: C) -> Result<R, Error>
     where
         C: Into<Cmd>,

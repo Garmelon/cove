@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::sync::oneshot::{self, Sender};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, MutexGuard};
 
 use crate::config::Config;
 use crate::never::Never;
@@ -31,6 +31,7 @@ impl ConnConfig {
 }
 
 pub struct CoveRoom {
+    name: String,
     conn: Arc<Mutex<CoveConn>>,
     /// Once this is dropped, all other room-related tasks, connections and
     /// values are cleaned up. It is never used to send actual values.
@@ -60,6 +61,7 @@ impl CoveRoom {
         let (conn, mt) = conf.new_conn().await;
 
         let room = Self {
+            name: name.clone(),
             conn: Arc::new(Mutex::new(conn)),
             dead_mans_switch: tx,
         };
@@ -74,6 +76,15 @@ impl CoveRoom {
         });
 
         room
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    // TODO Disallow modification via this MutexGuard
+    pub async fn conn(&self) -> MutexGuard<'_, CoveConn> {
+        self.conn.lock().await
     }
 
     async fn shovel_events<E>(
