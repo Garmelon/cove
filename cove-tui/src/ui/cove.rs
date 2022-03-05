@@ -1,3 +1,4 @@
+mod body;
 mod users;
 
 use crossterm::event::KeyEvent;
@@ -9,6 +10,7 @@ use tui::Frame;
 
 use crate::client::cove::room::CoveRoom;
 
+use self::body::Body;
 use self::users::CoveUsers;
 
 use super::input::EventHandler;
@@ -16,11 +18,15 @@ use super::styles;
 
 pub struct CoveUi {
     room: CoveRoom,
+    body: Body,
 }
 
 impl CoveUi {
     pub fn new(room: CoveRoom) -> Self {
-        Self { room }
+        Self {
+            room,
+            body: Body::default(),
+        }
     }
 
     fn name(&self) -> &str {
@@ -63,7 +69,8 @@ impl CoveUi {
     }
 
     async fn render_body<B: Backend>(&mut self, frame: &mut Frame<'_, B>, area: Rect) {
-        // TODO Implement
+        self.body.update(&self.room).await;
+        self.body.render(frame, area).await
     }
 
     pub async fn render_users<B: Backend>(&mut self, frame: &mut Frame<'_, B>, area: Rect) {

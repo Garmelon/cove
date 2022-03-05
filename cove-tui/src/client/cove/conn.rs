@@ -122,6 +122,10 @@ impl Connected {
         }
     }
 
+    pub fn status(&self) -> &Status {
+        &self.status
+    }
+
     pub fn present(&self) -> Option<&Present> {
         self.status.present()
     }

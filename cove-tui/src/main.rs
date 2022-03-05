@@ -1,3 +1,5 @@
+// TODO Make as few things async as necessary
+
 #![warn(clippy::use_self)]
 
 pub mod client;

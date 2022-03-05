@@ -1,7 +1,6 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::sync::oneshot::{self, Sender};
 use tokio::sync::{Mutex, MutexGuard};
@@ -15,7 +14,7 @@ struct ConnConfig {
     url: String,
     room: String,
     timeout: Duration,
-    ev_tx: UnboundedSender<conn::Event>,
+    ev_tx: UnboundedSender<Event>,
 }
 
 impl ConnConfig {
@@ -68,11 +67,19 @@ impl CoveRoom {
             dead_mans_switch: tx,
         };
 
+        // Spawned separately because otherwise, the last few elements before a
+        // connection is closed might not get shoveled.
+        tokio::spawn(Self::shovel_events(
+            name,
+            ev_rx,
+            event_sender,
+            convert_event,
+        ));
+
         let conn_clone = room.conn.clone();
         tokio::spawn(async move {
             tokio::select! {
                 _ = rx => {} // Watch dead man's switch
-                _ = Self::shovel_events(name, ev_rx, event_sender, convert_event) => {}
                 _ = Self::run(conn_clone, mt, conf) => {}
             }
         });
@@ -91,7 +98,7 @@ impl CoveRoom {
 
     async fn shovel_events<E>(
         name: String,
-        mut ev_rx: UnboundedReceiver<conn::Event>,
+        mut ev_rx: UnboundedReceiver<Event>,
         ev_tx: UnboundedSender<E>,
         convert_event: impl Fn(&str, Event) -> E,
     ) {
@@ -115,6 +122,7 @@ impl CoveRoom {
                     // TODO Exponential backoff?
                     tokio::time::sleep(Duration::from_secs(10)).await;
                 }
+                // TODO Note these errors somewhere in the room state
                 Err(conn::Error::CouldNotConnect(_)) => return,
                 Err(conn::Error::InvalidRoom(_)) => return,
                 Err(conn::Error::InvalidIdentity(_)) => return,
