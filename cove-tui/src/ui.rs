@@ -11,9 +11,7 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::io::Stdout;
 
-use crossterm::event::{
-    Event as CEvent, EventStream, KeyCode, KeyEvent, MouseEvent, MouseEventKind,
-};
+use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, MouseEvent, MouseEventKind};
 use futures::StreamExt;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -21,9 +19,8 @@ use tui::backend::CrosstermBackend;
 use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::{Frame, Terminal};
 
-use crate::backend::cove::conn::Event as CoveEvent;
-use crate::backend::cove::room::CoveRoom;
-use crate::backend::Event as BEvent;
+use crate::client::cove::conn::Event as CoveEvent;
+use crate::client::cove::room::CoveRoom;
 use crate::config::Config;
 use crate::ui::overlays::OverlayReaction;
 
@@ -42,14 +39,13 @@ pub enum RoomId {
 
 #[derive(Debug)]
 pub enum UiEvent {
-    Term(CEvent),
-    Room(BEvent),
-    Redraw,
+    Term(Event),
+    Cove(String, CoveEvent),
 }
 
-impl From<BEvent> for UiEvent {
-    fn from(event: BEvent) -> Self {
-        Self::Room(event)
+impl UiEvent {
+    fn cove(room: &str, event: CoveEvent) -> Self {
+        Self::Cove(room.to_string(), event)
     }
 }
 
@@ -142,13 +138,10 @@ impl Ui {
             };
             loop {
                 let result = match event {
-                    UiEvent::Term(CEvent::Key(event)) => self.handle_key_event(event).await?,
-                    UiEvent::Term(CEvent::Mouse(event)) => self.handle_mouse_event(event).await?,
-                    UiEvent::Term(CEvent::Resize(_, _)) => EventHandleResult::Continue,
-                    UiEvent::Room(BEvent::Cove(name, event)) => {
-                        self.handle_cove_event(name, event).await?
-                    }
-                    UiEvent::Redraw => EventHandleResult::Continue,
+                    UiEvent::Term(Event::Key(event)) => self.handle_key_event(event).await?,
+                    UiEvent::Term(Event::Mouse(event)) => self.handle_mouse_event(event).await?,
+                    UiEvent::Term(Event::Resize(_, _)) => EventHandleResult::Continue,
+                    UiEvent::Cove(name, event) => self.handle_cove_event(name, event).await?,
                 };
                 match result {
                     EventHandleResult::Continue => {}
@@ -332,8 +325,13 @@ impl Ui {
         match &id {
             RoomId::Cove(name) => {
                 if let Entry::Vacant(entry) = self.cove_rooms.entry(name.clone()) {
-                    let room =
-                        CoveRoom::new(self.config, self.event_tx.clone(), name.clone()).await;
+                    let room = CoveRoom::new(
+                        self.config,
+                        name.clone(),
+                        self.event_tx.clone(),
+                        UiEvent::cove,
+                    )
+                    .await;
                     entry.insert(CoveUi::new(room));
                 }
             }

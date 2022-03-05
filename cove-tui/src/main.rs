@@ -1,6 +1,6 @@
 #![warn(clippy::use_self)]
 
-pub mod backend;
+pub mod client;
 mod config;
 mod never;
 mod ui;

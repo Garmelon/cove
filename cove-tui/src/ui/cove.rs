@@ -6,7 +6,7 @@ use tui::text::Span;
 use tui::widgets::{Block, BorderType, Borders, Paragraph};
 use tui::Frame;
 
-use crate::backend::cove::room::CoveRoom;
+use crate::client::cove::room::CoveRoom;
 
 use self::users::CoveUsers;
 

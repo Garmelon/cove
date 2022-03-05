@@ -8,8 +8,7 @@ use tokio::sync::{Mutex, MutexGuard};
 use crate::config::Config;
 use crate::never::Never;
 
-use super::super::Event;
-use super::conn::{self, CoveConn, CoveConnMt};
+use super::conn::{self, CoveConn, CoveConnMt, Event};
 
 struct ConnConfig {
     url: String,
@@ -40,14 +39,15 @@ pub struct CoveRoom {
 }
 
 impl CoveRoom {
-    pub async fn new<E>(
+    pub async fn new<E, F>(
         config: &'static Config,
-        outer_ev_tx: UnboundedSender<E>,
         name: String,
+        event_sender: UnboundedSender<E>,
+        convert_event: F,
     ) -> Self
     where
         E: Send + 'static,
-        Event: Into<E>,
+        F: Fn(&str, Event) -> E + Send + 'static,
     {
         let (ev_tx, ev_rx) = mpsc::unbounded_channel();
         let (tx, rx) = oneshot::channel();
@@ -70,7 +70,7 @@ impl CoveRoom {
         tokio::spawn(async move {
             tokio::select! {
                 _ = rx => {} // Watch dead man's switch
-                _ = Self::shovel_events(ev_rx, outer_ev_tx, name) => {}
+                _ = Self::shovel_events(name, ev_rx, event_sender, convert_event) => {}
                 _ = Self::run(conn_clone, mt, conf) => {}
             }
         });
@@ -88,15 +88,14 @@ impl CoveRoom {
     }
 
     async fn shovel_events<E>(
+        name: String,
         mut ev_rx: UnboundedReceiver<conn::Event>,
         ev_tx: UnboundedSender<E>,
-        name: String,
-    ) where
-        Event: Into<E>,
-    {
+        convert_event: impl Fn(&str, Event) -> E,
+    ) {
         while let Some(event) = ev_rx.recv().await {
-            let event = Event::Cove(name.clone(), event);
-            if ev_tx.send(event.into()).is_err() {
+            let event = convert_event(&name, event);
+            if ev_tx.send(event).is_err() {
                 break;
             }
         }
