@@ -35,6 +35,7 @@ pub enum Error {
 
 pub enum Event {
     StateChanged,
+    // TODO Add IdentificationRequired event
     // TODO Add events for joining, parting, sending, ...
 }
 

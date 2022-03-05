@@ -7,6 +7,7 @@ mod rooms;
 mod styles;
 mod textline;
 
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::io::Stdout;
 
@@ -19,6 +20,7 @@ use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::{Frame, Terminal};
 
 use crate::config::Config;
+use crate::cove::room::CoveRoom;
 use crate::ui::overlays::OverlayReaction;
 
 use self::cove::CoveUi;
@@ -33,12 +35,18 @@ pub type Backend = CrosstermBackend<Stdout>;
 pub enum UiEvent {
     Term(Event),
     Redraw,
+    // TODO Add room events
 }
 
 impl From<crate::cove::conn::Event> for UiEvent {
     fn from(_: crate::cove::conn::Event) -> Self {
         Self::Redraw
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum RoomId {
+    Cove(String),
 }
 
 enum EventHandleResult {
@@ -51,11 +59,11 @@ pub struct Ui {
     event_tx: UnboundedSender<UiEvent>,
 
     cove_rooms: HashMap<String, CoveUi>,
+    room: Option<RoomId>,
 
     rooms_pane: PaneInfo,
     users_pane: PaneInfo,
 
-    // room: Option<RoomInfo>,
     overlay: Option<Overlay>,
 
     last_area: Rect,
@@ -66,12 +74,13 @@ impl Ui {
         Self {
             config,
             event_tx,
+
             cove_rooms: HashMap::new(),
+            room: None,
 
             rooms_pane: PaneInfo::default(),
             users_pane: PaneInfo::default(),
 
-            // room: None,
             overlay: None,
 
             last_area: Rect::default(),
@@ -172,18 +181,18 @@ impl Ui {
                 self.overlay = Some(Overlay::SwitchRoom(SwitchRoomState::default()));
                 CONTINUE
             }
-            // KeyCode::Char('J') => {
-            //     self.switch_to_next_room();
-            //     CONTINUE
-            // }
-            // KeyCode::Char('K') => {
-            //     self.switch_to_prev_room();
-            //     CONTINUE
-            // }
-            // KeyCode::Char('D') => {
-            //     self.remove_current_room();
-            //     CONTINUE
-            // }
+            KeyCode::Char('J') => {
+                self.switch_to_next_room();
+                CONTINUE
+            }
+            KeyCode::Char('K') => {
+                self.switch_to_prev_room();
+                CONTINUE
+            }
+            KeyCode::Char('D') => {
+                self.remove_current_room();
+                CONTINUE
+            }
             _ => CONTINUE,
         }
     }
@@ -192,12 +201,9 @@ impl Ui {
         match reaction {
             OverlayReaction::Handled => {}
             OverlayReaction::Close => self.overlay = None,
-            OverlayReaction::SwitchRoom(name) => {
-                let name = name.trim();
-                if !name.is_empty() {
-                    self.overlay = None;
-                    // self.switch_to_room(name.to_string()).await;
-                }
+            OverlayReaction::SwitchRoom(id) => {
+                self.overlay = None;
+                self.switch_to_room(id).await;
             }
         }
     }
@@ -250,16 +256,14 @@ impl Ui {
         let users_pane_area = areas[4];
 
         // Main pane and users pane
-        // if let Some(room) = &mut self.room {
-        //     room.render_main(frame, main_pane_area).await;
-        //     room.render_users(frame, users_pane_area).await;
-        // }
+        self.render_room(frame, main_pane_area, users_pane_area)
+            .await;
 
         // Rooms pane
         let mut rooms = Rooms::new(&self.cove_rooms);
-        // if let Some(room) = &self.room {
-        //     rooms = rooms.select(room.name());
-        // }
+        if let Some(RoomId::Cove(name)) = &self.room {
+            rooms = rooms.select(name);
+        }
         frame.render_widget(rooms, rooms_pane_area);
 
         // Pane borders and width
@@ -282,69 +286,87 @@ impl Ui {
         Ok(())
     }
 
-    // async fn switch_to_room(&mut self, name: String) {
-    //     let room = match self.rooms.entry(name.clone()) {
-    //         Entry::Occupied(entry) => entry.get().clone(),
-    //         Entry::Vacant(entry) => {
-    //             let identity = self.config.cove_identity.clone();
-    //             let room = Room::new(name.clone(), identity, None, self.config).await;
-    //             entry.insert(room.clone());
-    //             room
-    //         }
-    //     };
+    async fn render_room(
+        &mut self,
+        frame: &mut Frame<'_, Backend>,
+        main_pane_area: Rect,
+        users_pane_area: Rect,
+    ) {
+        match &self.room {
+            Some(RoomId::Cove(name)) => {
+                if let Some(ui) = self.cove_rooms.get_mut(name) {
+                    ui.render_main(frame, main_pane_area).await;
+                    ui.render_users(frame, users_pane_area).await;
+                } else {
+                    self.room = None;
+                }
+            }
+            None => {
+                // TODO Render welcome screen
+            }
+        }
+    }
 
-    //     self.room = Some(RoomInfo::new(name, room))
-    // }
+    async fn switch_to_room(&mut self, id: RoomId) {
+        match &id {
+            RoomId::Cove(name) => {
+                if let Entry::Vacant(entry) = self.cove_rooms.entry(name.clone()) {
+                    let room =
+                        CoveRoom::new(self.config, self.event_tx.clone(), name.clone()).await;
+                    entry.insert(CoveUi::new(room));
+                }
+            }
+        }
+        self.room = Some(id);
+    }
 
-    // fn get_room_index(&self) -> Option<(usize, &str)> {
-    //     let name = self.room.as_ref()?.name();
+    fn rooms_in_order(&self) -> Vec<RoomId> {
+        let mut rooms = vec![];
+        rooms.extend(self.cove_rooms.keys().cloned().map(RoomId::Cove));
+        rooms.sort();
+        rooms
+    }
 
-    //     let mut rooms = self.rooms.keys().collect::<Vec<_>>();
-    //     if rooms.is_empty() {
-    //         return None;
-    //     }
-    //     rooms.sort();
+    fn get_room_index(&self, rooms: &[RoomId]) -> Option<(usize, RoomId)> {
+        let id = self.room.clone()?;
+        let index = rooms.iter().position(|room| room == &id)?;
+        Some((index, id))
+    }
 
-    //     let index = rooms.iter().position(|n| n as &str == name)?;
+    fn set_room_index(&mut self, rooms: &[RoomId], index: usize) {
+        if rooms.is_empty() {
+            self.room = None;
+            return;
+        }
 
-    //     Some((index, name))
-    // }
+        let id = rooms[index & rooms.len()].clone();
+        self.room = Some(id);
+    }
 
-    // fn set_room_index(&mut self, index: usize) {
-    //     let mut rooms = self.rooms.keys().collect::<Vec<_>>();
-    //     if rooms.is_empty() {
-    //         self.room = None;
-    //         return;
-    //     }
-    //     rooms.sort();
+    fn switch_to_next_room(&mut self) {
+        let rooms = self.rooms_in_order();
+        if let Some((index, _)) = self.get_room_index(&rooms) {
+            self.set_room_index(&rooms, index + 1);
+        }
+    }
 
-    //     let name = rooms[index % rooms.len()];
-    //     let room = self.rooms[name].clone();
-    //     self.room = Some(RoomInfo::new(name.clone(), room))
-    // }
+    fn switch_to_prev_room(&mut self) {
+        let rooms = self.rooms_in_order();
+        if let Some((index, _)) = self.get_room_index(&rooms) {
+            self.set_room_index(&rooms, index + rooms.len() - 1);
+        }
+    }
 
-    // fn switch_to_next_room(&mut self) {
-    //     if let Some((index, _)) = self.get_room_index() {
-    //         self.set_room_index(index + 1);
-    //     }
-    // }
+    fn remove_current_room(&mut self) {
+        let rooms = self.rooms_in_order();
+        if let Some((index, id)) = self.get_room_index(&rooms) {
+            match id {
+                RoomId::Cove(name) => self.cove_rooms.remove(&name),
+            };
 
-    // fn switch_to_prev_room(&mut self) {
-    //     if let Some((index, _)) = self.get_room_index() {
-    //         self.set_room_index(index + self.rooms.len() - 1);
-    //     }
-    // }
-
-    // fn remove_current_room(&mut self) {
-    //     if let Some((index, name)) = self.get_room_index() {
-    //         let name = name.to_string();
-    //         self.rooms.remove(&name);
-    //         let index = if self.rooms.is_empty() {
-    //             0
-    //         } else {
-    //             index.min(self.rooms.len() - 1)
-    //         };
-    //         self.set_room_index(index);
-    //     }
-    // }
+            let rooms = self.rooms_in_order();
+            let max_index = if rooms.is_empty() { 0 } else { rooms.len() - 1 };
+            self.set_room_index(&rooms, index.min(max_index));
+        }
+    }
 }

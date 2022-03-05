@@ -34,8 +34,8 @@ pub struct TextLineState {
 }
 
 impl TextLineState {
-    pub fn content(&self) -> String {
-        self.content.clone()
+    pub fn content(&self) -> &str {
+        &self.content
     }
 
     /// The cursor's position from when the widget was last rendered.

@@ -4,8 +4,8 @@ use tui::layout::Rect;
 use tui::widgets::{Block, Borders, Clear, StatefulWidget, Widget};
 
 use crate::ui::input::EventHandler;
-use crate::ui::layout;
 use crate::ui::textline::{TextLine, TextLineReaction, TextLineState};
+use crate::ui::{layout, RoomId};
 
 use super::OverlayReaction;
 
@@ -36,7 +36,12 @@ impl EventHandler for SwitchRoomState {
 
     fn handle_key(&mut self, event: KeyEvent) -> Option<Self::Reaction> {
         if event.code == KeyCode::Enter {
-            return Some(Self::Reaction::SwitchRoom(self.room.content()));
+            let name = self.room.content().trim();
+            if name.is_empty() {
+                return Some(Self::Reaction::Handled);
+            }
+            let id = RoomId::Cove(name.to_string());
+            return Some(Self::Reaction::SwitchRoom(id));
         }
 
         self.room.handle_key(event).map(|r| match r {
