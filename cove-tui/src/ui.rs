@@ -182,7 +182,7 @@ impl Ui {
                 Some(OverlayReaction::Close) => self.overlay = None,
                 Some(OverlayReaction::SwitchRoom(id)) => {
                     self.overlay = None;
-                    self.switch_to_room(id).await;
+                    self.switch_to_room(id);
                 }
                 None => {}
             }
@@ -197,13 +197,11 @@ impl Ui {
         event: KeyEvent,
     ) -> Option<EventHandleResult> {
         match &self.room {
-            Some(RoomId::Cove(name)) => {
-                if let Some(ui) = self.cove_rooms.get_mut(name) {
-                    ui.handle_key(event).map(|_| EventHandleResult::Continue)
-                } else {
-                    None
-                }
-            }
+            Some(RoomId::Cove(name)) => self
+                .cove_rooms
+                .get_mut(name)
+                .and_then(|ui| ui.handle_key(event))
+                .and(Some(EventHandleResult::Continue)),
             None => None,
         }
     }
@@ -344,7 +342,7 @@ impl Ui {
         }
     }
 
-    async fn switch_to_room(&mut self, id: RoomId) {
+    fn switch_to_room(&mut self, id: RoomId) {
         match &id {
             RoomId::Cove(name) => {
                 if let Entry::Vacant(entry) = self.cove_rooms.entry(name.clone()) {
@@ -353,8 +351,7 @@ impl Ui {
                         name.clone(),
                         self.event_tx.clone(),
                         UiEvent::cove,
-                    )
-                    .await;
+                    );
                     entry.insert(CoveUi::new(room));
                 }
             }

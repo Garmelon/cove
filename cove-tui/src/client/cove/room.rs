@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::sync::oneshot::{self, Sender};
 use tokio::sync::{Mutex, MutexGuard};
@@ -18,14 +19,13 @@ struct ConnConfig {
 }
 
 impl ConnConfig {
-    async fn new_conn(&self) -> (CoveConn, CoveConnMt) {
+    fn new_conn(&self) -> (CoveConn, CoveConnMt) {
         conn::new(
             self.url.clone(),
             self.room.clone(),
             self.timeout,
             self.ev_tx.clone(),
         )
-        .await
     }
 }
 
@@ -39,7 +39,9 @@ pub struct CoveRoom {
 }
 
 impl CoveRoom {
-    pub async fn new<E, F>(
+    /// This method uses [`tokio::spawn`] and must thus be called in the context
+    /// of a tokio runtime.
+    pub fn new<E, F>(
         config: &'static Config,
         name: String,
         event_sender: UnboundedSender<E>,
@@ -58,7 +60,7 @@ impl CoveRoom {
             room: name.clone(),
             timeout: config.timeout,
         };
-        let (conn, mt) = conf.new_conn().await;
+        let (conn, mt) = conf.new_conn();
 
         let room = Self {
             name: name.clone(),
@@ -122,7 +124,7 @@ impl CoveRoom {
             url_exists = true;
 
             // TODO Clean up with restructuring assignments later?
-            let (new_conn, new_mt) = conf.new_conn().await;
+            let (new_conn, new_mt) = conf.new_conn();
             *conn.lock().await = new_conn;
             mt = new_mt;
         }

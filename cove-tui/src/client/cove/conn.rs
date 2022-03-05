@@ -368,8 +368,7 @@ impl CoveConnMt {
     }
 }
 
-// TODO Make sync
-pub async fn new(
+pub fn new(
     url: String,
     room: String,
     timeout: Duration,
