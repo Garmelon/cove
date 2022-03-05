@@ -123,6 +123,9 @@ impl Connected {
     }
 }
 
+// The warning about enum variant sizes shouldn't matter since a connection will
+// spend most its time in the Connected state anyways.
+#[allow(clippy::large_enum_variant)]
 pub enum State {
     Connecting,
     Connected(Connected),
@@ -186,7 +189,7 @@ impl CoveConn {
             if let Some(connected) = state.connected_mut() {
                 if let Status::IdRequired(_) = connected.status {
                     connected.status = Status::Identifying;
-                    self.ev_tx.send(Event::StateChanged);
+                    let _ = self.ev_tx.send(Event::StateChanged);
                 } else {
                     return;
                 }
@@ -222,13 +225,13 @@ impl CoveConnMt {
             Ok(conn) => conn,
             Err(e) => {
                 *self.conn.state.lock().await = State::Stopped;
-                self.conn.ev_tx.send(Event::StateChanged);
+                let _ = self.conn.ev_tx.send(Event::StateChanged);
                 return Err(Error::CouldNotConnect(e));
             }
         };
 
         *self.conn.state.lock().await = State::Connected(Connected::new(tx, self.timeout));
-        self.conn.ev_tx.send(Event::StateChanged);
+        let _ = self.conn.ev_tx.send(Event::StateChanged);
 
         tokio::spawn(Self::join_room(self.conn.clone(), self.room));
         let result = tokio::select! {
@@ -237,7 +240,7 @@ impl CoveConnMt {
         };
 
         *self.conn.state.lock().await = State::Stopped;
-        self.conn.ev_tx.send(Event::StateChanged);
+        let _ = self.conn.ev_tx.send(Event::StateChanged);
 
         result
     }
@@ -252,16 +255,14 @@ impl CoveConnMt {
     }
 
     async fn join_room(conn: CoveConn, name: String) -> Result<(), Error> {
-        let reply: RoomRpl = conn.cmd(RoomCmd { name }).await?;
+        let _: RoomRpl = conn.cmd(RoomCmd { name }).await?;
         Ok(())
     }
 
     async fn recv(conn: &CoveConn, mut rx: ConnRx) -> Result<(), Error> {
         while let Some(packet) = rx.recv().await? {
             match packet {
-                Packet::Cmd { id, cmd } => {
-                    // Ignore commands as the server doesn't send them.
-                }
+                Packet::Cmd { .. } => {} // Ignore commands, the server shouldn't send any
                 Packet::Rpl { id, rpl } => Self::on_rpl(conn, id, rpl).await?,
                 Packet::Ntf { ntf } => Self::on_ntf(conn, ntf).await?,
             }
@@ -279,18 +280,18 @@ impl CoveConnMt {
         match &rpl {
             Rpl::Room(RoomRpl::Success) => {
                 connected.status = Status::IdRequired(None);
-                conn.ev_tx.send(Event::IdentificationRequired);
+                let _ = conn.ev_tx.send(Event::IdentificationRequired);
             }
             Rpl::Room(RoomRpl::InvalidRoom { reason }) => {
                 return Err(Error::InvalidRoom(reason.clone()))
             }
             Rpl::Identify(IdentifyRpl::Success { you, others, .. }) => {
                 connected.status = Status::Present(Present::new(you, others));
-                conn.ev_tx.send(Event::StateChanged);
+                let _ = conn.ev_tx.send(Event::StateChanged);
             }
             Rpl::Identify(IdentifyRpl::InvalidNick { reason }) => {
                 connected.status = Status::IdRequired(Some(reason.clone()));
-                conn.ev_tx.send(Event::IdentificationRequired);
+                let _ = conn.ev_tx.send(Event::IdentificationRequired);
             }
             Rpl::Identify(IdentifyRpl::InvalidIdentity { reason }) => {
                 return Err(Error::InvalidIdentity(reason.clone()))
@@ -298,18 +299,18 @@ impl CoveConnMt {
             Rpl::Nick(NickRpl::Success { you }) => {
                 if let Some(present) = connected.status.present_mut() {
                     present.update_session(you);
-                    conn.ev_tx.send(Event::StateChanged);
+                    let _ = conn.ev_tx.send(Event::StateChanged);
                 }
             }
-            Rpl::Nick(NickRpl::InvalidNick { reason }) => {}
+            Rpl::Nick(NickRpl::InvalidNick { reason: _ }) => {}
             Rpl::Send(SendRpl::Success { message }) => {
                 // TODO Add message to message store or send an event
             }
-            Rpl::Send(SendRpl::InvalidContent { reason }) => {}
+            Rpl::Send(SendRpl::InvalidContent { reason: _ }) => {}
             Rpl::Who(WhoRpl { you, others }) => {
                 if let Some(present) = connected.status.present_mut() {
                     present.update(you, others);
-                    conn.ev_tx.send(Event::StateChanged);
+                    let _ = conn.ev_tx.send(Event::StateChanged);
                 }
             }
         }
@@ -330,19 +331,19 @@ impl CoveConnMt {
             Ntf::Join(JoinNtf { who }) => {
                 if let Some(present) = connected.status.present_mut() {
                     present.join(who);
-                    conn.ev_tx.send(Event::StateChanged);
+                    let _ = conn.ev_tx.send(Event::StateChanged);
                 }
             }
             Ntf::Nick(NickNtf { who }) => {
                 if let Some(present) = connected.status.present_mut() {
                     present.nick(who);
-                    conn.ev_tx.send(Event::StateChanged);
+                    let _ = conn.ev_tx.send(Event::StateChanged);
                 }
             }
             Ntf::Part(PartNtf { who }) => {
                 if let Some(present) = connected.status.present_mut() {
                     present.part(who);
-                    conn.ev_tx.send(Event::StateChanged);
+                    let _ = conn.ev_tx.send(Event::StateChanged);
                 }
             }
             Ntf::Send(SendNtf { message }) => {
@@ -362,7 +363,7 @@ pub async fn new(
 ) -> (CoveConn, CoveConnMt) {
     let conn = CoveConn {
         state: Arc::new(Mutex::new(State::Connecting)),
-        ev_tx: ev_tx.clone(),
+        ev_tx,
     };
     let mt = CoveConnMt {
         url,

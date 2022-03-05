@@ -31,10 +31,10 @@ impl ConnConfig {
 }
 
 pub struct CoveRoom {
-    name: String,
     conn: Arc<Mutex<CoveConn>>,
     /// Once this is dropped, all other room-related tasks, connections and
-    /// values are cleaned up.
+    /// values are cleaned up. It is never used to send actual values.
+    #[allow(dead_code)]
     dead_mans_switch: Sender<Never>,
 }
 
@@ -60,7 +60,6 @@ impl CoveRoom {
         let (conn, mt) = conf.new_conn().await;
 
         let room = Self {
-            name: name.clone(),
             conn: Arc::new(Mutex::new(conn)),
             dead_mans_switch: tx,
         };
