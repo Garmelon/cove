@@ -17,5 +17,6 @@ tokio = { version = "1.16.1", features = ["full"] }
 tokio-tungstenite = { version = "0.16.1", features = [
     "rustls-tls-native-roots",
 ] }
+toss = { git = "https://github.com/Garmelon/toss.git", rev = "8a6b0f83edfa39617256725c263b01906eac037d" }
 tui = { git = "https://github.com/Garmelon/tui-rs.git", rev = "07952dc" }
 unicode-width = "0.1.9"
