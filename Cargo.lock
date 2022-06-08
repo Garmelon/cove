@@ -191,6 +191,7 @@ dependencies = [
  "clap",
  "crossterm",
  "futures",
+ "parking_lot",
  "thiserror",
  "tokio",
  "toss",
@@ -579,9 +580,9 @@ checksum = "21326818e99cfe6ce1e524c2a805c189a99b5ae555a35d19f9a284b427d86afa"
 
 [[package]]
 name = "parking_lot"
-version = "0.12.0"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87f5ec2493a61ac0506c0f4199f99070cbe83857b0337006a30f3e6719b8ef58"
+checksum = "3742b2c103b9f06bc9fff0a37ff4912935851bee6d36f3c02bcc755bcfec228f"
 dependencies = [
  "lock_api",
  "parking_lot_core",
@@ -1077,7 +1078,7 @@ dependencies = [
 [[package]]
 name = "toss"
 version = "0.1.0"
-source = "git+https://github.com/Garmelon/toss.git?rev=33264b4aec27066e6abb7cc7d15bd680b43fcd5a#33264b4aec27066e6abb7cc7d15bd680b43fcd5a"
+source = "git+https://github.com/Garmelon/toss.git?rev=333cf74fba56080043a13b9f55c0b62695e2fa4a#333cf74fba56080043a13b9f55c0b62695e2fa4a"
 dependencies = [
  "crossterm",
  "unicode-linebreak",

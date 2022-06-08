@@ -1,12 +1,16 @@
 use std::collections::hash_map::Entry;
+use std::sync::{Arc, Weak};
+use std::time::Duration;
 
 use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, MouseEvent};
 use crossterm::style::ContentStyle;
 use futures::StreamExt;
+use parking_lot::FairMutex;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use tokio::task;
 use toss::frame::{Frame, Pos};
-use toss::terminal::{Redraw, Terminal};
+use toss::terminal::Terminal;
 
 #[derive(Debug)]
 pub enum UiEvent {
@@ -24,26 +28,46 @@ pub struct Ui {
 }
 
 impl Ui {
-    fn new(event_tx: UnboundedSender<UiEvent>) -> Self {
-        Self { event_tx }
-    }
+    const POLL_DURATION: Duration = Duration::from_millis(100);
 
     pub async fn run(terminal: &mut Terminal) -> anyhow::Result<()> {
         let (event_tx, event_rx) = mpsc::unbounded_channel();
-        let mut ui = Self::new(event_tx.clone());
+        let crossterm_lock = Arc::new(FairMutex::new(()));
 
+        // Prepare and start crossterm event polling task
+        let weak_crossterm_lock = Arc::downgrade(&crossterm_lock);
+        let event_tx_clone = event_tx.clone();
+        let crossterm_event_task = task::spawn_blocking(|| {
+            Self::poll_crossterm_events(event_tx_clone, weak_crossterm_lock)
+        });
+
+        // Run main UI.
+        //
+        // If the run_main method exits at any point or if this `run` method is
+        // not awaited any more, the crossterm_lock Arc should be deallocated,
+        // meaning the crossterm_event_task will also stop after at most
+        // `Self::POLL_DURATION`.
+        //
+        // On the other hand, if the crossterm_event_task stops for any reason,
+        // the rest of the UI is also shut down and the client stops.
+        let mut ui = Self { event_tx };
         let result = tokio::select! {
-            e = ui.run_main(terminal, event_tx.clone(), event_rx) => e,
-            e = Self::shovel_crossterm_events(event_tx) => e,
+            e = ui.run_main(terminal, event_rx, crossterm_lock) => e,
+            Ok(e) = crossterm_event_task => e,
         };
         result
     }
 
-    async fn shovel_crossterm_events(tx: UnboundedSender<UiEvent>) -> anyhow::Result<()> {
-        // Implemented manually because UnboundedSender doesn't implement the Sink trait
-        let mut stream = EventStream::new();
-        while let Some(event) = stream.next().await {
-            tx.send(UiEvent::Term(event?))?;
+    fn poll_crossterm_events(
+        tx: UnboundedSender<UiEvent>,
+        lock: Weak<FairMutex<()>>,
+    ) -> anyhow::Result<()> {
+        while let Some(lock) = lock.upgrade() {
+            let _guard = lock.lock();
+            if crossterm::event::poll(Self::POLL_DURATION)? {
+                let event = crossterm::event::read()?;
+                tx.send(UiEvent::Term(event))?;
+            }
         }
         Ok(())
     }
@@ -51,18 +75,23 @@ impl Ui {
     async fn run_main(
         &mut self,
         terminal: &mut Terminal,
-        event_tx: UnboundedSender<UiEvent>,
         mut event_rx: UnboundedReceiver<UiEvent>,
+        crossterm_lock: Arc<FairMutex<()>>,
     ) -> anyhow::Result<()> {
         loop {
             // 1. Render current state
             terminal.autoresize()?;
             self.render(terminal.frame()).await?;
-            if terminal.present()? == Redraw::Required {
-                event_tx.send(UiEvent::Redraw);
+            terminal.present()?;
+
+            // 2. Measure widths if required
+            if terminal.measuring_required() {
+                let _guard = crossterm_lock.lock();
+                terminal.measure_widths()?;
+                self.event_tx.send(UiEvent::Redraw)?;
             }
 
-            // 2. Handle events (in batches)
+            // 3. Handle events (in batches)
             let mut event = match event_rx.recv().await {
                 Some(event) => event,
                 None => return Ok(()),
