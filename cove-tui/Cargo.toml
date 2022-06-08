@@ -4,19 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.53"
-clap = { version = "3.1.0", features = ["derive"] }
-cove-core = { path = "../cove-core" }
-crossterm = { version = "0.22.1", features = ["event-stream"] }
+anyhow = "1.0.57"
+clap = { version = "3.1.18", features = ["derive"] }
+crossterm = { version = "0.23.2", features = ["event-stream"] }
 futures = "0.3.21"
-palette = "0.6.0"
-# serde_json = "1.0.78"
-thiserror = "1.0.30"
-tokio = { version = "1.16.1", features = ["full"] }
-# tokio-stream = "0.1.8"
-tokio-tungstenite = { version = "0.16.1", features = [
-    "rustls-tls-native-roots",
-] }
-toss = { git = "https://github.com/Garmelon/toss.git", rev = "8a6b0f83edfa39617256725c263b01906eac037d" }
-tui = { git = "https://github.com/Garmelon/tui-rs.git", rev = "07952dc" }
-unicode-width = "0.1.9"
+thiserror = "1.0.31"
+tokio = { version = "1.18.2", features = ["full"] }
+toss = { git = "https://github.com/Garmelon/toss.git", rev = "33264b4aec27066e6abb7cc7d15bd680b43fcd5a" }
