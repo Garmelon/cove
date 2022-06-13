@@ -80,12 +80,12 @@ impl DummyStore {
         self
     }
 
-    fn tree(&self, id: usize, result: &mut Vec<DummyMsg>) {
+    fn collect_tree(&self, id: usize, result: &mut Vec<DummyMsg>) {
         if let Some(msg) = self.msgs.get(&id) {
             result.push(msg.clone());
             if let Some(children) = self.children.get(&id) {
                 for child in children {
-                    self.tree(*child, result);
+                    self.collect_tree(*child, result);
                 }
             }
         }
@@ -94,7 +94,8 @@ impl DummyStore {
 
 #[async_trait]
 impl MsgStore<DummyMsg> for DummyStore {
-    async fn path(&self, _room: &str, mut id: usize) -> Path<usize> {
+    async fn path(&self, _room: &str, id: &usize) -> Path<usize> {
+        let mut id = *id;
         let mut segments = vec![id];
         while let Some(parent) = self.msgs.get(&id).and_then(|msg| msg.parent) {
             segments.push(parent);
@@ -104,9 +105,9 @@ impl MsgStore<DummyMsg> for DummyStore {
         Path::new(segments)
     }
 
-    async fn thread(&self, _room: &str, root: usize) -> Tree<DummyMsg> {
+    async fn thread(&self, _room: &str, root: &usize) -> Tree<DummyMsg> {
         let mut msgs = vec![];
-
-        Tree::new(root, msgs)
+        self.collect_tree(*root, &mut msgs);
+        Tree::new(*root, msgs)
     }
 }

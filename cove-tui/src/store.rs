@@ -84,6 +84,6 @@ impl<M: Msg> Tree<M> {
 
 #[async_trait]
 pub trait MsgStore<M: Msg> {
-    async fn path(&self, room: &str, id: M::Id) -> Path<M::Id>;
-    async fn thread(&self, room: &str, root: M::Id) -> Tree<M>;
+    async fn path(&self, room: &str, id: &M::Id) -> Path<M::Id>;
+    async fn thread(&self, room: &str, root: &M::Id) -> Tree<M>;
 }

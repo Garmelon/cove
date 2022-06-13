@@ -46,7 +46,7 @@ impl Ui {
         let store = DummyStore::new()
             .msg(DummyMsg::new(1, "nick", "content"))
             .msg(DummyMsg::new(2, "Some1Else", "reply").parent(1));
-        let chat = Chat::new(store);
+        let chat = Chat::new(store, "testroom".to_string());
 
         // Run main UI.
         //
