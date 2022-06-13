@@ -118,7 +118,7 @@ impl<I: PartialEq> Layout<I> {
 
     fn calculate_offsets_with_cursor(&mut self, cursor: &Cursor<I>, height: i32) {
         let cursor_index = self.mark_cursor(&cursor.id);
-        let cursor_line = ((height - 1) as f32 * cursor.proportion).round() as i32;
+        let cursor_line = ((height - 1) as f32 * cursor.proportion).floor() as i32;
 
         // Propagate lines from cursor to both ends
         self.blocks[cursor_index].line = cursor_line;
