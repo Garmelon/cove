@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 
 pub trait Msg {
-    type Id: Hash + Eq;
+    type Id: Clone + Hash + Eq;
     fn id(&self) -> Self::Id;
     fn parent(&self) -> Option<Self::Id>;
 

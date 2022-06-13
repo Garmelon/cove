@@ -107,7 +107,9 @@ impl Ui {
                 let size = terminal.frame().size();
                 let result = match event {
                     UiEvent::Redraw => EventHandleResult::Continue,
-                    UiEvent::Term(Event::Key(event)) => self.handle_key_event(event, size).await,
+                    UiEvent::Term(Event::Key(event)) => {
+                        self.handle_key_event(event, terminal.frame(), size).await
+                    }
                     UiEvent::Term(Event::Mouse(event)) => self.handle_mouse_event(event).await?,
                     UiEvent::Term(Event::Resize(_, _)) => EventHandleResult::Continue,
                 };
@@ -125,15 +127,20 @@ impl Ui {
     }
 
     async fn render(&mut self, frame: &mut Frame) -> anyhow::Result<()> {
-        self.chat.render(frame, Pos::new(0, 0), frame.size());
+        self.chat.render(frame, Pos::new(0, 0), frame.size()).await;
         Ok(())
     }
 
-    async fn handle_key_event(&mut self, event: KeyEvent, size: Size) -> EventHandleResult {
+    async fn handle_key_event(
+        &mut self,
+        event: KeyEvent,
+        frame: &mut Frame,
+        size: Size,
+    ) -> EventHandleResult {
         if let KeyCode::Char('Q') = event.code {
             return EventHandleResult::Stop;
         }
-        self.chat.handle_key_event(event, size);
+        self.chat.handle_key_event(event, frame, size);
         EventHandleResult::Continue
     }
 

@@ -43,23 +43,25 @@ impl<M: Msg, S: MsgStore<M>> Chat<M, S> {
 }
 
 impl<M: Msg, S: MsgStore<M>> Chat<M, S> {
-    pub fn handle_key_event(&mut self, event: KeyEvent, size: Size) {
+    pub fn handle_key_event(&mut self, event: KeyEvent, frame: &mut Frame, size: Size) {
         match self.mode {
             Mode::Tree => self.tree.handle_key_event(
                 &mut self.store,
                 &self.room,
                 &mut self.cursor,
                 event,
+                frame,
                 size,
             ),
         }
     }
 
-    pub fn render(&mut self, frame: &mut Frame, pos: Pos, size: Size) {
+    pub async fn render(&mut self, frame: &mut Frame, pos: Pos, size: Size) {
         match self.mode {
             Mode::Tree => {
                 self.tree
                     .render(&mut self.store, &self.room, &self.cursor, frame, pos, size)
+                    .await
             }
         }
     }
