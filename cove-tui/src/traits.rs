@@ -12,5 +12,5 @@ pub trait Msg {
 
 #[async_trait]
 pub trait MsgStore<M: Msg> {
-    async fn path(room: &str, id: M::Id) -> Vec<M::Id>;
+    async fn path(&self, room: &str, id: M::Id) -> Vec<M::Id>;
 }
