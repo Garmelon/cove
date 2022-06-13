@@ -1,3 +1,5 @@
+mod constants;
+
 use std::collections::VecDeque;
 use std::marker::PhantomData;
 
@@ -8,11 +10,9 @@ use toss::frame::{Frame, Pos, Size};
 
 use crate::store::{Msg, MsgStore, Tree};
 
-use super::Cursor;
+use self::constants::{INDENT, INDENT_WIDTH, TIME_WIDTH};
 
-const TIME_WIDTH: usize = 5; // hh:mm
-const INDENT: &str = "| ";
-const INDENT_WIDTH: usize = 2;
+use super::Cursor;
 
 struct Block<I> {
     line: i32,
@@ -187,7 +187,7 @@ impl<M: Msg> TreeView<M> {
         let nick = msg.nick();
         let content = msg.content();
 
-        let used_width = TIME_WIDTH + 1 + INDENT_WIDTH * indent + 1 + frame.width(&nick) + 2;
+        let used_width = TIME_WIDTH + INDENT_WIDTH * indent + 1 + frame.width(&nick) + 2;
         let rest_width = size.width as usize - used_width;
 
         let lines = toss::split_at_indices(&content, &frame.wrap(&content, rest_width));
@@ -319,7 +319,7 @@ impl<M: Msg> TreeView<M> {
 
     fn render_indentation(&mut self, frame: &mut Frame, pos: Pos, indent: usize, cursor: bool) {
         for i in 0..indent {
-            let x = TIME_WIDTH + 1 + INDENT_WIDTH * i;
+            let x = TIME_WIDTH + INDENT_WIDTH * i;
             let pos = Pos::new(pos.x + x as i32, pos.y);
             let style = if cursor {
                 ContentStyle::default().black().on_white()
@@ -348,7 +348,7 @@ impl<M: Msg> TreeView<M> {
                             block.cursor,
                         );
                         let after_indent =
-                            pos.x + (TIME_WIDTH + 1 + INDENT_WIDTH * block.indent) as i32;
+                            pos.x + (TIME_WIDTH + INDENT_WIDTH * block.indent) as i32;
                         if i == 0 {
                             let time = format!("{}", msg.time.format("%H:%M"));
                             frame.write(Pos::new(pos.x, y), &time, ContentStyle::default());
@@ -361,7 +361,7 @@ impl<M: Msg> TreeView<M> {
                 }
                 BlockContent::Placeholder => {
                     self.render_indentation(frame, pos, block.indent, block.cursor);
-                    let x = pos.x + (TIME_WIDTH + 1 + INDENT_WIDTH * block.indent) as i32;
+                    let x = pos.x + (TIME_WIDTH + INDENT_WIDTH * block.indent) as i32;
                     let y = pos.y + block.line;
                     frame.write(Pos::new(x, y), "[...]", ContentStyle::default());
                 }
