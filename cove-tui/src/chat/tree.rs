@@ -305,7 +305,7 @@ impl<M: Msg> TreeView<M> {
             // TODO Ensure there is no focus
 
             // Start layout at the bottom of the screen
-            let mut layout = Layout::new_below(height);
+            let mut layout = Layout::new_below(height - 1);
 
             // Expand layout upwards until the edge of the screen
             if let Some(last_tree) = store.last_tree(room).await {
