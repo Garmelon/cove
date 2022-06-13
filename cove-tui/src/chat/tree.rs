@@ -17,7 +17,7 @@ const INDENT_WIDTH: usize = 2;
 struct Block<I> {
     line: i32,
     height: i32,
-    id: Option<I>,
+    id: I,
     indent: usize,
     cursor: bool,
     content: BlockContent,
@@ -28,7 +28,7 @@ impl<I> Block<I> {
         Self {
             line: 0,
             height: 1,
-            id: Some(id),
+            id,
             indent,
             cursor: false,
             content: BlockContent::Placeholder,
@@ -52,7 +52,7 @@ impl MsgBlock {
         Block {
             line: 0,
             height: self.lines.len() as i32,
-            id: Some(id),
+            id,
             indent,
             cursor: false,
             content: BlockContent::Msg(self),
@@ -105,7 +105,7 @@ impl<I: PartialEq> Layout<I> {
     fn mark_cursor(&mut self, id: &I) -> usize {
         let mut cursor = None;
         for (i, block) in self.blocks.iter_mut().enumerate() {
-            if block.id.as_ref() == Some(id) {
+            if &block.id == id {
                 block.cursor = true;
                 if cursor.is_some() {
                     panic!("more than one cursor in layout");
