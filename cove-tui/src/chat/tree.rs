@@ -329,9 +329,6 @@ impl<M: Msg> TreeView<M> {
         for block in &layout.blocks {
             match &block.content {
                 BlockContent::Msg(msg) => {
-                    let time = format!("{}", msg.time.format("%h:%m"));
-                    frame.write(pos, &time, ContentStyle::default());
-
                     let nick_width = frame.width(&msg.nick) as i32;
                     for (i, line) in msg.lines.iter().enumerate() {
                         let y = pos.y + block.line + i as i32;
@@ -340,14 +337,15 @@ impl<M: Msg> TreeView<M> {
                         }
 
                         self.render_indentation(frame, Pos::new(pos.x, y), block.indent);
-                        let after_indentation =
+                        let after_indent =
                             pos.x + (TIME_WIDTH + 1 + INDENT_WIDTH * block.indent) as i32;
                         if i == 0 {
-                            let nick_x = after_indentation;
+                            let time = format!("{}", msg.time.format("%h:%m"));
+                            frame.write(Pos::new(pos.x, y), &time, ContentStyle::default());
                             let nick = format!("[{}]", msg.nick);
-                            frame.write(Pos::new(nick_x, y), &nick, ContentStyle::default());
+                            frame.write(Pos::new(after_indent, y), &nick, ContentStyle::default());
                         }
-                        let msg_x = after_indentation + 1 + nick_width + 2;
+                        let msg_x = after_indent + 1 + nick_width + 2;
                         frame.write(Pos::new(msg_x, y), line, ContentStyle::default());
                     }
                 }
