@@ -2,7 +2,6 @@
 
 mod chat;
 mod store;
-mod traits;
 mod ui;
 
 use toss::terminal::Terminal;

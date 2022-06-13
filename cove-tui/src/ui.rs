@@ -1,10 +1,7 @@
-use std::collections::hash_map::Entry;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
-use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, MouseEvent};
-use crossterm::style::ContentStyle;
-use futures::StreamExt;
+use crossterm::event::{Event, KeyCode, KeyEvent, MouseEvent};
 use parking_lot::FairMutex;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -13,7 +10,7 @@ use toss::frame::{Frame, Pos, Size};
 use toss::terminal::Terminal;
 
 use crate::chat::Chat;
-use crate::store::{DummyMsg, DummyStore};
+use crate::store::dummy::{DummyMsg, DummyStore};
 
 #[derive(Debug)]
 pub enum UiEvent {

@@ -1,86 +1,89 @@
+pub mod dummy;
+
 use std::collections::HashMap;
+use std::hash::Hash;
 
 use async_trait::async_trait;
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, Utc};
 
-use crate::traits::{Msg, MsgStore};
+pub trait Msg {
+    type Id: Hash + Eq;
+    fn id(&self) -> Self::Id;
+    fn parent(&self) -> Option<Self::Id>;
 
-pub struct DummyMsg {
-    id: usize,
-    parent: Option<usize>,
-    time: DateTime<Utc>,
-    nick: String,
-    content: String,
+    fn time(&self) -> DateTime<Utc>;
+    fn nick(&self) -> String;
+    fn content(&self) -> String;
 }
 
-impl DummyMsg {
-    pub fn new<S>(id: usize, nick: S, content: S) -> Self
-    where
-        S: Into<String>,
-    {
+pub struct Path<I>(Vec<I>);
+
+impl<I> Path<I> {
+    pub fn new(segments: Vec<I>) -> Self {
+        assert!(!segments.is_empty(), "segments must not be empty");
+        Self(segments)
+    }
+
+    pub fn segments(&self) -> &[I] {
+        &self.0
+    }
+
+    pub fn first(&self) -> &I {
+        self.0.first().expect("path is not empty")
+    }
+
+    pub fn first_mut(&mut self) -> &mut I {
+        self.0.first_mut().expect("path is not empty")
+    }
+
+    pub fn last(&self) -> &I {
+        self.0.last().expect("path is not empty")
+    }
+
+    pub fn last_mut(&mut self) -> &mut I {
+        self.0.last_mut().expect("path is not empty")
+    }
+}
+
+pub struct Tree<M: Msg> {
+    root: M::Id,
+    msgs: HashMap<M::Id, M>,
+    children: HashMap<M::Id, Vec<M::Id>>,
+}
+
+impl<M: Msg> Tree<M> {
+    pub fn new(root: M::Id, msgs: Vec<M>) -> Self {
+        let msgs: HashMap<M::Id, M> = msgs.into_iter().map(|m| (m.id(), m)).collect();
+
+        let mut children: HashMap<M::Id, Vec<M::Id>> = HashMap::new();
+        for msg in msgs.values() {
+            if let Some(parent) = msg.parent() {
+                children.entry(parent).or_default().push(msg.id());
+            }
+        }
+
         Self {
-            id,
-            parent: None,
-            time: Utc.timestamp(0, 0),
-            nick: nick.into(),
-            content: content.into(),
+            root,
+            msgs,
+            children,
         }
     }
 
-    pub fn parent(mut self, parent: usize) -> Self {
-        self.parent = Some(parent);
-        self
-    }
-}
-
-impl Msg for DummyMsg {
-    type Id = usize;
-
-    fn id(&self) -> Self::Id {
-        self.id
+    pub fn root(&self) -> &M::Id {
+        &self.root
     }
 
-    fn time(&self) -> DateTime<Utc> {
-        self.time
+    pub fn msg(&self, id: &M::Id) -> Option<&M> {
+        self.msgs.get(id)
     }
 
-    fn nick(&self) -> String {
-        self.nick.clone()
-    }
-
-    fn content(&self) -> String {
-        self.content.clone()
-    }
-}
-
-pub struct DummyStore {
-    msgs: HashMap<usize, DummyMsg>,
-}
-
-impl DummyStore {
-    pub fn new() -> Self {
-        Self {
-            msgs: HashMap::new(),
-        }
-    }
-
-    pub fn msg(mut self, msg: DummyMsg) -> Self {
-        self.msgs.insert(msg.id(), msg);
-        self
+    pub fn children(&self, id: &M::Id) -> Option<&[M::Id]> {
+        self.children.get(id).map(|c| c as &[M::Id])
     }
 }
 
 #[async_trait]
-impl MsgStore<DummyMsg> for DummyStore {
-    async fn path(&self, _room: &str, mut id: usize) -> Vec<usize> {
-        let mut path = vec![id];
-
-        while let Some(parent) = self.msgs.get(&id).and_then(|msg| msg.parent) {
-            path.push(parent);
-            id = parent;
-        }
-
-        path.reverse();
-        path
-    }
+pub trait MsgStore<M: Msg> {
+    async fn path(&self, room: &str, id: M::Id) -> Path<M::Id>;
+    async fn thread(&self, room: &str, root: M::Id) -> Tree<M>;
 }
