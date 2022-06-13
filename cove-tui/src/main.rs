@@ -1,6 +1,7 @@
 #![warn(clippy::use_self)]
 
 mod chat;
+mod store;
 mod traits;
 mod ui;
 

@@ -9,8 +9,11 @@ use parking_lot::FairMutex;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::task;
-use toss::frame::{Frame, Pos};
+use toss::frame::{Frame, Pos, Size};
 use toss::terminal::Terminal;
+
+use crate::chat::Chat;
+use crate::store::{DummyMsg, DummyStore};
 
 #[derive(Debug)]
 pub enum UiEvent {
@@ -25,6 +28,7 @@ enum EventHandleResult {
 
 pub struct Ui {
     event_tx: UnboundedSender<UiEvent>,
+    chat: Chat<DummyMsg, DummyStore>,
 }
 
 impl Ui {
@@ -41,6 +45,12 @@ impl Ui {
             Self::poll_crossterm_events(event_tx_clone, weak_crossterm_lock)
         });
 
+        // Prepare dummy message store and chat for testing
+        let store = DummyStore::new()
+            .msg(DummyMsg::new(1, "nick", "content"))
+            .msg(DummyMsg::new(2, "Some1Else", "reply").parent(1));
+        let chat = Chat::new(store);
+
         // Run main UI.
         //
         // If the run_main method exits at any point or if this `run` method is
@@ -50,7 +60,7 @@ impl Ui {
         //
         // On the other hand, if the crossterm_event_task stops for any reason,
         // the rest of the UI is also shut down and the client stops.
-        let mut ui = Self { event_tx };
+        let mut ui = Self { event_tx, chat };
         let result = tokio::select! {
             e = ui.run_main(terminal, event_rx, crossterm_lock) => e,
             Ok(e) = crossterm_event_task => e,
@@ -97,9 +107,10 @@ impl Ui {
                 None => return Ok(()),
             };
             loop {
+                let size = terminal.frame().size();
                 let result = match event {
                     UiEvent::Redraw => EventHandleResult::Continue,
-                    UiEvent::Term(Event::Key(event)) => self.handle_key_event(event).await,
+                    UiEvent::Term(Event::Key(event)) => self.handle_key_event(event, size).await,
                     UiEvent::Term(Event::Mouse(event)) => self.handle_mouse_event(event).await?,
                     UiEvent::Term(Event::Resize(_, _)) => EventHandleResult::Continue,
                 };
@@ -117,17 +128,15 @@ impl Ui {
     }
 
     async fn render(&mut self, frame: &mut Frame) -> anyhow::Result<()> {
-        frame.write(Pos::new(0, 0), "Hello world!", ContentStyle::default());
-
+        self.chat.render(frame, Pos::new(0, 0), frame.size());
         Ok(())
     }
 
-    async fn handle_key_event(&mut self, event: KeyEvent) -> EventHandleResult {
-        match event.code {
-            KeyCode::Char('Q') => return EventHandleResult::Stop,
-            _ => {}
+    async fn handle_key_event(&mut self, event: KeyEvent, size: Size) -> EventHandleResult {
+        if let KeyCode::Char('Q') = event.code {
+            return EventHandleResult::Stop;
         }
-
+        self.chat.handle_key_event(event, size);
         EventHandleResult::Continue
     }
 

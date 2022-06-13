@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeZone, Utc};
 
 use crate::traits::{Msg, MsgStore};
 
@@ -14,21 +14,20 @@ pub struct DummyMsg {
 }
 
 impl DummyMsg {
-    fn new<T, S>(id: usize, time: T, nick: S, content: S) -> Self
+    pub fn new<S>(id: usize, nick: S, content: S) -> Self
     where
-        T: Into<DateTime<Utc>>,
         S: Into<String>,
     {
         Self {
             id,
             parent: None,
-            time: time.into(),
+            time: Utc.timestamp(0, 0),
             nick: nick.into(),
             content: content.into(),
         }
     }
 
-    fn parent(mut self, parent: usize) -> Self {
+    pub fn parent(mut self, parent: usize) -> Self {
         self.parent = Some(parent);
         self
     }
@@ -59,13 +58,13 @@ pub struct DummyStore {
 }
 
 impl DummyStore {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             msgs: HashMap::new(),
         }
     }
 
-    fn msg(mut self, msg: DummyMsg) -> Self {
+    pub fn msg(mut self, msg: DummyMsg) -> Self {
         self.msgs.insert(msg.id(), msg);
         self
     }
