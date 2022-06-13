@@ -1,5 +1,6 @@
 #![warn(clippy::use_self)]
 
+mod traits;
 mod ui;
 
 use toss::terminal::Terminal;
