@@ -405,6 +405,12 @@ impl<M: Msg> TreeView<M> {
         }
     }
 
+    async fn center_cursor(&mut self, cursor: &mut Option<Cursor<M::Id>>) {
+        if let Some(cursor) = cursor {
+            cursor.proportion = 0.5;
+        }
+    }
+
     pub async fn handle_key_event<S: MsgStore<M>>(
         &mut self,
         store: &mut S,
@@ -416,6 +422,7 @@ impl<M: Msg> TreeView<M> {
     ) {
         match event.code {
             KeyCode::Char('k') => self.move_to_prev_msg(store, room, cursor).await,
+            KeyCode::Char('z') => self.center_cursor(cursor).await,
             _ => {}
         }
     }
