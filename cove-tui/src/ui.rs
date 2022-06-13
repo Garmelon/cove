@@ -140,7 +140,7 @@ impl Ui {
         if let KeyCode::Char('Q') = event.code {
             return EventHandleResult::Stop;
         }
-        self.chat.handle_key_event(event, frame, size);
+        self.chat.handle_key_event(event, frame, size).await;
         EventHandleResult::Continue
     }
 

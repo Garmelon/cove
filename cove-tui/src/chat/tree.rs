@@ -2,8 +2,8 @@ use std::collections::VecDeque;
 use std::marker::PhantomData;
 
 use chrono::{DateTime, Utc};
-use crossterm::event::KeyEvent;
-use crossterm::style::ContentStyle;
+use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::style::{ContentStyle, Stylize};
 use toss::frame::{Frame, Pos, Size};
 
 use crate::store::{Msg, MsgStore, Tree};
@@ -317,11 +317,16 @@ impl<M: Msg> TreeView<M> {
         }
     }
 
-    fn render_indentation(&mut self, frame: &mut Frame, pos: Pos, indent: usize) {
+    fn render_indentation(&mut self, frame: &mut Frame, pos: Pos, indent: usize, cursor: bool) {
         for i in 0..indent {
             let x = TIME_WIDTH + 1 + INDENT_WIDTH * i;
             let pos = Pos::new(pos.x + x as i32, pos.y);
-            frame.write(pos, INDENT, ContentStyle::default());
+            let style = if cursor {
+                ContentStyle::default().black().on_white()
+            } else {
+                ContentStyle::default()
+            };
+            frame.write(pos, INDENT, style);
         }
     }
 
@@ -336,7 +341,12 @@ impl<M: Msg> TreeView<M> {
                             continue;
                         }
 
-                        self.render_indentation(frame, Pos::new(pos.x, y), block.indent);
+                        self.render_indentation(
+                            frame,
+                            Pos::new(pos.x, y),
+                            block.indent,
+                            block.cursor,
+                        );
                         let after_indent =
                             pos.x + (TIME_WIDTH + 1 + INDENT_WIDTH * block.indent) as i32;
                         if i == 0 {
@@ -350,7 +360,7 @@ impl<M: Msg> TreeView<M> {
                     }
                 }
                 BlockContent::Placeholder => {
-                    self.render_indentation(frame, pos, block.indent);
+                    self.render_indentation(frame, pos, block.indent, block.cursor);
                     let x = pos.x + (TIME_WIDTH + 1 + INDENT_WIDTH * block.indent) as i32;
                     let y = pos.y + block.line;
                     frame.write(Pos::new(x, y), "[...]", ContentStyle::default());
@@ -359,7 +369,43 @@ impl<M: Msg> TreeView<M> {
         }
     }
 
-    pub fn handle_key_event<S: MsgStore<M>>(
+    async fn move_to_prev_msg<S: MsgStore<M>>(
+        &mut self,
+        store: &mut S,
+        room: &str,
+        cursor: &mut Option<Cursor<M::Id>>,
+    ) {
+        let tree = if let Some(cursor) = cursor {
+            let path = store.path(room, &cursor.id).await;
+            let tree = store.tree(room, path.first()).await;
+            if let Some(prev_sibling) = tree.prev_sibling(&cursor.id) {
+                cursor.id = prev_sibling.clone();
+                return;
+            } else if let Some(parent) = tree.parent(&cursor.id) {
+                cursor.id = parent;
+                return;
+            } else {
+                store.prev_tree(room, path.first()).await
+            }
+        } else {
+            store.last_tree(room).await
+        };
+
+        if let Some(tree) = tree {
+            let tree = store.tree(room, &tree).await;
+            let cursor_id = tree.last_child(tree.root().clone());
+            if let Some(cursor) = cursor {
+                cursor.id = cursor_id;
+            } else {
+                *cursor = Some(Cursor {
+                    id: cursor_id,
+                    proportion: 1.0,
+                });
+            }
+        }
+    }
+
+    pub async fn handle_key_event<S: MsgStore<M>>(
         &mut self,
         store: &mut S,
         room: &str,
@@ -368,7 +414,10 @@ impl<M: Msg> TreeView<M> {
         frame: &mut Frame,
         size: Size,
     ) {
-        // TODO
+        match event.code {
+            KeyCode::Char('k') => self.move_to_prev_msg(store, room, cursor).await,
+            _ => {}
+        }
     }
 
     pub async fn render<S: MsgStore<M>>(

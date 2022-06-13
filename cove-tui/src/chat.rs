@@ -43,16 +43,20 @@ impl<M: Msg, S: MsgStore<M>> Chat<M, S> {
 }
 
 impl<M: Msg, S: MsgStore<M>> Chat<M, S> {
-    pub fn handle_key_event(&mut self, event: KeyEvent, frame: &mut Frame, size: Size) {
+    pub async fn handle_key_event(&mut self, event: KeyEvent, frame: &mut Frame, size: Size) {
         match self.mode {
-            Mode::Tree => self.tree.handle_key_event(
-                &mut self.store,
-                &self.room,
-                &mut self.cursor,
-                event,
-                frame,
-                size,
-            ),
+            Mode::Tree => {
+                self.tree
+                    .handle_key_event(
+                        &mut self.store,
+                        &self.room,
+                        &mut self.cursor,
+                        event,
+                        frame,
+                        size,
+                    )
+                    .await
+            }
         }
     }
 

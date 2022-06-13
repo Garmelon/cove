@@ -57,6 +57,7 @@ impl<M: Msg> Tree<M> {
 
         let mut children: HashMap<M::Id, Vec<M::Id>> = HashMap::new();
         for msg in msgs.values() {
+            children.entry(msg.id()).or_default();
             if let Some(parent) = msg.parent() {
                 children.entry(parent).or_default().push(msg.id());
             }
@@ -77,8 +78,55 @@ impl<M: Msg> Tree<M> {
         self.msgs.get(id)
     }
 
+    pub fn parent(&self, id: &M::Id) -> Option<M::Id> {
+        self.msg(id).and_then(|m| m.parent())
+    }
+
     pub fn children(&self, id: &M::Id) -> Option<&[M::Id]> {
         self.children.get(id).map(|c| c as &[M::Id])
+    }
+
+    pub fn siblings(&self, id: &M::Id) -> Option<&[M::Id]> {
+        if let Some(parent) = self.parent(id) {
+            self.children(&parent)
+        } else {
+            None
+        }
+    }
+
+    pub fn prev_sibling(&self, id: &M::Id) -> Option<&M::Id> {
+        if let Some(siblings) = self.siblings(id) {
+            siblings
+                .iter()
+                .zip(siblings.iter().skip(1))
+                .find(|(_, s)| *s == id)
+                .map(|(s, _)| s)
+        } else {
+            None
+        }
+    }
+
+    pub fn next_sibling(&self, id: &M::Id) -> Option<&M::Id> {
+        if let Some(siblings) = self.siblings(id) {
+            siblings
+                .iter()
+                .zip(siblings.iter().skip(1))
+                .find(|(s, _)| *s == id)
+                .map(|(_, s)| s)
+        } else {
+            None
+        }
+    }
+
+    pub fn last_child(&self, mut id: M::Id) -> M::Id {
+        while let Some(children) = self.children(&id) {
+            if let Some(last_child) = children.last() {
+                id = last_child.clone();
+            } else {
+                break;
+            }
+        }
+        id
     }
 }
 
