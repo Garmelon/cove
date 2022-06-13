@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-use std::thread::Thread;
+use std::collections::{HashMap, HashSet};
 
 use async_trait::async_trait;
 use chrono::{DateTime, TimeZone, Utc};
@@ -90,6 +89,24 @@ impl DummyStore {
             }
         }
     }
+
+    fn trees(&self) -> Vec<usize> {
+        let mut trees = HashSet::new();
+        for m in self.msgs.values() {
+            match m.parent() {
+                Some(parent) if !self.msgs.contains_key(&parent) => {
+                    trees.insert(parent);
+                }
+                Some(_) => {}
+                None => {
+                    trees.insert(m.id());
+                }
+            }
+        }
+        let mut trees: Vec<usize> = trees.into_iter().collect();
+        trees.sort_unstable();
+        trees
+    }
 }
 
 #[async_trait]
@@ -105,9 +122,35 @@ impl MsgStore<DummyMsg> for DummyStore {
         Path::new(segments)
     }
 
-    async fn thread(&self, _room: &str, root: &usize) -> Tree<DummyMsg> {
+    async fn tree(&self, _room: &str, root: &usize) -> Tree<DummyMsg> {
         let mut msgs = vec![];
         self.collect_tree(*root, &mut msgs);
         Tree::new(*root, msgs)
+    }
+
+    async fn prev_tree(&self, _room: &str, tree: &usize) -> Option<usize> {
+        let trees = self.trees();
+        trees
+            .iter()
+            .zip(trees.iter().skip(1))
+            .find(|(_, t)| *t == tree)
+            .map(|(t, _)| *t)
+    }
+
+    async fn next_tree(&self, _room: &str, tree: &usize) -> Option<usize> {
+        let trees = self.trees();
+        trees
+            .iter()
+            .zip(trees.iter().skip(1))
+            .find(|(t, _)| *t == tree)
+            .map(|(_, t)| *t)
+    }
+
+    async fn first_tree(&self, _room: &str) -> Option<usize> {
+        self.trees().first().cloned()
+    }
+
+    async fn last_tree(&self, _room: &str) -> Option<usize> {
+        self.trees().last().cloned()
     }
 }
