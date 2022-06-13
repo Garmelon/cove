@@ -340,7 +340,7 @@ impl<M: Msg> TreeView<M> {
                         let after_indent =
                             pos.x + (TIME_WIDTH + 1 + INDENT_WIDTH * block.indent) as i32;
                         if i == 0 {
-                            let time = format!("{}", msg.time.format("%h:%m"));
+                            let time = format!("{}", msg.time.format("%H:%M"));
                             frame.write(Pos::new(pos.x, y), &time, ContentStyle::default());
                             let nick = format!("[{}]", msg.nick);
                             frame.write(Pos::new(after_indent, y), &nick, ContentStyle::default());
