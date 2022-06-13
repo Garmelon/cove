@@ -48,7 +48,7 @@ struct MsgBlock {
 }
 
 impl MsgBlock {
-    fn to_block<I>(self, id: I, indent: usize) -> Block<I> {
+    fn into_block<I>(self, id: I, indent: usize) -> Block<I> {
         Block {
             line: 0,
             height: self.lines.len() as i32,
@@ -151,13 +151,13 @@ impl<I: PartialEq> Layout<I> {
     }
 
     fn prepend(&mut self, mut layout: Self) {
-        while let Some(mut block) = layout.blocks.pop_back() {
+        while let Some(block) = layout.blocks.pop_back() {
             self.push_front(block);
         }
     }
 
     fn append(&mut self, mut layout: Self) {
-        while let Some(mut block) = layout.blocks.pop_front() {
+        while let Some(block) = layout.blocks.pop_front() {
             self.push_back(block);
         }
     }
@@ -197,7 +197,7 @@ impl<M: Msg> TreeView<M> {
             nick,
             lines,
         }
-        .to_block(msg.id(), indent)
+        .into_block(msg.id(), indent)
     }
 
     fn layout_subtree(
