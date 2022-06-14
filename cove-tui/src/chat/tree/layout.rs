@@ -59,13 +59,18 @@ impl<M: Msg> TreeView<M> {
         frame: &mut Frame,
         size: Size,
         blocks: &mut Blocks<M::Id>,
-        mut tree_id: M::Id,
+        tree_id: &mut Option<M::Id>,
     ) {
         while blocks.top_line > 0 {
-            let tree = store.tree(room, &tree_id).await;
-            blocks.prepend(layout_tree(frame, size, tree));
-            if let Some(prev_tree_id) = store.prev_tree(room, &tree_id).await {
-                tree_id = prev_tree_id;
+            *tree_id = if let Some(tree_id) = tree_id {
+                store.prev_tree(room, tree_id).await
+            } else {
+                break;
+            };
+
+            if let Some(tree_id) = tree_id {
+                let tree = store.tree(room, tree_id).await;
+                blocks.prepend(layout_tree(frame, size, tree));
             } else {
                 break;
             }
@@ -78,13 +83,18 @@ impl<M: Msg> TreeView<M> {
         frame: &mut Frame,
         size: Size,
         blocks: &mut Blocks<M::Id>,
-        mut tree_id: M::Id,
+        tree_id: &mut Option<M::Id>,
     ) {
         while blocks.bottom_line < size.height as i32 {
-            let tree = store.tree(room, &tree_id).await;
-            blocks.append(layout_tree(frame, size, tree));
-            if let Some(next_tree_id) = store.next_tree(room, &tree_id).await {
-                tree_id = next_tree_id;
+            *tree_id = if let Some(tree_id) = tree_id {
+                store.next_tree(room, tree_id).await
+            } else {
+                break;
+            };
+
+            if let Some(tree_id) = tree_id {
+                let tree = store.tree(room, tree_id).await;
+                blocks.append(layout_tree(frame, size, tree));
             } else {
                 break;
             }
@@ -104,36 +114,58 @@ impl<M: Msg> TreeView<M> {
             // TODO Ensure focus lies on cursor path, otherwise unfocus
             // TODO Unfold all messages on path to cursor
 
-            // Layout cursor subtree (with correct offsets)
+            // Layout cursor subtree (with correct offsets based on cursor)
             let cursor_path = store.path(room, &cursor.id).await;
             let cursor_tree_id = cursor_path.first();
             let cursor_tree = store.tree(room, cursor_tree_id).await;
-            let mut layout = layout_tree(frame, size, cursor_tree);
-            layout.calculate_offsets_with_cursor(cursor, size.height);
+            let mut blocks = layout_tree(frame, size, cursor_tree);
+            blocks.calculate_offsets_with_cursor(cursor, size.height);
 
-            // Expand upwards and downwards
-            // TODO Ensure that blocks are scrolled correctly
-            // TODO Don't do this if there is a focus
-            if let Some(prev_tree) = store.prev_tree(room, cursor_tree_id).await {
-                Self::expand_blocks_up(room, store, frame, size, &mut layout, prev_tree).await;
+            // Expand upwards and downwards, ensuring the blocks are not
+            // scrolled too far in any direction.
+            //
+            // If the blocks fill the screen, scrolling stops when the topmost
+            // message is at the top of the screen or the bottommost message is
+            // at the bottom. If they don't fill the screen, the bottommost
+            // message should always be at the bottom.
+            //
+            // Because our helper functions always expand the blocks until they
+            // reach the top or bottom of the screen, we can determine that
+            // we're at the top/bottom if expansion stopped anywhere in the
+            // middle of the screen.
+            //
+            // TODO Don't expand if there is a focus
+            let mut top_tree_id = Some(cursor_tree_id.clone());
+            Self::expand_blocks_up(room, store, frame, size, &mut blocks, &mut top_tree_id).await;
+            if blocks.top_line > 0 {
+                blocks.offset(-blocks.top_line);
             }
-            if let Some(next_tree) = store.next_tree(room, cursor_tree_id).await {
-                Self::expand_blocks_down(room, store, frame, size, &mut layout, next_tree).await;
+            let mut bot_tree_id = Some(cursor_tree_id.clone());
+            Self::expand_blocks_down(room, store, frame, size, &mut blocks, &mut bot_tree_id).await;
+            if blocks.bottom_line < size.height as i32 - 1 {
+                blocks.offset(size.height as i32 - 1 - blocks.bottom_line);
             }
+            // If we only moved the blocks down, we need to expand upwards again
+            // to make sure we fill the screen.
+            Self::expand_blocks_up(room, store, frame, size, &mut blocks, &mut top_tree_id).await;
 
-            layout
+            blocks
         } else {
             // TODO Ensure there is no focus
 
             // Start at the bottom of the screen
-            let mut layout = Blocks::new_below(size.height as i32 - 1);
+            let mut blocks = Blocks::new_below(size.height as i32 - 1);
 
-            // Expand upwards until the edge of the screen
-            if let Some(last_tree) = store.last_tree(room).await {
-                Self::expand_blocks_up(room, store, frame, size, &mut layout, last_tree).await;
+            // Expand upwards from last tree
+            if let Some(last_tree_id) = store.last_tree(room).await {
+                let last_tree = store.tree(room, &last_tree_id).await;
+                blocks.prepend(layout_tree(frame, size, last_tree));
+
+                let mut tree_id = Some(last_tree_id);
+                Self::expand_blocks_up(room, store, frame, size, &mut blocks, &mut tree_id).await;
             }
 
-            layout
+            blocks
         }
     }
 }

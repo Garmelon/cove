@@ -166,6 +166,14 @@ impl<I: PartialEq> Blocks<I> {
         }
     }
 
+    pub fn offset(&mut self, delta: i32) {
+        self.top_line += delta;
+        self.bottom_line += delta;
+        for block in &mut self.blocks {
+            block.line += delta;
+        }
+    }
+
     pub fn find(&self, id: &I) -> Option<&Block<I>> {
         self.blocks.iter().find(|b| &b.id == id)
     }
