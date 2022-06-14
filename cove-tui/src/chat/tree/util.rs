@@ -1,3 +1,5 @@
+//! Constants and helper functions.
+
 use crossterm::style::{ContentStyle, Stylize};
 use toss::frame::Frame;
 

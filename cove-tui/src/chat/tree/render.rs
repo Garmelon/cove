@@ -1,3 +1,5 @@
+//! Rendering blocks to a [`Frame`].
+
 use chrono::{DateTime, Utc};
 use crossterm::style::ContentStyle;
 use toss::frame::{Frame, Pos, Size};

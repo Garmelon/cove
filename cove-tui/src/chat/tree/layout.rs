@@ -1,3 +1,5 @@
+//! Arranging messages as blocks.
+
 use toss::frame::{Frame, Size};
 
 use crate::chat::Cursor;

@@ -1,3 +1,5 @@
+//! Intermediate representation of messages as blocks of lines.
+
 use std::collections::VecDeque;
 
 use chrono::{DateTime, Utc};
