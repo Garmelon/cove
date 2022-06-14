@@ -41,7 +41,7 @@ impl<M: Msg> TreeView<M> {
         }
 
         // The cursor should be visible in its entirety on the screen now. If it
-        // isn't, we should scroll the screen such that the cursor becomes fully
+        // isn't, we need to scroll the screen such that the cursor becomes fully
         // visible again. To do this, we'll need to re-layout because the cursor
         // could've moved anywhere.
         let blocks = self
@@ -50,10 +50,12 @@ impl<M: Msg> TreeView<M> {
         let cursor_block = blocks.find(&cursor.id).expect("cursor must be in blocks");
         // First, ensure the cursor's last line is not below the bottom of the
         // screen. Then, ensure its top line is not above the top of the screen.
-        // If the cursor is higher than the screen, the user should still see
-        // the top of the cursor so they can start reading its contents.
+        // If the cursor has more lines than the screen, the user should still
+        // see the top of the cursor so they can start reading its contents.
+        let min_line = 0;
         let max_line = size.height as i32 - cursor_block.height;
-        let cursor_line = cursor_block.line.min(max_line).max(0);
+        // Not using clamp because it is possible that max_line < min_line
+        let cursor_line = cursor_block.line.min(max_line).max(min_line);
         cursor.proportion = util::line_to_proportion(size.height, cursor_line);
 
         // There is no need to ensure the screen is not scrolled too far up or
