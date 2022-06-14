@@ -1,4 +1,5 @@
 mod blocks;
+mod cursor;
 mod layout;
 mod render;
 mod util;
@@ -23,48 +24,6 @@ impl<M: Msg> TreeView<M> {
     pub fn new() -> Self {
         Self {
             phantom: PhantomData,
-        }
-    }
-
-    async fn move_to_prev_msg<S: MsgStore<M>>(
-        &mut self,
-        store: &mut S,
-        room: &str,
-        cursor: &mut Option<Cursor<M::Id>>,
-    ) {
-        let tree = if let Some(cursor) = cursor {
-            let path = store.path(room, &cursor.id).await;
-            let tree = store.tree(room, path.first()).await;
-            if let Some(prev_sibling) = tree.prev_sibling(&cursor.id) {
-                cursor.id = tree.last_child(prev_sibling.clone());
-                return;
-            } else if let Some(parent) = tree.parent(&cursor.id) {
-                cursor.id = parent;
-                return;
-            } else {
-                store.prev_tree(room, path.first()).await
-            }
-        } else {
-            store.last_tree(room).await
-        };
-
-        if let Some(tree) = tree {
-            let tree = store.tree(room, &tree).await;
-            let cursor_id = tree.last_child(tree.root().clone());
-            if let Some(cursor) = cursor {
-                cursor.id = cursor_id;
-            } else {
-                *cursor = Some(Cursor {
-                    id: cursor_id,
-                    proportion: 1.0,
-                });
-            }
-        }
-    }
-
-    async fn center_cursor(&mut self, cursor: &mut Option<Cursor<M::Id>>) {
-        if let Some(cursor) = cursor {
-            cursor.proportion = 0.5;
         }
     }
 
@@ -93,7 +52,9 @@ impl<M: Msg> TreeView<M> {
         pos: Pos,
         size: Size,
     ) {
-        let blocks = self.layout_blocks(room, store, cursor, frame, size).await;
+        let blocks = self
+            .layout_blocks(room, store, cursor.as_ref(), frame, size)
+            .await;
         Self::render_blocks(frame, pos, size, &blocks);
     }
 }

@@ -112,12 +112,12 @@ impl<I: PartialEq> Blocks<I> {
             if &block.id == id {
                 block.cursor = true;
                 if cursor.is_some() {
-                    panic!("more than one cursor in layout");
+                    panic!("more than one cursor in blocks");
                 }
                 cursor = Some(i);
             }
         }
-        cursor.expect("no cursor in layout")
+        cursor.expect("no cursor in blocks")
     }
 
     pub fn calculate_offsets_with_cursor(&mut self, cursor: &Cursor<I>, height: u16) {
@@ -164,5 +164,9 @@ impl<I: PartialEq> Blocks<I> {
         while let Some(block) = layout.blocks.pop_front() {
             self.push_back(block);
         }
+    }
+
+    pub fn find(&self, id: &I) -> Option<&Block<I>> {
+        self.blocks.iter().find(|b| &b.id == id)
     }
 }

@@ -91,11 +91,12 @@ impl<M: Msg> TreeView<M> {
         }
     }
 
+    // TODO Split up based on cursor presence
     pub async fn layout_blocks<S: MsgStore<M>>(
         &mut self,
         room: &str,
         store: &S,
-        cursor: &Option<Cursor<M::Id>>,
+        cursor: Option<&Cursor<M::Id>>,
         frame: &mut Frame,
         size: Size,
     ) -> Blocks<M::Id> {
@@ -111,6 +112,7 @@ impl<M: Msg> TreeView<M> {
             layout.calculate_offsets_with_cursor(cursor, size.height);
 
             // Expand upwards and downwards
+            // TODO Ensure that blocks are scrolled correctly
             // TODO Don't do this if there is a focus
             if let Some(prev_tree) = store.prev_tree(room, cursor_tree_id).await {
                 Self::expand_blocks_up(room, store, frame, size, &mut layout, prev_tree).await;

@@ -17,6 +17,7 @@ pub trait Msg {
     fn content(&self) -> String;
 }
 
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub struct Path<I>(Vec<I>);
 
 impl<I> Path<I> {
