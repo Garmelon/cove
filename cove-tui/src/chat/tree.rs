@@ -1,3 +1,4 @@
+mod blocks;
 mod constants;
 
 use std::collections::VecDeque;
@@ -10,158 +11,10 @@ use toss::frame::{Frame, Pos, Size};
 
 use crate::store::{Msg, MsgStore, Tree};
 
+use self::blocks::{Block, BlockContent, Blocks, MsgBlock};
 use self::constants::{INDENT, INDENT_WIDTH, TIME_WIDTH};
 
 use super::Cursor;
-
-struct Block<I> {
-    line: i32,
-    height: i32,
-    id: I,
-    indent: usize,
-    cursor: bool,
-    content: BlockContent,
-}
-
-impl<I> Block<I> {
-    fn placeholder(id: I, indent: usize) -> Self {
-        Self {
-            line: 0,
-            height: 1,
-            id,
-            indent,
-            cursor: false,
-            content: BlockContent::Placeholder,
-        }
-    }
-}
-
-enum BlockContent {
-    Msg(MsgBlock),
-    Placeholder,
-}
-
-struct MsgBlock {
-    time: DateTime<Utc>,
-    nick: String,
-    lines: Vec<String>,
-}
-
-impl MsgBlock {
-    fn into_block<I>(self, id: I, indent: usize) -> Block<I> {
-        Block {
-            line: 0,
-            height: self.lines.len() as i32,
-            id,
-            indent,
-            cursor: false,
-            content: BlockContent::Msg(self),
-        }
-    }
-}
-
-/// Pre-layouted messages as a sequence of blocks.
-///
-/// These blocks are straightforward to render, but also provide a level of
-/// abstraction between the layouting and actual displaying of messages. This
-/// might be useful in the future to ensure the cursor is always on a visible
-/// message, for example.
-///
-/// The following equation describes the relationship between the
-/// [`Layout::top_line`] and [`Layout::bottom_line`] fields:
-///
-/// `bottom_line - top_line + 1 = sum of all heights`
-///
-/// This ensures that `top_line` is always the first line and `bottom_line` is
-/// always the last line in a nonempty [`Layout`]. In an empty layout, the
-/// equation simplifies to
-///
-/// `top_line = bottom_line + 1`
-struct Layout<I> {
-    blocks: VecDeque<Block<I>>,
-    /// The top line of the first block. Useful for prepending blocks,
-    /// especially to empty [`Layout`]s.
-    top_line: i32,
-    /// The bottom line of the last block. Useful for appending blocks,
-    /// especially to empty [`Layout`]s.
-    bottom_line: i32,
-}
-
-impl<I: PartialEq> Layout<I> {
-    fn new() -> Self {
-        Self::new_below(0)
-    }
-
-    /// Create a new [`Layout`] such that prepending a single line will result
-    /// in `top_line = bottom_line = line`.
-    fn new_below(line: i32) -> Self {
-        Self {
-            blocks: VecDeque::new(),
-            top_line: line + 1,
-            bottom_line: line,
-        }
-    }
-
-    fn mark_cursor(&mut self, id: &I) -> usize {
-        let mut cursor = None;
-        for (i, block) in self.blocks.iter_mut().enumerate() {
-            if &block.id == id {
-                block.cursor = true;
-                if cursor.is_some() {
-                    panic!("more than one cursor in layout");
-                }
-                cursor = Some(i);
-            }
-        }
-        cursor.expect("no cursor in layout")
-    }
-
-    fn calculate_offsets_with_cursor(&mut self, cursor: &Cursor<I>, height: i32) {
-        let cursor_index = self.mark_cursor(&cursor.id);
-        let cursor_line = ((height - 1) as f32 * cursor.proportion).floor() as i32;
-
-        // Propagate lines from cursor to both ends
-        self.blocks[cursor_index].line = cursor_line;
-        for i in (0..cursor_index).rev() {
-            // let succ_line = self.0[i + 1].line;
-            // let curr = &mut self.0[i];
-            // curr.line = succ_line - curr.height;
-            self.blocks[i].line = self.blocks[i + 1].line - self.blocks[i].height;
-        }
-        for i in (cursor_index + 1)..self.blocks.len() {
-            // let pred = &self.0[i - 1];
-            // self.0[i].line = pred.line + pred.height;
-            self.blocks[i].line = self.blocks[i - 1].line + self.blocks[i - 1].height;
-        }
-        self.top_line = self.blocks.front().expect("blocks nonempty").line;
-        let bottom = self.blocks.back().expect("blocks nonempty");
-        self.bottom_line = bottom.line + bottom.height - 1;
-    }
-
-    fn push_front(&mut self, mut block: Block<I>) {
-        self.top_line -= block.height;
-        block.line = self.top_line;
-        self.blocks.push_front(block);
-    }
-
-    fn push_back(&mut self, mut block: Block<I>) {
-        block.line = self.bottom_line + 1;
-        self.bottom_line += block.height;
-        self.blocks.push_back(block);
-    }
-
-    fn prepend(&mut self, mut layout: Self) {
-        while let Some(block) = layout.blocks.pop_back() {
-            self.push_front(block);
-        }
-    }
-
-    fn append(&mut self, mut layout: Self) {
-        while let Some(block) = layout.blocks.pop_front() {
-            self.push_back(block);
-        }
-    }
-}
 
 pub struct TreeView<M: Msg> {
     // pub focus: Option<M::Id>,
@@ -207,7 +60,7 @@ impl<M: Msg> TreeView<M> {
         size: Size,
         indent: usize,
         id: &M::Id,
-        layout: &mut Layout<M::Id>,
+        layout: &mut Blocks<M::Id>,
     ) {
         let block = if let Some(msg) = tree.msg(id) {
             self.msg_to_block(msg, indent, frame, size)
@@ -223,8 +76,8 @@ impl<M: Msg> TreeView<M> {
         }
     }
 
-    fn layout_tree(&mut self, tree: Tree<M>, frame: &mut Frame, size: Size) -> Layout<M::Id> {
-        let mut layout = Layout::new();
+    fn layout_tree(&mut self, tree: Tree<M>, frame: &mut Frame, size: Size) -> Blocks<M::Id> {
+        let mut layout = Blocks::new();
         self.layout_subtree(&tree, frame, size, 0, tree.root(), &mut layout);
         layout
     }
@@ -235,7 +88,7 @@ impl<M: Msg> TreeView<M> {
         store: &S,
         frame: &mut Frame,
         size: Size,
-        layout: &mut Layout<M::Id>,
+        layout: &mut Blocks<M::Id>,
         mut tree_id: M::Id,
     ) {
         while layout.top_line > 0 {
@@ -255,7 +108,7 @@ impl<M: Msg> TreeView<M> {
         store: &S,
         frame: &mut Frame,
         size: Size,
-        layout: &mut Layout<M::Id>,
+        layout: &mut Blocks<M::Id>,
         mut tree_id: M::Id,
     ) {
         while layout.bottom_line < size.height as i32 {
@@ -276,7 +129,7 @@ impl<M: Msg> TreeView<M> {
         cursor: &Option<Cursor<M::Id>>,
         frame: &mut Frame,
         size: Size,
-    ) -> Layout<M::Id> {
+    ) -> Blocks<M::Id> {
         let height: i32 = size.height.into();
         if let Some(cursor) = cursor {
             // TODO Ensure focus lies on cursor path, otherwise unfocus
@@ -305,7 +158,7 @@ impl<M: Msg> TreeView<M> {
             // TODO Ensure there is no focus
 
             // Start layout at the bottom of the screen
-            let mut layout = Layout::new_below(height - 1);
+            let mut layout = Blocks::new_below(height - 1);
 
             // Expand layout upwards until the edge of the screen
             if let Some(last_tree) = store.last_tree(room).await {
@@ -330,7 +183,7 @@ impl<M: Msg> TreeView<M> {
         }
     }
 
-    fn render_layout(&mut self, frame: &mut Frame, pos: Pos, size: Size, layout: &Layout<M::Id>) {
+    fn render_layout(&mut self, frame: &mut Frame, pos: Pos, size: Size, layout: &Blocks<M::Id>) {
         for block in &layout.blocks {
             match &block.content {
                 BlockContent::Msg(msg) => {
