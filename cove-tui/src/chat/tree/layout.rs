@@ -4,7 +4,7 @@ use crate::chat::Cursor;
 use crate::store::{Msg, MsgStore, Tree};
 
 use super::blocks::{Block, Blocks};
-use super::constants::{self, MIN_CONTENT_WIDTH};
+use super::util::{self, MIN_CONTENT_WIDTH};
 use super::TreeView;
 
 impl<M: Msg> TreeView<M> {
@@ -18,7 +18,7 @@ impl<M: Msg> TreeView<M> {
         let nick = msg.nick();
         let content = msg.content();
 
-        let content_width = size.width as i32 - constants::after_nick(frame, indent, &nick);
+        let content_width = size.width as i32 - util::after_nick(frame, indent, &nick);
         if content_width < MIN_CONTENT_WIDTH as i32 {
             Block::placeholder(msg.id(), indent).time(msg.time())
         } else {

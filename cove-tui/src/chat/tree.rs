@@ -1,18 +1,18 @@
 mod blocks;
-mod constants;
 mod layout;
+mod util;
 
 use std::marker::PhantomData;
 
 use chrono::{DateTime, Utc};
 use crossterm::event::{KeyCode, KeyEvent};
-use crossterm::style::{ContentStyle, Stylize};
+use crossterm::style::ContentStyle;
 use toss::frame::{Frame, Pos, Size};
 
 use crate::store::{Msg, MsgStore};
 
 use self::blocks::{BlockBody, Blocks};
-use self::constants::{
+use self::util::{
     after_indent, style_indent, style_indent_inverted, style_placeholder, style_time,
     style_time_inverted, INDENT, INDENT_WIDTH, PLACEHOLDER, TIME_EMPTY, TIME_FORMAT, TIME_WIDTH,
 };
