@@ -49,9 +49,12 @@ impl Ui {
             .msg(DummyMsg::new(3, "Some1Else", "deeper reply").parent(2))
             .msg(DummyMsg::new(4, "abc123", "even deeper reply").parent(3))
             .msg(DummyMsg::new(5, "Some1Else", "another reply").parent(1))
-            .msg(DummyMsg::new(7, "nick", "reply to nothing").parent(6))
-            .msg(DummyMsg::new(8, "nick", "another reply to nothing").parent(6))
-            .msg(DummyMsg::new(9, "abc123", "reply to reply to nothing").parent(7));
+            .msg(DummyMsg::new(6, "Some1Else", "third reply").parent(1))
+            .msg(DummyMsg::new(8, "nick", "reply to nothing").parent(7))
+            .msg(DummyMsg::new(9, "nick", "another reply to nothing").parent(7))
+            .msg(DummyMsg::new(10, "abc123", "reply to reply to nothing").parent(8))
+            .msg(DummyMsg::new(11, "nick", "yet another reply to nothing").parent(7))
+            .msg(DummyMsg::new(12, "abc123", "beep\nboop").parent(11));
         let chat = Chat::new(store, "testroom".to_string());
 
         // Run main UI.
