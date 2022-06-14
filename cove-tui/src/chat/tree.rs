@@ -111,7 +111,7 @@ impl<M: Msg> TreeView<M> {
             let path = store.path(room, &cursor.id).await;
             let tree = store.tree(room, path.first()).await;
             if let Some(prev_sibling) = tree.prev_sibling(&cursor.id) {
-                cursor.id = prev_sibling.clone();
+                cursor.id = tree.last_child(prev_sibling.clone());
                 return;
             } else if let Some(parent) = tree.parent(&cursor.id) {
                 cursor.id = parent;

@@ -46,7 +46,12 @@ impl Ui {
         let store = DummyStore::new()
             .msg(DummyMsg::new(1, "nick", "content"))
             .msg(DummyMsg::new(2, "Some1Else", "reply").parent(1))
-            .msg(DummyMsg::new(4, "nick", "reply to nothing").parent(3));
+            .msg(DummyMsg::new(3, "Some1Else", "deeper reply").parent(2))
+            .msg(DummyMsg::new(4, "abc123", "even deeper reply").parent(3))
+            .msg(DummyMsg::new(5, "Some1Else", "another reply").parent(1))
+            .msg(DummyMsg::new(7, "nick", "reply to nothing").parent(6))
+            .msg(DummyMsg::new(8, "nick", "another reply to nothing").parent(6))
+            .msg(DummyMsg::new(9, "abc123", "reply to reply to nothing").parent(7));
         let chat = Chat::new(store, "testroom".to_string());
 
         // Run main UI.

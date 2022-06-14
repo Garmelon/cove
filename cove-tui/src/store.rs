@@ -1,13 +1,14 @@
 pub mod dummy;
 
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::hash::Hash;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 
 pub trait Msg {
-    type Id: Clone + Hash + Eq;
+    type Id: Clone + Debug + Hash + Eq + Ord;
     fn id(&self) -> Self::Id;
     fn parent(&self) -> Option<Self::Id>;
 
@@ -61,6 +62,10 @@ impl<M: Msg> Tree<M> {
             if let Some(parent) = msg.parent() {
                 children.entry(parent).or_default().push(msg.id());
             }
+        }
+
+        for list in children.values_mut() {
+            list.sort_unstable();
         }
 
         Self {
