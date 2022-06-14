@@ -82,10 +82,10 @@ impl DummyStore {
     fn collect_tree(&self, id: usize, result: &mut Vec<DummyMsg>) {
         if let Some(msg) = self.msgs.get(&id) {
             result.push(msg.clone());
-            if let Some(children) = self.children.get(&id) {
-                for child in children {
-                    self.collect_tree(*child, result);
-                }
+        }
+        if let Some(children) = self.children.get(&id) {
+            for child in children {
+                self.collect_tree(*child, result);
             }
         }
     }
