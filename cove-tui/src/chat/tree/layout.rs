@@ -89,7 +89,7 @@ impl<M: Msg> TreeView<M> {
         }
     }
 
-    pub async fn layout<S: MsgStore<M>>(
+    pub async fn layout_blocks<S: MsgStore<M>>(
         &mut self,
         room: &str,
         store: &S,

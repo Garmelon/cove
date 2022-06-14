@@ -1,21 +1,14 @@
 mod blocks;
 mod layout;
+mod render;
 mod util;
 
 use std::marker::PhantomData;
 
-use chrono::{DateTime, Utc};
 use crossterm::event::{KeyCode, KeyEvent};
-use crossterm::style::ContentStyle;
 use toss::frame::{Frame, Pos, Size};
 
 use crate::store::{Msg, MsgStore};
-
-use self::blocks::{BlockBody, Blocks};
-use self::util::{
-    after_indent, style_indent, style_indent_inverted, style_placeholder, style_time,
-    style_time_inverted, INDENT, INDENT_WIDTH, PLACEHOLDER, TIME_EMPTY, TIME_FORMAT, TIME_WIDTH,
-};
 
 use super::Cursor;
 
@@ -30,74 +23,6 @@ impl<M: Msg> TreeView<M> {
     pub fn new() -> Self {
         Self {
             phantom: PhantomData,
-        }
-    }
-
-    fn render_time(frame: &mut Frame, x: i32, y: i32, time: Option<DateTime<Utc>>, cursor: bool) {
-        let pos = Pos::new(x, y);
-
-        let style = if cursor {
-            style_time_inverted()
-        } else {
-            style_time()
-        };
-
-        if let Some(time) = time {
-            let time = format!("{}", time.format(TIME_FORMAT));
-            frame.write(pos, &time, style);
-        } else {
-            frame.write(pos, TIME_EMPTY, style);
-        }
-    }
-
-    fn render_indent(frame: &mut Frame, x: i32, y: i32, indent: usize, cursor: bool) {
-        for i in 0..indent {
-            let pos = Pos::new(x + after_indent(i), y);
-
-            let style = if cursor {
-                style_indent_inverted()
-            } else {
-                style_indent()
-            };
-
-            frame.write(pos, INDENT, style);
-        }
-    }
-
-    fn render_layout(&mut self, frame: &mut Frame, pos: Pos, size: Size, layout: &Blocks<M::Id>) {
-        for block in &layout.blocks {
-            // Draw rest of block
-            match &block.body {
-                BlockBody::Msg(msg) => {
-                    let nick_width = frame.width(&msg.nick) as i32;
-                    for (i, line) in msg.lines.iter().enumerate() {
-                        let y = pos.y + block.line + i as i32;
-                        if y < 0 || y >= size.height as i32 {
-                            continue;
-                        }
-
-                        Self::render_indent(frame, pos.x, y, block.indent, block.cursor);
-                        let after_indent =
-                            pos.x + (TIME_WIDTH + INDENT_WIDTH * block.indent) as i32;
-                        if i == 0 {
-                            Self::render_time(frame, pos.x, y, block.time, block.cursor);
-                            let nick = format!("[{}]", msg.nick);
-                            frame.write(Pos::new(after_indent, y), &nick, ContentStyle::default());
-                        } else {
-                            Self::render_time(frame, pos.x, y, None, block.cursor);
-                        }
-                        let msg_x = after_indent + 1 + nick_width + 2;
-                        frame.write(Pos::new(msg_x, y), line, ContentStyle::default());
-                    }
-                }
-                BlockBody::Placeholder => {
-                    let y = pos.y + block.line;
-                    Self::render_time(frame, pos.x, y, block.time, block.cursor);
-                    Self::render_indent(frame, pos.x, y, block.indent, block.cursor);
-                    let pos = Pos::new(pos.x + after_indent(block.indent), y);
-                    frame.write(pos, PLACEHOLDER, style_placeholder());
-                }
-            }
         }
     }
 
@@ -168,7 +93,7 @@ impl<M: Msg> TreeView<M> {
         pos: Pos,
         size: Size,
     ) {
-        let layout = self.layout(room, store, cursor, frame, size).await;
-        self.render_layout(frame, pos, size, &layout);
+        let blocks = self.layout_blocks(room, store, cursor, frame, size).await;
+        Self::render_blocks(frame, pos, size, &blocks);
     }
 }
