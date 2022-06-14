@@ -20,6 +20,16 @@ pub struct Cursor<I> {
     proportion: f32,
 }
 
+impl<I> Cursor<I> {
+    /// Create a new cursor with arbitrary proportion.
+    pub fn new(id: I) -> Self {
+        Self {
+            id,
+            proportion: 0.0,
+        }
+    }
+}
+
 pub struct Chat<M: Msg, S: MsgStore<M>> {
     store: S,
     room: String,
@@ -48,12 +58,12 @@ impl<M: Msg, S: MsgStore<M>> Chat<M, S> {
             Mode::Tree => {
                 self.tree
                     .handle_key_event(
-                        &mut self.store,
                         &self.room,
+                        &mut self.store,
                         &mut self.cursor,
-                        event,
                         frame,
                         size,
+                        event,
                     )
                     .await
             }
@@ -64,7 +74,7 @@ impl<M: Msg, S: MsgStore<M>> Chat<M, S> {
         match self.mode {
             Mode::Tree => {
                 self.tree
-                    .render(&mut self.store, &self.room, &self.cursor, frame, pos, size)
+                    .render(&self.room, &mut self.store, &self.cursor, frame, pos, size)
                     .await
             }
         }

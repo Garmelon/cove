@@ -99,41 +99,6 @@ impl<M: Msg> Tree<M> {
             None
         }
     }
-
-    pub fn prev_sibling(&self, id: &M::Id) -> Option<&M::Id> {
-        if let Some(siblings) = self.siblings(id) {
-            siblings
-                .iter()
-                .zip(siblings.iter().skip(1))
-                .find(|(_, s)| *s == id)
-                .map(|(s, _)| s)
-        } else {
-            None
-        }
-    }
-
-    pub fn next_sibling(&self, id: &M::Id) -> Option<&M::Id> {
-        if let Some(siblings) = self.siblings(id) {
-            siblings
-                .iter()
-                .zip(siblings.iter().skip(1))
-                .find(|(s, _)| *s == id)
-                .map(|(_, s)| s)
-        } else {
-            None
-        }
-    }
-
-    pub fn last_child(&self, mut id: M::Id) -> M::Id {
-        while let Some(children) = self.children(&id) {
-            if let Some(last_child) = children.last() {
-                id = last_child.clone();
-            } else {
-                break;
-            }
-        }
-        id
-    }
 }
 
 #[async_trait]

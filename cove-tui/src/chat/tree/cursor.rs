@@ -9,6 +9,7 @@ use super::blocks::Blocks;
 use super::{util, TreeView};
 
 impl<M: Msg> TreeView<M> {
+    #[allow(clippy::too_many_arguments)]
     async fn correct_cursor_offset<S: MsgStore<M>>(
         &mut self,
         room: &str,
@@ -69,6 +70,33 @@ impl<M: Msg> TreeView<M> {
         // goes for the other direction.
     }
 
+    fn find_parent(tree: &Tree<M>, id: &mut M::Id) -> bool {
+        if let Some(parent) = tree.parent(id) {
+            *id = parent;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn find_first_child(tree: &Tree<M>, id: &mut M::Id) -> bool {
+        if let Some(child) = tree.children(id).and_then(|c| c.first()) {
+            *id = child.clone();
+            true
+        } else {
+            false
+        }
+    }
+
+    fn find_last_child(tree: &Tree<M>, id: &mut M::Id) -> bool {
+        if let Some(child) = tree.children(id).and_then(|c| c.last()) {
+            *id = child.clone();
+            true
+        } else {
+            false
+        }
+    }
+
     /// Move to the previous sibling, or don't move if this is not possible.
     ///
     /// Always stays at the same level of indentation.
@@ -78,7 +106,7 @@ impl<M: Msg> TreeView<M> {
         store: &S,
         tree: &mut Tree<M>,
         id: &mut M::Id,
-    ) {
+    ) -> bool {
         if let Some(siblings) = tree.siblings(id) {
             let prev_sibling = siblings
                 .iter()
@@ -87,6 +115,9 @@ impl<M: Msg> TreeView<M> {
                 .map(|(s, _)| s);
             if let Some(prev_sibling) = prev_sibling {
                 *id = prev_sibling.clone();
+                true
+            } else {
+                false
             }
         } else {
             // We're at the root of our tree, so we need to move to the root of
@@ -94,6 +125,9 @@ impl<M: Msg> TreeView<M> {
             if let Some(prev_tree_id) = store.prev_tree(room, tree.root()).await {
                 *tree = store.tree(room, &prev_tree_id).await;
                 *id = prev_tree_id;
+                true
+            } else {
+                false
             }
         }
     }
@@ -107,7 +141,7 @@ impl<M: Msg> TreeView<M> {
         store: &S,
         tree: &mut Tree<M>,
         id: &mut M::Id,
-    ) {
+    ) -> bool {
         if let Some(siblings) = tree.siblings(id) {
             let next_sibling = siblings
                 .iter()
@@ -116,6 +150,9 @@ impl<M: Msg> TreeView<M> {
                 .map(|(_, s)| s);
             if let Some(next_sibling) = next_sibling {
                 *id = next_sibling.clone();
+                true
+            } else {
+                false
             }
         } else {
             // We're at the root of our tree, so we need to move to the root of
@@ -123,16 +160,9 @@ impl<M: Msg> TreeView<M> {
             if let Some(next_tree_id) = store.next_tree(room, tree.root()).await {
                 *tree = store.tree(room, &next_tree_id).await;
                 *id = next_tree_id;
-            }
-        }
-    }
-
-    fn find_innermost_child(tree: &Tree<M>, id: &mut M::Id) {
-        while let Some(children) = tree.children(id) {
-            if let Some(child) = children.last() {
-                *id = child.clone()
+                true
             } else {
-                break;
+                false
             }
         }
     }
@@ -144,34 +174,15 @@ impl<M: Msg> TreeView<M> {
         store: &S,
         tree: &mut Tree<M>,
         id: &mut M::Id,
-    ) {
-        if let Some(siblings) = tree.siblings(id) {
-            let prev_sibling = siblings
-                .iter()
-                .zip(siblings.iter().skip(1))
-                .find(|(_, s)| *s == id)
-                .map(|(s, _)| s);
-            if let Some(prev_sibling) = prev_sibling {
-                *id = prev_sibling.clone();
-            } else {
-                // We need to move up one parent and *not* down again. If there
-                // was no parent, we should be in the `else` case below instead.
-                if let Some(parent) = tree.parent(id) {
-                    *id = parent;
-                    return;
-                }
-            }
+    ) -> bool {
+        // Move to previous sibling, then to its last child
+        // If not possible, move to parent
+        if self.find_prev_sibling(room, store, tree, id).await {
+            while Self::find_last_child(tree, id) {}
+            true
         } else {
-            // We're at the root of our tree, so we need to move to the root of
-            // the previous tree.
-            if let Some(prev_tree_id) = store.prev_tree(room, tree.root()).await {
-                *tree = store.tree(room, &prev_tree_id).await;
-                *id = prev_tree_id;
-            }
+            Self::find_parent(tree, id)
         }
-
-        // Now, we just need to move to the deepest and last child.
-        Self::find_innermost_child(tree, id);
     }
 
     /// Move to the next message, or don't move if this is not possible.
@@ -181,41 +192,26 @@ impl<M: Msg> TreeView<M> {
         store: &S,
         tree: &mut Tree<M>,
         id: &mut M::Id,
-    ) {
-        if let Some(children) = tree.children(id) {
-            if let Some(child) = children.first() {
-                *id = child.clone();
-                return;
+    ) -> bool {
+        if Self::find_first_child(tree, id) {
+            return true;
+        }
+
+        if self.find_next_sibling(room, store, tree, id).await {
+            return true;
+        }
+
+        // Temporary id to avoid modifying the original one if no parent-sibling
+        // can be found.
+        let mut tmp_id = id.clone();
+        while Self::find_parent(tree, &mut tmp_id) {
+            if self.find_next_sibling(room, store, tree, &mut tmp_id).await {
+                *id = tmp_id;
+                return true;
             }
         }
 
-        if let Some(siblings) = tree.siblings(id) {
-            let prev_sibling = siblings
-                .iter()
-                .zip(siblings.iter().skip(1))
-                .find(|(_, s)| *s == id)
-                .map(|(s, _)| s);
-            if let Some(next_sibling) = prev_sibling {
-                *id = prev_sibling.clone();
-            } else {
-                // We need to move up one parent and *not* down again. If there
-                // was no parent, we should be in the `else` case below instead.
-                if let Some(parent) = tree.msg(id).and_then(|m| m.parent()) {
-                    *id = parent;
-                    return;
-                }
-            }
-        } else {
-            // We're at the root of our tree, so we need to move to the root of
-            // the previous tree.
-            if let Some(prev_tree_id) = store.prev_tree(room, tree.root()).await {
-                *tree = store.tree(room, &prev_tree_id).await;
-                *id = prev_tree_id;
-            }
-        }
-
-        // Now, we just need to move to the deepest and last child.
-        Self::find_innermost_child(tree, id);
+        false
     }
 
     pub async fn move_up<S: MsgStore<M>>(
@@ -232,18 +228,20 @@ impl<M: Msg> TreeView<M> {
         let old_cursor_id = cursor.as_ref().map(|c| c.id.clone());
 
         if let Some(cursor) = cursor {
-            let mut tree = store.tree(room, &cursor.id).await;
+            // We have a cursor to move around
+            let path = store.path(room, &cursor.id).await;
+            let mut tree = store.tree(room, path.first()).await;
             self.find_prev_msg(room, store, &mut tree, &mut cursor.id)
                 .await;
         } else if let Some(last_tree) = store.last_tree(room).await {
+            // We need to select the last message of the last tree
             let tree = store.tree(room, &last_tree).await;
             let mut id = last_tree;
-            Self::find_innermost_child(&tree, &mut id);
-            *cursor = Some(Cursor {
-                id,
-                proportion: 1.0,
-            });
+            while Self::find_last_child(&tree, &mut id) {}
+            *cursor = Some(Cursor::new(id));
         }
+        // If neither condition holds, we can't set a cursor because there's no
+        // message to move to.
 
         if let Some(cursor) = cursor {
             self.correct_cursor_offset(
@@ -273,10 +271,13 @@ impl<M: Msg> TreeView<M> {
         let old_cursor_id = cursor.as_ref().map(|c| c.id.clone());
 
         if let Some(cursor) = cursor {
-            let mut tree = store.tree(room, &cursor.id).await;
+            let path = store.path(room, &cursor.id).await;
+            let mut tree = store.tree(room, path.first()).await;
             self.find_next_msg(room, store, &mut tree, &mut cursor.id)
                 .await;
         }
+        // If that condition doesn't hold, we're already at the bottom in
+        // cursor-less mode and can't move further down anyways.
 
         if let Some(cursor) = cursor {
             self.correct_cursor_offset(
@@ -306,14 +307,84 @@ impl<M: Msg> TreeView<M> {
         let old_cursor_id = cursor.as_ref().map(|c| c.id.clone());
 
         if let Some(cursor) = cursor {
-            let mut tree = store.tree(room, &cursor.id).await;
+            let path = store.path(room, &cursor.id).await;
+            let mut tree = store.tree(room, path.first()).await;
             self.find_prev_sibling(room, store, &mut tree, &mut cursor.id)
                 .await;
         } else if let Some(last_tree) = store.last_tree(room).await {
-            *cursor = Some(Cursor {
-                id: last_tree,
-                proportion: 1.0,
-            });
+            // I think moving to the root of the last tree makes the most sense
+            // here. Alternatively, we could just not move the cursor, but that
+            // wouldn't be very useful.
+            *cursor = Some(Cursor::new(last_tree));
+        }
+        // If neither condition holds, we can't set a cursor because there's no
+        // message to move to.
+
+        if let Some(cursor) = cursor {
+            self.correct_cursor_offset(
+                room,
+                store,
+                frame,
+                size,
+                &old_blocks,
+                &old_cursor_id,
+                cursor,
+            )
+            .await;
+        }
+    }
+
+    pub async fn move_down_sibling<S: MsgStore<M>>(
+        &mut self,
+        room: &str,
+        store: &S,
+        cursor: &mut Option<Cursor<M::Id>>,
+        frame: &mut Frame,
+        size: Size,
+    ) {
+        let old_blocks = self
+            .layout_blocks(room, store, cursor.as_ref(), frame, size)
+            .await;
+        let old_cursor_id = cursor.as_ref().map(|c| c.id.clone());
+
+        if let Some(cursor) = cursor {
+            let path = store.path(room, &cursor.id).await;
+            let mut tree = store.tree(room, path.first()).await;
+            self.find_next_sibling(room, store, &mut tree, &mut cursor.id)
+                .await;
+        }
+        // If that condition doesn't hold, we're already at the bottom in
+        // cursor-less mode and can't move further down anyways.
+
+        if let Some(cursor) = cursor {
+            self.correct_cursor_offset(
+                room,
+                store,
+                frame,
+                size,
+                &old_blocks,
+                &old_cursor_id,
+                cursor,
+            )
+            .await;
+        }
+    }
+
+    pub async fn move_to_first<S: MsgStore<M>>(
+        &mut self,
+        room: &str,
+        store: &S,
+        cursor: &mut Option<Cursor<M::Id>>,
+        frame: &mut Frame,
+        size: Size,
+    ) {
+        let old_blocks = self
+            .layout_blocks(room, store, cursor.as_ref(), frame, size)
+            .await;
+        let old_cursor_id = cursor.as_ref().map(|c| c.id.clone());
+
+        if let Some(tree_id) = store.first_tree(room).await {
+            *cursor = Some(Cursor::new(tree_id));
         }
 
         if let Some(cursor) = cursor {
@@ -330,60 +401,70 @@ impl<M: Msg> TreeView<M> {
         }
     }
 
-    pub async fn move_down_sibling() {
-        todo!()
-    }
-
-    pub async fn move_older() {
-        todo!()
-    }
-
-    pub async fn move_newer() {
-        todo!()
-    }
-
-    // TODO move_older_unseen
-    // TODO move_newer_unseen
-
-    pub async fn move_to_prev_msg<S: MsgStore<M>>(
+    pub async fn move_to_last<S: MsgStore<M>>(
         &mut self,
-        store: &mut S,
         room: &str,
+        store: &S,
         cursor: &mut Option<Cursor<M::Id>>,
+        frame: &mut Frame,
+        size: Size,
     ) {
-        let tree = if let Some(cursor) = cursor {
-            let path = store.path(room, &cursor.id).await;
-            let tree = store.tree(room, path.first()).await;
-            if let Some(prev_sibling) = tree.prev_sibling(&cursor.id) {
-                cursor.id = tree.last_child(prev_sibling.clone());
-                return;
-            } else if let Some(parent) = tree.parent(&cursor.id) {
-                cursor.id = parent;
-                return;
-            } else {
-                store.prev_tree(room, path.first()).await
-            }
-        } else {
-            store.last_tree(room).await
-        };
+        let old_blocks = self
+            .layout_blocks(room, store, cursor.as_ref(), frame, size)
+            .await;
+        let old_cursor_id = cursor.as_ref().map(|c| c.id.clone());
 
-        if let Some(tree) = tree {
-            let tree = store.tree(room, &tree).await;
-            let cursor_id = tree.last_child(tree.root().clone());
-            if let Some(cursor) = cursor {
-                cursor.id = cursor_id;
-            } else {
-                *cursor = Some(Cursor {
-                    id: cursor_id,
-                    proportion: 1.0,
-                });
-            }
+        if let Some(tree_id) = store.last_tree(room).await {
+            let tree = store.tree(room, &tree_id).await;
+            let mut id = tree_id;
+            while Self::find_last_child(&tree, &mut id) {}
+            *cursor = Some(Cursor::new(id));
+        }
+
+        if let Some(cursor) = cursor {
+            self.correct_cursor_offset(
+                room,
+                store,
+                frame,
+                size,
+                &old_blocks,
+                &old_cursor_id,
+                cursor,
+            )
+            .await;
         }
     }
 
-    pub async fn center_cursor(&mut self, cursor: &mut Option<Cursor<M::Id>>) {
+    // TODO move_older[_unseen]
+    // TODO move_newer[_unseen]
+
+    pub async fn center_cursor<S: MsgStore<M>>(
+        &mut self,
+        room: &str,
+        store: &S,
+        cursor: &mut Option<Cursor<M::Id>>,
+        frame: &mut Frame,
+        size: Size,
+    ) {
         if let Some(cursor) = cursor {
             cursor.proportion = 0.5;
+
+            // Correcting the offset just to make sure that this function
+            // behaves nicely if the cursor has too many lines.
+            let old_blocks = self
+                .layout_blocks(room, store, Some(cursor), frame, size)
+                .await;
+            let old_cursor_id = Some(cursor.id.clone());
+            self.correct_cursor_offset(
+                room,
+                store,
+                frame,
+                size,
+                &old_blocks,
+                &old_cursor_id,
+                cursor,
+            )
+            .await;
         }
     }
 }

@@ -1,7 +1,7 @@
 //! Constants and helper functions.
 
 use crossterm::style::{ContentStyle, Stylize};
-use toss::frame::{Frame, Size};
+use toss::frame::Frame;
 
 pub const TIME_FORMAT: &str = "%H:%M ";
 pub const TIME_EMPTY: &str = "      ";
