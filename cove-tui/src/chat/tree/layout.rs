@@ -99,7 +99,6 @@ impl<M: Msg> TreeView<M> {
         frame: &mut Frame,
         size: Size,
     ) -> Blocks<M::Id> {
-        let height: i32 = size.height.into();
         if let Some(cursor) = cursor {
             // TODO Ensure focus lies on cursor path, otherwise unfocus
             // TODO Unfold all messages on path to cursor
@@ -109,7 +108,7 @@ impl<M: Msg> TreeView<M> {
             let cursor_tree_id = cursor_path.first();
             let cursor_tree = store.tree(room, cursor_tree_id).await;
             let mut layout = layout_tree(frame, size, cursor_tree);
-            layout.calculate_offsets_with_cursor(cursor, height);
+            layout.calculate_offsets_with_cursor(cursor, size.height);
 
             // Expand upwards and downwards
             // TODO Don't do this if there is a focus
@@ -125,7 +124,7 @@ impl<M: Msg> TreeView<M> {
             // TODO Ensure there is no focus
 
             // Start at the bottom of the screen
-            let mut layout = Blocks::new_below(height - 1);
+            let mut layout = Blocks::new_below(size.height as i32 - 1);
 
             // Expand upwards until the edge of the screen
             if let Some(last_tree) = store.last_tree(room).await {

@@ -6,6 +6,8 @@ use chrono::{DateTime, Utc};
 
 use crate::chat::Cursor;
 
+use super::util;
+
 pub struct Block<I> {
     pub id: I,
     pub line: i32,
@@ -118,9 +120,9 @@ impl<I: PartialEq> Blocks<I> {
         cursor.expect("no cursor in layout")
     }
 
-    pub fn calculate_offsets_with_cursor(&mut self, cursor: &Cursor<I>, height: i32) {
+    pub fn calculate_offsets_with_cursor(&mut self, cursor: &Cursor<I>, height: u16) {
         let cursor_index = self.mark_cursor(&cursor.id);
-        let cursor_line = ((height - 1) as f32 * cursor.proportion).floor() as i32;
+        let cursor_line = util::proportion_to_line(height, cursor.proportion);
 
         // Propagate lines from cursor to both ends
         self.blocks[cursor_index].line = cursor_line;
