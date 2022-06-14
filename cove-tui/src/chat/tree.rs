@@ -4,14 +4,18 @@ mod layout;
 
 use std::marker::PhantomData;
 
+use chrono::{DateTime, Utc};
 use crossterm::event::{KeyCode, KeyEvent};
 use crossterm::style::{ContentStyle, Stylize};
 use toss::frame::{Frame, Pos, Size};
 
 use crate::store::{Msg, MsgStore};
 
-use self::blocks::{BlockContent, Blocks};
-use self::constants::{INDENT, INDENT_WIDTH, TIME_WIDTH};
+use self::blocks::{BlockBody, Blocks};
+use self::constants::{
+    after_indent, style_indent, style_indent_inverted, style_placeholder, style_time,
+    style_time_inverted, INDENT, INDENT_WIDTH, PLACEHOLDER, TIME_EMPTY, TIME_FORMAT, TIME_WIDTH,
+};
 
 use super::Cursor;
 
@@ -29,23 +33,42 @@ impl<M: Msg> TreeView<M> {
         }
     }
 
-    fn render_indentation(&mut self, frame: &mut Frame, pos: Pos, indent: usize, cursor: bool) {
+    fn render_time(frame: &mut Frame, x: i32, y: i32, time: Option<DateTime<Utc>>, cursor: bool) {
+        let pos = Pos::new(x, y);
+
+        let style = if cursor {
+            style_time_inverted()
+        } else {
+            style_time()
+        };
+
+        if let Some(time) = time {
+            let time = format!("{}", time.format(TIME_FORMAT));
+            frame.write(pos, &time, style);
+        } else {
+            frame.write(pos, TIME_EMPTY, style);
+        }
+    }
+
+    fn render_indent(frame: &mut Frame, x: i32, y: i32, indent: usize, cursor: bool) {
         for i in 0..indent {
-            let x = TIME_WIDTH + INDENT_WIDTH * i;
-            let pos = Pos::new(pos.x + x as i32, pos.y);
+            let pos = Pos::new(x + after_indent(i), y);
+
             let style = if cursor {
-                ContentStyle::default().black().on_white()
+                style_indent_inverted()
             } else {
-                ContentStyle::default()
+                style_indent()
             };
+
             frame.write(pos, INDENT, style);
         }
     }
 
     fn render_layout(&mut self, frame: &mut Frame, pos: Pos, size: Size, layout: &Blocks<M::Id>) {
         for block in &layout.blocks {
-            match &block.content {
-                BlockContent::Msg(msg) => {
+            // Draw rest of block
+            match &block.body {
+                BlockBody::Msg(msg) => {
                     let nick_width = frame.width(&msg.nick) as i32;
                     for (i, line) in msg.lines.iter().enumerate() {
                         let y = pos.y + block.line + i as i32;
@@ -53,29 +76,26 @@ impl<M: Msg> TreeView<M> {
                             continue;
                         }
 
-                        self.render_indentation(
-                            frame,
-                            Pos::new(pos.x, y),
-                            block.indent,
-                            block.cursor,
-                        );
+                        Self::render_indent(frame, pos.x, y, block.indent, block.cursor);
                         let after_indent =
                             pos.x + (TIME_WIDTH + INDENT_WIDTH * block.indent) as i32;
                         if i == 0 {
-                            let time = format!("{}", msg.time.format("%H:%M"));
-                            frame.write(Pos::new(pos.x, y), &time, ContentStyle::default());
+                            Self::render_time(frame, pos.x, y, block.time, block.cursor);
                             let nick = format!("[{}]", msg.nick);
                             frame.write(Pos::new(after_indent, y), &nick, ContentStyle::default());
+                        } else {
+                            Self::render_time(frame, pos.x, y, None, block.cursor);
                         }
                         let msg_x = after_indent + 1 + nick_width + 2;
                         frame.write(Pos::new(msg_x, y), line, ContentStyle::default());
                     }
                 }
-                BlockContent::Placeholder => {
-                    self.render_indentation(frame, pos, block.indent, block.cursor);
-                    let x = pos.x + (TIME_WIDTH + INDENT_WIDTH * block.indent) as i32;
+                BlockBody::Placeholder => {
                     let y = pos.y + block.line;
-                    frame.write(Pos::new(x, y), "[...]", ContentStyle::default());
+                    Self::render_time(frame, pos.x, y, block.time, block.cursor);
+                    Self::render_indent(frame, pos.x, y, block.indent, block.cursor);
+                    let pos = Pos::new(pos.x + after_indent(block.indent), y);
+                    frame.write(pos, PLACEHOLDER, style_placeholder());
                 }
             }
         }

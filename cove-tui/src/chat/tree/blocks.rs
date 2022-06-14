@@ -5,48 +5,59 @@ use chrono::{DateTime, Utc};
 use crate::chat::Cursor;
 
 pub struct Block<I> {
+    pub id: I,
     pub line: i32,
     pub height: i32,
-    pub id: I,
-    pub indent: usize,
     pub cursor: bool,
-    pub content: BlockContent,
+    pub time: Option<DateTime<Utc>>,
+    pub indent: usize,
+    pub body: BlockBody,
 }
 
 impl<I> Block<I> {
-    pub fn placeholder(id: I, indent: usize) -> Self {
+    pub fn msg(
+        id: I,
+        indent: usize,
+        time: DateTime<Utc>,
+        nick: String,
+        lines: Vec<String>,
+    ) -> Self {
         Self {
-            line: 0,
-            height: 1,
             id,
+            line: 0,
+            height: lines.len() as i32,
             indent,
+            time: Some(time),
             cursor: false,
-            content: BlockContent::Placeholder,
+            body: BlockBody::Msg(MsgBlock { nick, lines }),
         }
     }
+
+    pub fn placeholder(id: I, indent: usize) -> Self {
+        Self {
+            id,
+            line: 0,
+            height: 1,
+            indent,
+            time: None,
+            cursor: false,
+            body: BlockBody::Placeholder,
+        }
+    }
+
+    pub fn time(mut self, time: DateTime<Utc>) -> Self {
+        self.time = Some(time);
+        self
+    }
 }
-pub enum BlockContent {
+pub enum BlockBody {
     Msg(MsgBlock),
     Placeholder,
 }
 
 pub struct MsgBlock {
-    pub time: DateTime<Utc>,
     pub nick: String,
     pub lines: Vec<String>,
-}
-
-impl MsgBlock {
-    pub fn into_block<I>(self, id: I, indent: usize) -> Block<I> {
-        Block {
-            line: 0,
-            height: self.lines.len() as i32,
-            id,
-            indent,
-            cursor: false,
-            content: BlockContent::Msg(self),
-        }
-    }
 }
 
 /// Pre-layouted messages as a sequence of blocks.

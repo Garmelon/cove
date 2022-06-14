@@ -3,32 +3,30 @@ use toss::frame::{Frame, Size};
 use crate::chat::Cursor;
 use crate::store::{Msg, MsgStore, Tree};
 
-use super::blocks::{Block, Blocks, MsgBlock};
-use super::constants::{INDENT_WIDTH, TIME_WIDTH};
+use super::blocks::{Block, Blocks};
+use super::constants::{self, MIN_CONTENT_WIDTH};
 use super::TreeView;
 
 impl<M: Msg> TreeView<M> {
     fn msg_to_block(
         &mut self,
-        msg: &M,
-        indent: usize,
         frame: &mut Frame,
         size: Size,
+        msg: &M,
+        indent: usize,
     ) -> Block<M::Id> {
         let nick = msg.nick();
         let content = msg.content();
 
-        let used_width = TIME_WIDTH + INDENT_WIDTH * indent + 1 + frame.width(&nick) + 2;
-        let rest_width = size.width as usize - used_width;
-
-        let lines = toss::split_at_indices(&content, &frame.wrap(&content, rest_width));
-        let lines = lines.into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        MsgBlock {
-            time: msg.time(),
-            nick,
-            lines,
+        let content_width = size.width as i32 - constants::after_nick(frame, indent, &nick);
+        if content_width < MIN_CONTENT_WIDTH as i32 {
+            Block::placeholder(msg.id(), indent).time(msg.time())
+        } else {
+            let content_width = content_width as usize;
+            let lines = toss::split_at_indices(&content, &frame.wrap(&content, content_width));
+            let lines = lines.into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+            Block::msg(msg.id(), indent, msg.time(), nick, lines)
         }
-        .into_block(msg.id(), indent)
     }
 
     fn layout_subtree(
@@ -41,7 +39,7 @@ impl<M: Msg> TreeView<M> {
         layout: &mut Blocks<M::Id>,
     ) {
         let block = if let Some(msg) = tree.msg(id) {
-            self.msg_to_block(msg, indent, frame, size)
+            self.msg_to_block(frame, size, msg, indent)
         } else {
             Block::placeholder(id.clone(), indent)
         };
