@@ -8,7 +8,7 @@ anyhow = "1.0.57"
 async-trait = "0.1.56"
 chrono = "0.4.19"
 clap = { version = "3.1.18", features = ["derive"] }
-crossterm = { version = "0.23.2", features = ["event-stream"] }
+crossterm = "0.23.2"
 futures = "0.3.21"
 parking_lot = "0.12.1"
 thiserror = "1.0.31"
