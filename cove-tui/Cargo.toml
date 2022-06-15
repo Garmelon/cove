@@ -8,6 +8,8 @@ anyhow = "1.0.57"
 async-trait = "0.1.56"
 chrono = "0.4.19"
 crossterm = "0.23.2"
+directories = "4.0.1"
 parking_lot = "0.12.1"
+rusqlite = "0.27.0"
 tokio = { version = "1.19.2", features = ["full"] }
 toss = { git = "https://github.com/Garmelon/toss.git", rev = "333cf74fba56080043a13b9f55c0b62695e2fa4a" }
