@@ -1,7 +1,7 @@
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
-use crossterm::event::{Event, KeyCode, KeyEvent, MouseEvent};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent};
 use parking_lot::FairMutex;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -146,7 +146,9 @@ impl Ui {
         frame: &mut Frame,
         size: Size,
     ) -> EventHandleResult {
-        if let KeyCode::Char('Q') = event.code {
+        let shift_q = event.code == KeyCode::Char('Q');
+        let ctrl_c = event.modifiers == KeyModifiers::CONTROL && event.code == KeyCode::Char('c');
+        if shift_q || ctrl_c {
             return EventHandleResult::Stop;
         }
         self.chat.handle_key_event(event, frame, size).await;
