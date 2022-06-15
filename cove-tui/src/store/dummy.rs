@@ -111,7 +111,7 @@ impl DummyStore {
 
 #[async_trait]
 impl MsgStore<DummyMsg> for DummyStore {
-    async fn path(&self, _room: &str, id: &usize) -> Path<usize> {
+    async fn path(&self, id: &usize) -> Path<usize> {
         let mut id = *id;
         let mut segments = vec![id];
         while let Some(parent) = self.msgs.get(&id).and_then(|msg| msg.parent) {
@@ -122,13 +122,13 @@ impl MsgStore<DummyMsg> for DummyStore {
         Path::new(segments)
     }
 
-    async fn tree(&self, _room: &str, root: &usize) -> Tree<DummyMsg> {
+    async fn tree(&self, root: &usize) -> Tree<DummyMsg> {
         let mut msgs = vec![];
         self.collect_tree(*root, &mut msgs);
         Tree::new(*root, msgs)
     }
 
-    async fn prev_tree(&self, _room: &str, tree: &usize) -> Option<usize> {
+    async fn prev_tree(&self, tree: &usize) -> Option<usize> {
         let trees = self.trees();
         trees
             .iter()
@@ -137,7 +137,7 @@ impl MsgStore<DummyMsg> for DummyStore {
             .map(|(t, _)| *t)
     }
 
-    async fn next_tree(&self, _room: &str, tree: &usize) -> Option<usize> {
+    async fn next_tree(&self, tree: &usize) -> Option<usize> {
         let trees = self.trees();
         trees
             .iter()
@@ -146,11 +146,11 @@ impl MsgStore<DummyMsg> for DummyStore {
             .map(|(_, t)| *t)
     }
 
-    async fn first_tree(&self, _room: &str) -> Option<usize> {
+    async fn first_tree(&self) -> Option<usize> {
         self.trees().first().cloned()
     }
 
-    async fn last_tree(&self, _room: &str) -> Option<usize> {
+    async fn last_tree(&self) -> Option<usize> {
         self.trees().last().cloned()
     }
 }

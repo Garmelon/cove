@@ -54,7 +54,6 @@ fn layout_tree<M: Msg>(frame: &mut Frame, size: Size, tree: Tree<M>) -> Blocks<M
 
 impl<M: Msg> TreeView<M> {
     pub async fn expand_blocks_up<S: MsgStore<M>>(
-        room: &str,
         store: &S,
         frame: &mut Frame,
         size: Size,
@@ -63,13 +62,13 @@ impl<M: Msg> TreeView<M> {
     ) {
         while blocks.top_line > 0 {
             *tree_id = if let Some(tree_id) = tree_id {
-                store.prev_tree(room, tree_id).await
+                store.prev_tree(tree_id).await
             } else {
                 break;
             };
 
             if let Some(tree_id) = tree_id {
-                let tree = store.tree(room, tree_id).await;
+                let tree = store.tree(tree_id).await;
                 blocks.prepend(layout_tree(frame, size, tree));
             } else {
                 break;
@@ -78,7 +77,6 @@ impl<M: Msg> TreeView<M> {
     }
 
     pub async fn expand_blocks_down<S: MsgStore<M>>(
-        room: &str,
         store: &S,
         frame: &mut Frame,
         size: Size,
@@ -87,13 +85,13 @@ impl<M: Msg> TreeView<M> {
     ) {
         while blocks.bottom_line < size.height as i32 {
             *tree_id = if let Some(tree_id) = tree_id {
-                store.next_tree(room, tree_id).await
+                store.next_tree(tree_id).await
             } else {
                 break;
             };
 
             if let Some(tree_id) = tree_id {
-                let tree = store.tree(room, tree_id).await;
+                let tree = store.tree(tree_id).await;
                 blocks.append(layout_tree(frame, size, tree));
             } else {
                 break;
@@ -104,7 +102,6 @@ impl<M: Msg> TreeView<M> {
     // TODO Split up based on cursor presence
     pub async fn layout_blocks<S: MsgStore<M>>(
         &mut self,
-        room: &str,
         store: &S,
         cursor: Option<&Cursor<M::Id>>,
         frame: &mut Frame,
@@ -115,9 +112,9 @@ impl<M: Msg> TreeView<M> {
             // TODO Unfold all messages on path to cursor
 
             // Layout cursor subtree (with correct offsets based on cursor)
-            let cursor_path = store.path(room, &cursor.id).await;
+            let cursor_path = store.path(&cursor.id).await;
             let cursor_tree_id = cursor_path.first();
-            let cursor_tree = store.tree(room, cursor_tree_id).await;
+            let cursor_tree = store.tree(cursor_tree_id).await;
             let mut blocks = layout_tree(frame, size, cursor_tree);
             blocks.calculate_offsets_with_cursor(cursor, size.height);
 
@@ -136,18 +133,18 @@ impl<M: Msg> TreeView<M> {
             //
             // TODO Don't expand if there is a focus
             let mut top_tree_id = Some(cursor_tree_id.clone());
-            Self::expand_blocks_up(room, store, frame, size, &mut blocks, &mut top_tree_id).await;
+            Self::expand_blocks_up(store, frame, size, &mut blocks, &mut top_tree_id).await;
             if blocks.top_line > 0 {
                 blocks.offset(-blocks.top_line);
             }
             let mut bot_tree_id = Some(cursor_tree_id.clone());
-            Self::expand_blocks_down(room, store, frame, size, &mut blocks, &mut bot_tree_id).await;
+            Self::expand_blocks_down(store, frame, size, &mut blocks, &mut bot_tree_id).await;
             if blocks.bottom_line < size.height as i32 - 1 {
                 blocks.offset(size.height as i32 - 1 - blocks.bottom_line);
             }
             // If we only moved the blocks down, we need to expand upwards again
             // to make sure we fill the screen.
-            Self::expand_blocks_up(room, store, frame, size, &mut blocks, &mut top_tree_id).await;
+            Self::expand_blocks_up(store, frame, size, &mut blocks, &mut top_tree_id).await;
 
             blocks
         } else {
@@ -157,12 +154,12 @@ impl<M: Msg> TreeView<M> {
             let mut blocks = Blocks::new_below(size.height as i32 - 1);
 
             // Expand upwards from last tree
-            if let Some(last_tree_id) = store.last_tree(room).await {
-                let last_tree = store.tree(room, &last_tree_id).await;
+            if let Some(last_tree_id) = store.last_tree().await {
+                let last_tree = store.tree(&last_tree_id).await;
                 blocks.prepend(layout_tree(frame, size, last_tree));
 
                 let mut tree_id = Some(last_tree_id);
-                Self::expand_blocks_up(room, store, frame, size, &mut blocks, &mut tree_id).await;
+                Self::expand_blocks_up(store, frame, size, &mut blocks, &mut tree_id).await;
             }
 
             blocks

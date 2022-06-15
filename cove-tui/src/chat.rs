@@ -32,7 +32,6 @@ impl<I> Cursor<I> {
 
 pub struct Chat<M: Msg, S: MsgStore<M>> {
     store: S,
-    room: String,
     cursor: Option<Cursor<M::Id>>,
     mode: Mode,
     tree: TreeView<M>,
@@ -41,10 +40,9 @@ pub struct Chat<M: Msg, S: MsgStore<M>> {
 }
 
 impl<M: Msg, S: MsgStore<M>> Chat<M, S> {
-    pub fn new(store: S, room: String) -> Self {
+    pub fn new(store: S) -> Self {
         Self {
             store,
-            room,
             cursor: None,
             mode: Mode::Tree,
             tree: TreeView::new(),
@@ -57,14 +55,7 @@ impl<M: Msg, S: MsgStore<M>> Chat<M, S> {
         match self.mode {
             Mode::Tree => {
                 self.tree
-                    .handle_key_event(
-                        &self.room,
-                        &mut self.store,
-                        &mut self.cursor,
-                        frame,
-                        size,
-                        event,
-                    )
+                    .handle_key_event(&mut self.store, &mut self.cursor, frame, size, event)
                     .await
             }
         }
@@ -74,7 +65,7 @@ impl<M: Msg, S: MsgStore<M>> Chat<M, S> {
         match self.mode {
             Mode::Tree => {
                 self.tree
-                    .render(&self.room, &mut self.store, &self.cursor, frame, pos, size)
+                    .render(&mut self.store, &self.cursor, frame, pos, size)
                     .await
             }
         }

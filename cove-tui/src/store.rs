@@ -103,10 +103,10 @@ impl<M: Msg> Tree<M> {
 
 #[async_trait]
 pub trait MsgStore<M: Msg> {
-    async fn path(&self, room: &str, id: &M::Id) -> Path<M::Id>;
-    async fn tree(&self, room: &str, root: &M::Id) -> Tree<M>;
-    async fn prev_tree(&self, room: &str, tree: &M::Id) -> Option<M::Id>;
-    async fn next_tree(&self, room: &str, tree: &M::Id) -> Option<M::Id>;
-    async fn first_tree(&self, room: &str) -> Option<M::Id>;
-    async fn last_tree(&self, room: &str) -> Option<M::Id>;
+    async fn path(&self, id: &M::Id) -> Path<M::Id>;
+    async fn tree(&self, root: &M::Id) -> Tree<M>;
+    async fn prev_tree(&self, tree: &M::Id) -> Option<M::Id>;
+    async fn next_tree(&self, tree: &M::Id) -> Option<M::Id>;
+    async fn first_tree(&self) -> Option<M::Id>;
+    async fn last_tree(&self) -> Option<M::Id>;
 }

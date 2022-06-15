@@ -55,7 +55,7 @@ impl Ui {
             .msg(DummyMsg::new(10, "abc123", "reply to reply to nothing").parent(8))
             .msg(DummyMsg::new(11, "nick", "yet another reply to nothing").parent(7))
             .msg(DummyMsg::new(12, "abc123", "beep\nboop").parent(11));
-        let chat = Chat::new(store, "testroom".to_string());
+        let chat = Chat::new(store);
 
         // Run main UI.
         //
