@@ -103,19 +103,10 @@ impl<M: Msg> TreeView<M> {
         tree: &mut Tree<M>,
         id: &mut M::Id,
     ) -> bool {
-        if let Some(siblings) = tree.siblings(id) {
-            let prev_sibling = siblings
-                .iter()
-                .zip(siblings.iter().skip(1))
-                .find(|(_, s)| *s == id)
-                .map(|(s, _)| s);
-            if let Some(prev_sibling) = prev_sibling {
-                *id = prev_sibling.clone();
-                true
-            } else {
-                false
-            }
-        } else {
+        if let Some(prev_sibling) = tree.prev_sibling(id) {
+            *id = prev_sibling;
+            true
+        } else if tree.parent(id).is_none() {
             // We're at the root of our tree, so we need to move to the root of
             // the previous tree.
             if let Some(prev_tree_id) = store.prev_tree(tree.root()).await {
@@ -125,6 +116,8 @@ impl<M: Msg> TreeView<M> {
             } else {
                 false
             }
+        } else {
+            false
         }
     }
 
@@ -137,19 +130,10 @@ impl<M: Msg> TreeView<M> {
         tree: &mut Tree<M>,
         id: &mut M::Id,
     ) -> bool {
-        if let Some(siblings) = tree.siblings(id) {
-            let next_sibling = siblings
-                .iter()
-                .zip(siblings.iter().skip(1))
-                .find(|(s, _)| *s == id)
-                .map(|(_, s)| s);
-            if let Some(next_sibling) = next_sibling {
-                *id = next_sibling.clone();
-                true
-            } else {
-                false
-            }
-        } else {
+        if let Some(next_sibling) = tree.next_sibling(id) {
+            *id = next_sibling;
+            true
+        } else if tree.parent(id).is_none() {
             // We're at the root of our tree, so we need to move to the root of
             // the next tree.
             if let Some(next_tree_id) = store.next_tree(tree.root()).await {
@@ -159,6 +143,8 @@ impl<M: Msg> TreeView<M> {
             } else {
                 false
             }
+        } else {
+            false
         }
     }
 

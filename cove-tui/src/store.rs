@@ -99,6 +99,24 @@ impl<M: Msg> Tree<M> {
             None
         }
     }
+
+    pub fn prev_sibling(&self, id: &M::Id) -> Option<M::Id> {
+        let siblings = self.siblings(id)?;
+        siblings
+            .iter()
+            .zip(siblings.iter().skip(1))
+            .find(|(_, s)| *s == id)
+            .map(|(s, _)| s.clone())
+    }
+
+    pub fn next_sibling(&self, id: &M::Id) -> Option<M::Id> {
+        let siblings = self.siblings(id)?;
+        siblings
+            .iter()
+            .zip(siblings.iter().skip(1))
+            .find(|(s, _)| *s == id)
+            .map(|(_, s)| s.clone())
+    }
 }
 
 #[async_trait]
