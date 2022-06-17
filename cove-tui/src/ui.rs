@@ -117,7 +117,8 @@ impl Ui {
                 let result = match event {
                     UiEvent::Redraw => EventHandleResult::Continue,
                     UiEvent::Term(Event::Key(event)) => {
-                        self.handle_key_event(event, terminal.frame(), size).await
+                        self.handle_key_event(event, terminal, size, &crossterm_lock)
+                            .await
                     }
                     UiEvent::Term(Event::Mouse(event)) => self.handle_mouse_event(event).await?,
                     UiEvent::Term(Event::Resize(_, _)) => EventHandleResult::Continue,
@@ -143,15 +144,19 @@ impl Ui {
     async fn handle_key_event(
         &mut self,
         event: KeyEvent,
-        frame: &mut Frame,
+        terminal: &mut Terminal,
         size: Size,
+        crossterm_lock: &Arc<FairMutex<()>>,
     ) -> EventHandleResult {
         let shift_q = event.code == KeyCode::Char('Q');
         let ctrl_c = event.modifiers == KeyModifiers::CONTROL && event.code == KeyCode::Char('c');
         if shift_q || ctrl_c {
             return EventHandleResult::Stop;
         }
-        self.chat.handle_key_event(event, frame, size).await;
+        // TODO Perform resulting action
+        self.chat
+            .handle_key_event(event, terminal, size, crossterm_lock)
+            .await;
         EventHandleResult::Continue
     }
 

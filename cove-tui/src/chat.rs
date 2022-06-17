@@ -1,7 +1,11 @@
 mod tree;
 
+use std::sync::Arc;
+
 use crossterm::event::KeyEvent;
+use parking_lot::FairMutex;
 use toss::frame::{Frame, Pos, Size};
+use toss::terminal::Terminal;
 
 use crate::store::{Msg, MsgStore};
 
@@ -50,12 +54,30 @@ impl<M: Msg, S: MsgStore<M>> Chat<M, S> {
     }
 }
 
+pub enum Handled<I> {
+    Ok,
+    NewMessage { parent: Option<I>, content: String },
+}
+
 impl<M: Msg, S: MsgStore<M>> Chat<M, S> {
-    pub async fn handle_key_event(&mut self, event: KeyEvent, frame: &mut Frame, size: Size) {
+    pub async fn handle_key_event(
+        &mut self,
+        event: KeyEvent,
+        terminal: &mut Terminal,
+        size: Size,
+        crossterm_lock: &Arc<FairMutex<()>>,
+    ) -> Handled<M::Id> {
         match self.mode {
             Mode::Tree => {
                 self.tree
-                    .handle_key_event(&mut self.store, &mut self.cursor, frame, size, event)
+                    .handle_key_event(
+                        crossterm_lock,
+                        &mut self.store,
+                        &mut self.cursor,
+                        terminal,
+                        size,
+                        event,
+                    )
                     .await
             }
         }
