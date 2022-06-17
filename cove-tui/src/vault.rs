@@ -24,8 +24,13 @@ impl Vault {
 fn run(conn: Connection, mut rx: mpsc::Receiver<Request>) -> anyhow::Result<()> {
     while let Some(request) = rx.blocking_recv() {
         match request {
-            // Drops the Sender resulting in `Vault::close` exiting
-            Request::Close(_) => break,
+            Request::Close(tx) => {
+                // Ensure `Vault::close` exits only after the sqlite connection
+                // has been closed properly.
+                drop(conn);
+                drop(tx);
+                break;
+            }
             Request::Nop => {}
         }
     }
