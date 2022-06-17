@@ -15,10 +15,14 @@ async fn main() -> anyhow::Result<()> {
     println!("Data dir: {}", dirs.data_dir().to_string_lossy());
 
     let vault = vault::launch(&dirs.data_dir().join("vault.db"))?;
+
     let mut terminal = Terminal::new()?;
     // terminal.set_measuring(true);
-
     Ui::run(&mut terminal).await?;
+    drop(terminal); // So the vault can print again
+
     vault.close().await;
+
+    println!("Goodbye!");
     Ok(())
 }

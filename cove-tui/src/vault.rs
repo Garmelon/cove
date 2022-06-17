@@ -1,3 +1,5 @@
+mod migrate;
+
 use std::path::Path;
 use std::{fs, thread};
 
@@ -25,6 +27,8 @@ fn run(conn: Connection, mut rx: mpsc::Receiver<Request>) -> anyhow::Result<()> 
     while let Some(request) = rx.blocking_recv() {
         match request {
             Request::Close(tx) => {
+                println!("Optimizing vault");
+                conn.execute_batch("PRAGMA optimize")?;
                 // Ensure `Vault::close` exits only after the sqlite connection
                 // has been closed properly.
                 drop(conn);
@@ -42,7 +46,20 @@ pub fn launch(path: &Path) -> rusqlite::Result<Vault> {
     // file, which saves me from adding a separate vault error type.
     let _ = fs::create_dir_all(path.parent().expect("path to file"));
 
-    let conn = Connection::open(path)?;
+    let mut conn = Connection::open(path)?;
+
+    // Setting locking mode before journal mode so no shared memory files
+    // (*-shm) need to be created by sqlite. Apparently, setting the journal
+    // mode is also enough to immediately acquire the exclusive lock even if the
+    // database was already using WAL.
+    // https://sqlite.org/pragma.html#pragma_locking_mode
+    conn.pragma_update(None, "locking_mode", "exclusive")?;
+    conn.pragma_update(None, "journal_mode", "wal")?;
+    conn.pragma_update(None, "foreign_keys", true)?;
+    conn.pragma_update(None, "trusted_schema", false)?;
+
+    migrate::migrate(&mut conn)?;
+
     let (tx, rx) = mpsc::channel(8);
     thread::spawn(move || run(conn, rx));
     Ok(Vault { tx })
