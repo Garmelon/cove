@@ -29,7 +29,7 @@ pub struct Ui {
 }
 
 impl Ui {
-    const POLL_DURATION: Duration = Duration::from_millis(500);
+    const POLL_DURATION: Duration = Duration::from_millis(100);
 
     pub async fn run(terminal: &mut Terminal) -> anyhow::Result<()> {
         let (event_tx, event_rx) = mpsc::unbounded_channel();
