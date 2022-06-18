@@ -125,6 +125,7 @@ dependencies = [
  "libc",
  "num-integer",
  "num-traits",
+ "serde",
  "time",
  "winapi",
 ]
@@ -191,6 +192,8 @@ dependencies = [
  "edit",
  "parking_lot",
  "rusqlite",
+ "serde",
+ "serde_json",
  "tokio",
  "toss",
 ]
