@@ -10,6 +10,7 @@ use toss::frame::{Frame, Pos, Size};
 use toss::terminal::Terminal;
 
 use crate::chat::Chat;
+use crate::log::{Log, LogMsg};
 use crate::store::dummy::{DummyMsg, DummyStore};
 
 #[derive(Debug)]
@@ -23,15 +24,27 @@ enum EventHandleResult {
     Stop,
 }
 
+enum Visible {
+    Main,
+    Log,
+}
+
 pub struct Ui {
     event_tx: UnboundedSender<UiEvent>,
+    log: Log,
+
+    visible: Visible,
     chat: Chat<DummyMsg, DummyStore>,
+    log_chat: Chat<LogMsg, Log>,
 }
 
 impl Ui {
     const POLL_DURATION: Duration = Duration::from_millis(100);
 
     pub async fn run(terminal: &mut Terminal) -> anyhow::Result<()> {
+        let log = Log::new();
+        log.log("Hello", "world!");
+
         let (event_tx, event_rx) = mpsc::unbounded_channel();
         let crossterm_lock = Arc::new(FairMutex::new(()));
 
@@ -41,6 +54,7 @@ impl Ui {
         let crossterm_event_task = task::spawn_blocking(|| {
             Self::poll_crossterm_events(event_tx_clone, weak_crossterm_lock)
         });
+        log.log("main", "Started input polling task");
 
         // Prepare dummy message store and chat for testing
         let store = DummyStore::new()
@@ -66,7 +80,13 @@ impl Ui {
         //
         // On the other hand, if the crossterm_event_task stops for any reason,
         // the rest of the UI is also shut down and the client stops.
-        let mut ui = Self { event_tx, chat };
+        let mut ui = Self {
+            event_tx,
+            log: log.clone(),
+            visible: Visible::Log,
+            chat,
+            log_chat: Chat::new(log),
+        };
         let result = tokio::select! {
             e = ui.run_main(terminal, event_rx, crossterm_lock) => e,
             Ok(e) = crossterm_event_task => e,
@@ -112,6 +132,7 @@ impl Ui {
                 Some(event) => event,
                 None => return Ok(()),
             };
+            terminal.autoresize()?;
             loop {
                 let size = terminal.frame().size();
                 let result = match event {
@@ -137,7 +158,14 @@ impl Ui {
     }
 
     async fn render(&mut self, frame: &mut Frame) -> anyhow::Result<()> {
-        self.chat.render(frame, Pos::new(0, 0), frame.size()).await;
+        match self.visible {
+            Visible::Main => self.chat.render(frame, Pos::new(0, 0), frame.size()).await,
+            Visible::Log => {
+                self.log_chat
+                    .render(frame, Pos::new(0, 0), frame.size())
+                    .await
+            }
+        }
         Ok(())
     }
 
@@ -148,19 +176,40 @@ impl Ui {
         size: Size,
         crossterm_lock: &Arc<FairMutex<()>>,
     ) -> EventHandleResult {
+        // Always exit when shift+q or ctrl+c are pressed
         let shift_q = event.code == KeyCode::Char('Q');
         let ctrl_c = event.modifiers == KeyModifiers::CONTROL && event.code == KeyCode::Char('c');
         if shift_q || ctrl_c {
             return EventHandleResult::Stop;
         }
-        // TODO Perform resulting action
-        self.chat
-            .handle_key_event(event, terminal, size, crossterm_lock)
-            .await;
+
+        match event.code {
+            KeyCode::Char('e') => self.log.log("EE E", "E ee e!"),
+            KeyCode::F(1) => self.visible = Visible::Main,
+            KeyCode::F(2) => self.visible = Visible::Log,
+            _ => {}
+        }
+
+        match self.visible {
+            Visible::Main => {
+                self.chat
+                    .handle_key_event(event, terminal, size, crossterm_lock)
+                    .await;
+            }
+            Visible::Log => {
+                self.log_chat
+                    .handle_key_event(event, terminal, size, crossterm_lock)
+                    .await;
+            }
+        }
+
         EventHandleResult::Continue
     }
 
-    async fn handle_mouse_event(&mut self, event: MouseEvent) -> anyhow::Result<EventHandleResult> {
+    async fn handle_mouse_event(
+        &mut self,
+        _event: MouseEvent,
+    ) -> anyhow::Result<EventHandleResult> {
         Ok(EventHandleResult::Continue)
     }
 }
