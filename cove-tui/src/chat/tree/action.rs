@@ -3,7 +3,7 @@ use std::sync::Arc;
 use parking_lot::FairMutex;
 use toss::terminal::Terminal;
 
-use crate::chat::{Cursor, Handled};
+use crate::chat::Cursor;
 use crate::store::{Msg, MsgStore};
 
 use super::TreeView;
@@ -26,11 +26,11 @@ impl<M: Msg> TreeView<M> {
     }
 
     pub async fn reply_normal<S: MsgStore<M>>(
-        crossterm_lock: &Arc<FairMutex<()>>,
         store: &S,
         cursor: &Option<Cursor<M::Id>>,
         terminal: &mut Terminal,
-    ) -> Handled<M::Id> {
+        crossterm_lock: &Arc<FairMutex<()>>,
+    ) -> Option<(Option<M::Id>, String)> {
         if let Some(cursor) = cursor {
             let tree = store.tree(store.path(&cursor.id).await.first()).await;
             let parent_id = if tree.next_sibling(&cursor.id).is_some() {
@@ -52,23 +52,20 @@ impl<M: Msg> TreeView<M> {
             };
 
             if let Some(content) = Self::prompt_msg(crossterm_lock, terminal) {
-                return Handled::NewMessage {
-                    parent: Some(parent_id),
-                    content,
-                };
+                return Some((Some(parent_id), content));
             }
         }
 
-        Handled::Ok
+        None
     }
 
     /// Does approximately the opposite of [`Self::reply_normal`].
     pub async fn reply_alternate<S: MsgStore<M>>(
-        crossterm_lock: &Arc<FairMutex<()>>,
         store: &S,
         cursor: &Option<Cursor<M::Id>>,
         terminal: &mut Terminal,
-    ) -> Handled<M::Id> {
+        crossterm_lock: &Arc<FairMutex<()>>,
+    ) -> Option<(Option<M::Id>, String)> {
         if let Some(cursor) = cursor {
             let tree = store.tree(store.path(&cursor.id).await.first()).await;
             let parent_id = if tree.next_sibling(&cursor.id).is_none() {
@@ -84,27 +81,17 @@ impl<M: Msg> TreeView<M> {
             };
 
             if let Some(content) = Self::prompt_msg(crossterm_lock, terminal) {
-                return Handled::NewMessage {
-                    parent: Some(parent_id),
-                    content,
-                };
+                return Some((Some(parent_id), content));
             }
         }
 
-        Handled::Ok
+        None
     }
 
     pub async fn create_new_thread(
-        crossterm_lock: &Arc<FairMutex<()>>,
         terminal: &mut Terminal,
-    ) -> Handled<M::Id> {
-        if let Some(content) = Self::prompt_msg(crossterm_lock, terminal) {
-            Handled::NewMessage {
-                parent: None,
-                content,
-            }
-        } else {
-            Handled::Ok
-        }
+        crossterm_lock: &Arc<FairMutex<()>>,
+    ) -> Option<(Option<M::Id>, String)> {
+        Self::prompt_msg(crossterm_lock, terminal).map(|c| (None, c))
     }
 }

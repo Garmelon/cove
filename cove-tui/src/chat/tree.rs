@@ -15,7 +15,7 @@ use toss::terminal::Terminal;
 
 use crate::store::{Msg, MsgStore};
 
-use super::{Cursor, Handled};
+use super::Cursor;
 
 pub struct TreeView<M: Msg> {
     // pub focus: Option<M::Id>,
@@ -31,17 +31,15 @@ impl<M: Msg> TreeView<M> {
         }
     }
 
-    pub async fn handle_key_event<S: MsgStore<M>>(
+    pub async fn handle_navigation<S: MsgStore<M>>(
         &mut self,
-        l: &Arc<FairMutex<()>>,
         s: &mut S,
         c: &mut Option<Cursor<M::Id>>,
         t: &mut Terminal,
         z: Size,
         event: KeyEvent,
-    ) -> Handled<M::Id> {
+    ) {
         match event.code {
-            // Cursor movement
             KeyCode::Char('k') => self.move_up(s, c, t.frame(), z).await,
             KeyCode::Char('j') => self.move_down(s, c, t.frame(), z).await,
             KeyCode::Char('K') => self.move_up_sibling(s, c, t.frame(), z).await,
@@ -50,14 +48,24 @@ impl<M: Msg> TreeView<M> {
             KeyCode::Char('g') => self.move_to_first(s, c, t.frame(), z).await,
             KeyCode::Char('G') => self.move_to_last(s, c, t.frame(), z).await,
             KeyCode::Esc => *c = None, // TODO Make 'G' do the same thing?
-            // Writing messages
-            KeyCode::Char('r') => return Self::reply_normal(l, s, c, t).await,
-            KeyCode::Char('R') => return Self::reply_alternate(l, s, c, t).await,
-            KeyCode::Char('t') | KeyCode::Char('T') => return Self::create_new_thread(l, t).await,
             _ => {}
         }
+    }
 
-        Handled::Ok
+    pub async fn handle_messaging<S: MsgStore<M>>(
+        &mut self,
+        s: &mut S,
+        c: &mut Option<Cursor<M::Id>>,
+        t: &mut Terminal,
+        l: &Arc<FairMutex<()>>,
+        event: KeyEvent,
+    ) -> Option<(Option<M::Id>, String)> {
+        match event.code {
+            KeyCode::Char('r') => Self::reply_normal(s, c, t, l).await,
+            KeyCode::Char('R') => Self::reply_alternate(s, c, t, l).await,
+            KeyCode::Char('t') | KeyCode::Char('T') => Self::create_new_thread(t, l).await,
+            _ => None,
+        }
     }
 
     pub async fn render<S: MsgStore<M>>(

@@ -192,14 +192,13 @@ impl Ui {
 
         match self.visible {
             Visible::Main => {
+                self.chat.handle_navigation(terminal, size, event).await;
                 self.chat
-                    .handle_key_event(event, terminal, size, crossterm_lock)
+                    .handle_messaging(terminal, crossterm_lock, event)
                     .await;
             }
             Visible::Log => {
-                self.log_chat
-                    .handle_key_event(event, terminal, size, crossterm_lock)
-                    .await;
+                self.log_chat.handle_navigation(terminal, size, event).await;
             }
         }
 

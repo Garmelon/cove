@@ -54,28 +54,36 @@ impl<M: Msg, S: MsgStore<M>> Chat<M, S> {
     }
 }
 
-pub enum Handled<I> {
-    Ok,
-    NewMessage { parent: Option<I>, content: String },
-}
-
 impl<M: Msg, S: MsgStore<M>> Chat<M, S> {
-    pub async fn handle_key_event(
+    pub async fn handle_navigation(
         &mut self,
-        event: KeyEvent,
         terminal: &mut Terminal,
         size: Size,
-        crossterm_lock: &Arc<FairMutex<()>>,
-    ) -> Handled<M::Id> {
+        event: KeyEvent,
+    ) {
         match self.mode {
             Mode::Tree => {
                 self.tree
-                    .handle_key_event(
-                        crossterm_lock,
+                    .handle_navigation(&mut self.store, &mut self.cursor, terminal, size, event)
+                    .await
+            }
+        }
+    }
+
+    pub async fn handle_messaging(
+        &mut self,
+        terminal: &mut Terminal,
+        crossterm_lock: &Arc<FairMutex<()>>,
+        event: KeyEvent,
+    ) -> Option<(Option<M::Id>, String)> {
+        match self.mode {
+            Mode::Tree => {
+                self.tree
+                    .handle_messaging(
                         &mut self.store,
                         &mut self.cursor,
                         terminal,
-                        size,
+                        crossterm_lock,
                         event,
                     )
                     .await
