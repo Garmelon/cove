@@ -1,5 +1,7 @@
 //! Field types.
 
+// TODO Add newtype wrappers for different kinds of IDs?
+
 // Serde's derive macros generate this warning and I can't turn it off locally,
 // so I'm turning it off for the entire module.
 #![allow(clippy::use_self)]
