@@ -21,9 +21,42 @@ const MIGRATIONS: [fn(&mut Transaction) -> rusqlite::Result<()>; 1] = [m1];
 fn m1(tx: &mut Transaction) -> rusqlite::Result<()> {
     tx.execute_batch(
         "
-        CREATE TABLE test (
-            foo TEXT
-        );
+        CREATE TABLE euph_msgs (
+            -- Message
+            room              TEXT NOT NULL,
+            id                INT  NOT NULL,
+            parent            INT,
+            previous_edit_id  INT,
+            time              INT  NOT NULL,
+            content           TEXT NOT NULL,
+            encryption_key_id TEXT,
+            edited            INT,
+            deleted           INT,
+            truncated         INT  NOT NULL,
+
+            -- SessionView
+            user_id             TEXT NOT NULL,
+            name                TEXT
+            server_id           TEXT NOT NULL,
+            server_era          TEXT NOT NULL,
+            session_id          TEXT NOT NULL,
+            is_staff            INT  NOT NULL,
+            is_manager          INT  NOT NULL,
+            client_address      TEXT,
+            real_client_address TEXT,
+
+            PRIMARY KEY (room, id)
+        ) STRICT;
+
+        CREATE TABLE euph_spans (
+            room  TEXT NOT NULL,
+            start INT,
+            end   INT,
+
+            PRIMARY KEY (room, start, end),
+            FOREIGN KEY (room, start) REFERENCES euph_msgs (room, start),
+            FOREIGN KEY (room, end) REFERENCES euph_msgs (room, end)
+        ) STRICT;
         ",
     )
 }
