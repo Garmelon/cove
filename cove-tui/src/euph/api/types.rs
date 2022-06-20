@@ -300,13 +300,8 @@ impl<'de> de::Visitor<'de> for SnowflakeVisitor {
         if v.len() != 13 {
             return Err(E::invalid_length(v.len(), &self));
         }
-        let mut n = 0;
-        for c in v.chars() {
-            let digit = c
-                .to_digit(36)
-                .ok_or_else(|| E::invalid_value(de::Unexpected::Str(v), &self))?;
-            n = n * 36 + digit as u64;
-        }
+        let n = u64::from_str_radix(v, 36)
+            .map_err(|_| E::invalid_value(de::Unexpected::Str(v), &self))?;
         Ok(Snowflake(n))
     }
 }
