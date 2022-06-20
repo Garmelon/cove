@@ -55,7 +55,8 @@ pub struct Message {
     /// If true, then the full content of this message is not included (see
     /// [`GetMessage`](super::GetMessage) to obtain the message with full
     /// content).
-    pub truncated: Option<bool>,
+    #[serde(default)]
+    pub truncated: bool,
 }
 
 /// The type of a packet.
@@ -254,9 +255,11 @@ pub struct SessionView {
     /// Id of the session, unique across all sessions globally.
     pub session_id: String,
     /// If true, this session belongs to a member of staff.
-    pub is_staff: Option<bool>,
+    #[serde(default)]
+    pub is_staff: bool,
     /// If true, this session belongs to a manager of the room.
-    pub is_manager: Option<bool>,
+    #[serde(default)]
+    pub is_manager: bool,
     /// For hosts and staff, the virtual address of the client.
     pub client_address: Option<String>,
     /// For staff, the real address of the client.
