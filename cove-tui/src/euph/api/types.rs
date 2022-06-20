@@ -269,7 +269,7 @@ pub struct SessionView {
 /// A 13-character string, usually used as aunique identifier for some type of object.
 ///
 /// It is the base-36 encoding of an unsigned, 64-bit integer.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Snowflake(pub u64);
 
 impl Serialize for Snowflake {

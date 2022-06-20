@@ -1,3 +1,4 @@
+mod euph;
 mod migrate;
 
 use std::path::Path;
@@ -6,9 +7,11 @@ use std::{fs, thread};
 use rusqlite::Connection;
 use tokio::sync::{mpsc, oneshot};
 
+use self::euph::{EuphRequest, EuphVault};
+
 enum Request {
     Close(oneshot::Sender<()>),
-    Nop,
+    Euph(EuphRequest),
 }
 
 pub struct Vault {
@@ -21,24 +24,30 @@ impl Vault {
         let _ = self.tx.send(Request::Close(tx)).await;
         let _ = rx.await;
     }
+
+    pub fn euph(&self, room: String) -> EuphVault {
+        EuphVault {
+            tx: self.tx.clone(),
+            room,
+        }
+    }
 }
 
-fn run(conn: Connection, mut rx: mpsc::Receiver<Request>) -> anyhow::Result<()> {
+fn run(conn: Connection, mut rx: mpsc::Receiver<Request>) {
     while let Some(request) = rx.blocking_recv() {
         match request {
             Request::Close(tx) => {
                 println!("Optimizing vault");
-                conn.execute_batch("PRAGMA optimize")?;
+                let _ = conn.execute_batch("PRAGMA optimize");
                 // Ensure `Vault::close` exits only after the sqlite connection
                 // has been closed properly.
                 drop(conn);
                 drop(tx);
                 break;
             }
-            Request::Nop => {}
+            Request::Euph(r) => r.perform(&conn),
         }
     }
-    Ok(())
 }
 
 pub fn launch(path: &Path) -> rusqlite::Result<Vault> {
