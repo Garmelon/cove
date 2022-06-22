@@ -46,6 +46,14 @@ pub struct Nick {
     pub name: String,
 }
 
+impl Nick {
+    pub fn new<S: ToString>(name: S) -> Self {
+        Self {
+            name: name.to_string(),
+        }
+    }
+}
+
 /// Confirms the [`Nick`] command.
 ///
 /// Returns the session's former and new names (the server may modify the
@@ -96,6 +104,22 @@ pub struct Send {
     pub content: String,
     /// The id of the parent message, if any.
     pub parent: Option<Snowflake>,
+}
+
+impl Send {
+    pub fn new<S: ToString>(content: S) -> Self {
+        Self {
+            content: content.to_string(),
+            parent: None,
+        }
+    }
+
+    pub fn reply<S: ToString>(parent: Snowflake, content: S) -> Self {
+        Self {
+            content: content.to_string(),
+            parent: Some(parent),
+        }
+    }
 }
 
 /// The message that was sent.
