@@ -183,6 +183,8 @@ impl State {
         };
 
         select! {
+            _ = tx_canary => (),
+            _ = rx_canary => (),
             _ = Self::listen(&mut ws_rx, &event_tx) => (),
             _ = Self::send_ping_events(&event_tx) => (),
             _ = state.handle_events(&event_tx, &mut event_rx) => (),
