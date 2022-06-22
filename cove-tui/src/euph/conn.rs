@@ -194,7 +194,9 @@ impl State {
         event_tx: &mpsc::UnboundedSender<Event>,
     ) -> anyhow::Result<()> {
         while let Some(msg) = ws_rx.next().await {
-            event_tx.send(Event::Message(msg?))?;
+            let msg = msg?;
+            println!("↓ {msg:?}");
+            event_tx.send(Event::Message(msg))?;
         }
         Ok(())
     }
@@ -304,6 +306,7 @@ impl State {
         .to_packet()?;
 
         let msg = tungstenite::Message::Text(serde_json::to_string(&packet)?);
+        println!("↑ {msg:?}");
         self.ws_tx.send(msg).await?;
 
         let _ = reply_tx.send(self.replies.wait_for(id));
@@ -321,6 +324,7 @@ impl State {
         .to_packet()?;
 
         let msg = tungstenite::Message::Text(serde_json::to_string(&packet)?);
+        println!("↑ {msg:?}");
         self.ws_tx.send(msg).await?;
 
         Ok(())

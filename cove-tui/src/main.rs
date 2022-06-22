@@ -8,24 +8,42 @@ mod store;
 mod ui;
 mod vault;
 
-use directories::ProjectDirs;
-use toss::terminal::Terminal;
-use ui::Ui;
+use euph::api::{Data, Nick, Send};
+use tokio::task;
+
+use crate::euph::conn;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let dirs = ProjectDirs::from("de", "plugh", "cove").expect("unable to determine directories");
-    println!("Data dir: {}", dirs.data_dir().to_string_lossy());
+    let (ws, _) = tokio_tungstenite::connect_async("wss://euphoria.io/room/test/ws").await?;
+    let (tx, mut rx) = conn::wrap(ws);
+    println!("Connected!");
 
-    let vault = vault::launch(&dirs.data_dir().join("vault.db"))?;
+    while let Ok(data) = rx.recv().await {
+        match data {
+            Data::SnapshotEvent(_) => {
+                let tx = tx.clone();
+                task::spawn(async move { tx.send(Nick::new("TestBot".to_string())).await });
+            }
+            Data::SendEvent(p) => {
+                let tx = tx.clone();
+                match &p.0.content as &str {
+                    "!ping" => {
+                        task::spawn(async move { tx.send(Send::reply(p.0.id, "Pong!")).await });
+                    }
+                    "!test" => {
+                        task::spawn(async move {
+                            let status = tx.status().await.unwrap();
+                            tx.send(Send::reply(p.0.id, format!("{status:#?}"))).await;
+                        });
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+    }
 
-    let mut terminal = Terminal::new()?;
-    // terminal.set_measuring(true);
-    Ui::run(&mut terminal).await?;
-    drop(terminal); // So the vault can print again
-
-    vault.close().await;
-
-    println!("Goodbye!");
+    println!("Disconnected");
     Ok(())
 }
