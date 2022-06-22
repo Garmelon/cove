@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{has_packet_type, HasPacketType, Message, PacketType, SessionView, Snowflake, UserId};
+use super::{Message, SessionView, Snowflake, UserId};
 
 /// Retrieve the full content of a single message in the room.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -11,13 +11,9 @@ pub struct GetMessage {
     pub id: Snowflake,
 }
 
-has_packet_type!(GetMessage);
-
 /// The message retrieved by [`GetMessage`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetMessageReply(pub Message);
-
-has_packet_type!(GetMessageReply);
 
 /// Request messages from the room's message log.
 ///
@@ -31,8 +27,6 @@ pub struct Log {
     pub before: Option<Snowflake>,
 }
 
-has_packet_type!(Log);
-
 /// List of messages from the room's message log.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogReply {
@@ -41,8 +35,6 @@ pub struct LogReply {
     /// Messages prior to this snowflake were returned.
     pub before: Option<Snowflake>,
 }
-
-has_packet_type!(LogReply);
 
 /// Set the name you present to the room.
 ///
@@ -53,8 +45,6 @@ pub struct Nick {
     /// The requested name (maximum length 36 bytes).
     pub name: String,
 }
-
-has_packet_type!(Nick);
 
 /// Confirms the [`Nick`] command.
 ///
@@ -72,8 +62,6 @@ pub struct NickReply {
     pub to: String,
 }
 
-has_packet_type!(NickReply);
-
 /// Constructs a virtual room for private messaging between the client and the
 /// given [`UserId`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -81,8 +69,6 @@ pub struct PmInitiate {
     /// The id of the user to invite to chat privately.
     pub user_id: UserId,
 }
-
-has_packet_type!(PmInitiate);
 
 /// Provides the PMID for the requested private messaging room.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -92,8 +78,6 @@ pub struct PmInitiateReply {
     /// The nickname of the recipient of the invitation.
     pub to_nick: String,
 }
-
-has_packet_type!(PmInitiateReply);
 
 /// Send a message to a room.
 ///
@@ -114,21 +98,15 @@ pub struct Send {
     pub parent: Option<Snowflake>,
 }
 
-has_packet_type!(Send);
-
 /// The message that was sent.
 ///
 /// this includes the message id, which was populated by the server.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SendReply(pub Message);
 
-has_packet_type!(SendReply);
-
 /// Request a list of sessions currently joined in the room.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Who;
-
-has_packet_type!(Who);
 
 /// Lists the sessions currently joined in the room.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -136,5 +114,3 @@ pub struct WhoReply {
     /// A list of session views.
     listing: Vec<SessionView>,
 }
-
-has_packet_type!(WhoReply);

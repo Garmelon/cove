@@ -15,12 +15,11 @@ use tokio::sync::mpsc;
 use tokio::{select, task, time};
 use tokio_tungstenite::{tungstenite, MaybeTlsStream, WebSocketStream};
 
-use crate::replies::{self, Replies};
+use crate::replies::{self, PendingReply, Replies};
 
+use super::api::packet::{Command, Packet, ParsedPacket};
 use super::api::{
-    BounceEvent, FromPacket, HelloEvent, JoinEvent, NetworkEvent, NickEvent, NickReply, Packet,
-    PacketType, PartEvent, PersonalAccountView, Ping, PingEvent, PingReply, SendEvent,
-    SnapshotEvent, ToPacket,
+    BounceEvent, Data, HelloEvent, PersonalAccountView, Ping, PingReply, SnapshotEvent,
 };
 use super::{SessionView, Time, UserId};
 
@@ -32,14 +31,32 @@ pub enum Error {
     ConnectionClosed,
     #[error("packet timed out")]
     TimedOut,
+    #[error("incorrect reply type")]
+    IncorrectReplyType,
+    #[error("{0}")]
+    Euph(String),
 }
 
 #[derive(Debug)]
 enum Event {
     Message(tungstenite::Message),
-    Send(Packet, oneshot::Sender<Result<Packet, Error>>),
+    SendCmd(Data, oneshot::Sender<PendingReply<Result<Data, String>>>),
+    SendRpl(Option<String>, Data),
     Status(oneshot::Sender<Status>),
     DoPings,
+}
+
+impl Event {
+    fn send_cmd<C: Into<Data>>(
+        cmd: C,
+        rpl: oneshot::Sender<PendingReply<Result<Data, String>>>,
+    ) -> Self {
+        Self::SendCmd(cmd.into(), rpl)
+    }
+
+    fn send_rpl<C: Into<Data>>(id: Option<String>, rpl: C) -> Self {
+        Self::SendRpl(id, rpl.into())
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -50,11 +67,11 @@ pub struct Joining {
 }
 
 impl Joining {
-    fn on_packet(&mut self, packet: Packet) -> anyhow::Result<()> {
-        match packet.r#type {
-            PacketType::BounceEvent => self.bounce = Some(BounceEvent::from_packet(packet)?),
-            PacketType::HelloEvent => self.hello = Some(HelloEvent::from_packet(packet)?),
-            PacketType::SnapshotEvent => self.snapshot = Some(SnapshotEvent::from_packet(packet)?),
+    fn on_data(&mut self, data: Data) -> anyhow::Result<()> {
+        match data {
+            Data::BounceEvent(p) => self.bounce = Some(p),
+            Data::HelloEvent(p) => self.hello = Some(p),
+            Data::SnapshotEvent(p) => self.snapshot = Some(p),
             _ => {}
         }
         Ok(())
@@ -87,43 +104,32 @@ pub struct Joined {
 }
 
 impl Joined {
-    fn on_packet(&mut self, packet: Packet) -> anyhow::Result<()> {
-        match packet.r#type {
-            PacketType::JoinEvent => {
-                let packet = JoinEvent::from_packet(packet)?;
-                self.listing.insert(packet.0.id.clone(), packet.0);
+    fn on_data(&mut self, data: Data) -> anyhow::Result<()> {
+        match data {
+            Data::JoinEvent(p) => {
+                self.listing.insert(p.0.id.clone(), p.0);
             }
-            PacketType::SendEvent => {
-                let packet = SendEvent::from_packet(packet)?;
-                self.listing
-                    .insert(packet.0.sender.id.clone(), packet.0.sender);
+            Data::SendEvent(p) => {
+                self.listing.insert(p.0.sender.id.clone(), p.0.sender);
             }
-            PacketType::PartEvent => {
-                let packet = PartEvent::from_packet(packet)?;
-                self.listing.remove(&packet.0.id);
+            Data::PartEvent(p) => {
+                self.listing.remove(&p.0.id);
             }
-            PacketType::NetworkEvent => {
-                let p = NetworkEvent::from_packet(packet)?;
+            Data::NetworkEvent(p) => {
                 if p.r#type == "partition" {
                     self.listing.retain(|_, s| {
                         !(s.server_id == p.server_id && s.server_era == p.server_era)
                     });
                 }
             }
-            PacketType::NickEvent => {
-                let packet = NickEvent::from_packet(packet)?;
-                if let Some(session) = self.listing.get_mut(&packet.id) {
-                    session.name = packet.to;
+            Data::NickEvent(p) => {
+                if let Some(session) = self.listing.get_mut(&p.id) {
+                    session.name = p.to;
                 }
             }
-            PacketType::NickReply => {
-                // Since this is a reply, it may contain errors, for example if
-                // the user specified an invalid nick. We can't just die if that
-                // happens, so we ignore the error case.
-                if let Ok(packet) = NickReply::from_packet(packet) {
-                    assert_eq!(self.session.id, packet.id);
-                    self.session.name = packet.to;
-                }
+            Data::NickReply(p) => {
+                assert_eq!(self.session.id, p.id);
+                self.session.name = p.to;
             }
             // The who reply is broken and can't be trusted right now, so we'll
             // not even look at it.
@@ -142,9 +148,9 @@ pub enum Status {
 struct State {
     ws_tx: SplitSink<WsStream, tungstenite::Message>,
     last_id: usize,
-    replies: Replies<String, Packet>,
+    replies: Replies<String, Result<Data, String>>,
 
-    packet_tx: mpsc::UnboundedSender<Packet>,
+    packet_tx: mpsc::UnboundedSender<Data>,
 
     last_ws_ping: Option<Vec<u8>>,
     last_ws_pong: Option<Vec<u8>>,
@@ -161,7 +167,7 @@ impl State {
         rx_canary: oneshot::Receiver<Infallible>,
         event_tx: mpsc::UnboundedSender<Event>,
         mut event_rx: mpsc::UnboundedReceiver<Event>,
-        packet_tx: mpsc::UnboundedSender<Packet>,
+        packet_tx: mpsc::UnboundedSender<Data>,
     ) {
         let (ws_tx, mut ws_rx) = ws.split();
         let state = Self {
@@ -208,7 +214,8 @@ impl State {
         while let Some(ev) = event_rx.recv().await {
             match ev {
                 Event::Message(msg) => self.on_msg(msg, event_tx)?,
-                Event::Send(packet, reply_tx) => self.on_send(packet, reply_tx).await?,
+                Event::SendCmd(data, reply_tx) => self.on_send_cmd(data, reply_tx).await?,
+                Event::SendRpl(id, data) => self.on_send_rpl(id, data).await?,
                 Event::Status(reply_tx) => self.on_status(reply_tx),
                 Event::DoPings => self.do_pings(event_tx).await?,
             }
@@ -237,62 +244,84 @@ impl State {
         packet: Packet,
         event_tx: &mpsc::UnboundedSender<Event>,
     ) -> anyhow::Result<()> {
-        if packet.r#type == PacketType::PingReply {
-            let packet = PingReply::from_packet(packet.clone())?;
-            self.last_euph_pong = packet.time;
-        } else if packet.r#type == PacketType::PingEvent {
-            let time = Some(PingEvent::from_packet(packet.clone())?.time);
-            Self::send_unconditionally(event_tx, PingReply { time }, packet.id.clone())?;
-        }
+        let packet = ParsedPacket::from_packet(packet)?;
 
+        // Complete pending replies if the packet has an id
         if let Some(id) = &packet.id {
-            self.replies.complete(id, packet.clone());
+            self.replies.complete(id, packet.content.clone());
         }
 
-        self.packet_tx.send(packet.clone())?;
-
-        // TODO Handle disconnect event?
-
-        match &mut self.status {
-            Status::Joining(joining) => {
-                joining.on_packet(packet)?;
-                if let Some(joined) = joining.joined() {
-                    self.status = Status::Joined(joined);
-                }
+        // Shovel events into self.packet_tx, assuming that no event ever
+        // errors. Events with errors are simply ignored.
+        if let Ok(data) = &packet.content {
+            if data.is_event() {
+                self.packet_tx.send(data.clone())?;
             }
-            Status::Joined(joined) => joined.on_packet(packet)?,
+        }
+
+        // Play a game of table tennis
+        match &packet.content {
+            Ok(Data::PingReply(p)) => self.last_euph_pong = p.time,
+            Ok(Data::PingEvent(p)) => {
+                let reply = PingReply { time: Some(p.time) };
+                event_tx.send(Event::send_rpl(packet.id.clone(), reply))?;
+            }
+            // TODO Handle disconnect event?
+            _ => {}
+        }
+
+        // Update internal state
+        if let Ok(data) = packet.content {
+            match &mut self.status {
+                Status::Joining(joining) => {
+                    joining.on_data(data)?;
+                    if let Some(joined) = joining.joined() {
+                        self.status = Status::Joined(joined);
+                    }
+                }
+                Status::Joined(joined) => joined.on_data(data)?,
+            }
         }
 
         Ok(())
     }
 
-    async fn on_send(
+    async fn on_send_cmd(
         &mut self,
-        mut packet: Packet,
-        reply_tx: oneshot::Sender<Result<Packet, Error>>,
+        data: Data,
+        reply_tx: oneshot::Sender<PendingReply<Result<Data, String>>>,
     ) -> anyhow::Result<()> {
-        let id = if let Some(id) = packet.id.clone() {
-            id
-        } else {
-            // Overkill of universe-heat-death-like proportions
-            self.last_id = self.last_id.wrapping_add(1);
-            format!("{}", self.last_id)
-        };
-        packet.id = Some(id.clone());
+        // Overkill of universe-heat-death-like proportions
+        self.last_id = self.last_id.wrapping_add(1);
+        let id = format!("{}", self.last_id);
 
-        let pending_reply = self.replies.wait_for(id);
+        let packet = ParsedPacket {
+            id: Some(id.clone()),
+            r#type: data.packet_type(),
+            content: Ok(data),
+            throttled: None,
+        }
+        .to_packet()?;
 
         let msg = tungstenite::Message::Text(serde_json::to_string(&packet)?);
         self.ws_tx.send(msg).await?;
 
-        let reply = match pending_reply.get().await {
-            Ok(reply) => Ok(reply),
-            Err(replies::Error::TimedOut) => Err(Error::TimedOut),
-            // We could also send an Error::ConnectionClosed here, but that
-            // happens automatically in the send function once we drop reply_tx.
-            Err(replies::Error::Canceled) => return Ok(()),
-        };
-        let _ = reply_tx.send(reply);
+        let _ = reply_tx.send(self.replies.wait_for(id));
+
+        Ok(())
+    }
+
+    async fn on_send_rpl(&mut self, id: Option<String>, data: Data) -> anyhow::Result<()> {
+        let packet = ParsedPacket {
+            id,
+            r#type: data.packet_type(),
+            content: Ok(data),
+            throttled: None,
+        }
+        .to_packet()?;
+
+        let msg = tungstenite::Message::Text(serde_json::to_string(&packet)?);
+        self.ws_tx.send(msg).await?;
 
         Ok(())
     }
@@ -321,18 +350,9 @@ impl State {
 
         // Send new euph ping
         let euph_payload = Time(Utc::now());
-        Self::send_unconditionally(event_tx, Ping { time: euph_payload }, None)?;
-
-        Ok(())
-    }
-
-    fn send_unconditionally<T: ToPacket>(
-        event_tx: &mpsc::UnboundedSender<Event>,
-        packet: T,
-        id: Option<String>,
-    ) -> anyhow::Result<()> {
         let (tx, _) = oneshot::channel();
-        event_tx.send(Event::Send(packet.to_packet(id), tx))?;
+        event_tx.send(Event::send_cmd(Ping { time: euph_payload }, tx))?;
+
         Ok(())
     }
 }
@@ -343,16 +363,30 @@ pub struct ConnTx {
 }
 
 impl ConnTx {
-    pub async fn send<T: ToPacket>(&self, packet: T) -> Result<Packet, Error> {
+    pub async fn send<C>(&self, cmd: C) -> Result<C::Reply, Error>
+    where
+        C: Command + Into<Data>,
+        C::Reply: TryFrom<Data, Error = ()>,
+    {
         let (tx, rx) = oneshot::channel();
-        let event = Event::Send(packet.to_packet(None), tx);
         self.event_tx
-            .send(event)
+            .send(Event::SendCmd(cmd.into(), tx))
             .map_err(|_| Error::ConnectionClosed)?;
-        match rx.await {
-            Ok(result) => result,
-            Err(_) => Err(Error::ConnectionClosed),
-        }
+        let pending_reply = rx
+            .await
+            // This should only happen if something goes wrong during encoding
+            // of the packet or while sending it through the websocket. Assuming
+            // the first doesn't happen, the connection is probably closed.
+            .map_err(|_| Error::ConnectionClosed)?;
+        let data = pending_reply
+            .get()
+            .await
+            .map_err(|e| match e {
+                replies::Error::TimedOut => Error::TimedOut,
+                replies::Error::Canceled => Error::ConnectionClosed,
+            })?
+            .map_err(Error::Euph)?;
+        data.try_into().map_err(|_| Error::IncorrectReplyType)
     }
 
     pub async fn status(&self) -> Result<Status, Error> {
@@ -366,11 +400,11 @@ impl ConnTx {
 
 pub struct ConnRx {
     canary: oneshot::Sender<Infallible>,
-    packet_rx: mpsc::UnboundedReceiver<Packet>,
+    packet_rx: mpsc::UnboundedReceiver<Data>,
 }
 
 impl ConnRx {
-    pub async fn recv(&mut self) -> Result<Packet, Error> {
+    pub async fn recv(&mut self) -> Result<Data, Error> {
         self.packet_rx.recv().await.ok_or(Error::ConnectionClosed)
     }
 }

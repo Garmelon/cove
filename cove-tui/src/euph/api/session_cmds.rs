@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{has_packet_type, AuthOption, HasPacketType, PacketType, Time};
+use super::{AuthOption, Time};
 
 /// Attempt to join a private room.
 ///
@@ -16,8 +16,6 @@ pub struct Auth {
     pub passcode: Option<String>,
 }
 
-has_packet_type!(Auth);
-
 /// Reports whether the [`Auth`] command succeeded.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthReply {
@@ -26,8 +24,6 @@ pub struct AuthReply {
     /// If [`Self::success`] was false, the reason for failure.
     pub reason: Option<String>,
 }
-
-has_packet_type!(AuthReply);
 
 /// Initiate a client-to-server ping.
 ///
@@ -39,13 +35,9 @@ pub struct Ping {
     pub time: Time,
 }
 
-has_packet_type!(Ping);
-
 /// Response to a [`Ping`] command or [`PingEvent`](super::PingEvent).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PingReply {
     /// The timestamp of the ping being replied to.
     pub time: Option<Time>,
 }
-
-has_packet_type!(PingReply);

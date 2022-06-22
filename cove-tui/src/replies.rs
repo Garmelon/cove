@@ -16,6 +16,7 @@ pub enum Error {
 
 pub type Result<T> = result::Result<T, Error>;
 
+#[derive(Debug)]
 pub struct PendingReply<R> {
     timeout: Duration,
     result: Receiver<R>,
@@ -32,6 +33,7 @@ impl<R> PendingReply<R> {
     }
 }
 
+#[derive(Debug)]
 pub struct Replies<I, R> {
     timeout: Duration,
     pending: HashMap<I, Sender<R>>,
