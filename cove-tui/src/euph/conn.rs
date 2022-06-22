@@ -67,14 +67,13 @@ pub struct Joining {
 }
 
 impl Joining {
-    fn on_data(&mut self, data: Data) -> anyhow::Result<()> {
+    fn on_data(&mut self, data: Data) {
         match data {
             Data::BounceEvent(p) => self.bounce = Some(p),
             Data::HelloEvent(p) => self.hello = Some(p),
             Data::SnapshotEvent(p) => self.snapshot = Some(p),
             _ => {}
         }
-        Ok(())
     }
 
     fn joined(&self) -> Option<Joined> {
@@ -104,7 +103,7 @@ pub struct Joined {
 }
 
 impl Joined {
-    fn on_data(&mut self, data: Data) -> anyhow::Result<()> {
+    fn on_data(&mut self, data: Data) {
         match data {
             Data::JoinEvent(p) => {
                 self.listing.insert(p.0.id.clone(), p.0);
@@ -135,7 +134,6 @@ impl Joined {
             // not even look at it.
             _ => {}
         }
-        Ok(())
     }
 }
 
@@ -170,7 +168,7 @@ impl State {
         packet_tx: mpsc::UnboundedSender<Data>,
     ) {
         let (ws_tx, mut ws_rx) = ws.split();
-        let state = Self {
+        let mut state = Self {
             ws_tx,
             last_id: 0,
             replies: Replies::new(Duration::from_secs(10)), // TODO Make configurable
@@ -209,7 +207,7 @@ impl State {
     }
 
     async fn handle_events(
-        mut self,
+        &mut self,
         event_tx: &mpsc::UnboundedSender<Event>,
         event_rx: &mut mpsc::UnboundedReceiver<Event>,
     ) -> anyhow::Result<()> {
@@ -276,12 +274,12 @@ impl State {
         if let Ok(data) = packet.content {
             match &mut self.status {
                 Status::Joining(joining) => {
-                    joining.on_data(data)?;
+                    joining.on_data(data);
                     if let Some(joined) = joining.joined() {
                         self.status = Status::Joined(joined);
                     }
                 }
-                Status::Joined(joined) => joined.on_data(data)?,
+                Status::Joined(joined) => joined.on_data(data),
             }
         }
 
@@ -368,7 +366,7 @@ impl ConnTx {
     pub async fn send<C>(&self, cmd: C) -> Result<C::Reply, Error>
     where
         C: Command + Into<Data>,
-        C::Reply: TryFrom<Data, Error = ()>,
+        C::Reply: TryFrom<Data>,
     {
         let (tx, rx) = oneshot::channel();
         self.event_tx
