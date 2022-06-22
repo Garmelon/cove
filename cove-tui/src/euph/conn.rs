@@ -19,9 +19,9 @@ use crate::replies::{self, PendingReply, Replies};
 
 use super::api::packet::{Command, Packet, ParsedPacket};
 use super::api::{
-    BounceEvent, Data, HelloEvent, PersonalAccountView, Ping, PingReply, SnapshotEvent,
+    BounceEvent, Data, HelloEvent, PersonalAccountView, Ping, PingReply, SessionView,
+    SnapshotEvent, Time, UserId,
 };
-use super::{SessionView, Time, UserId};
 
 pub type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 

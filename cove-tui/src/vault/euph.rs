@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 use tokio::sync::{mpsc, oneshot};
 
-use crate::euph::Snowflake;
+use crate::euph::api::Snowflake;
 use crate::store::{Msg, MsgStore, Path, Tree};
 
 use super::Request;
