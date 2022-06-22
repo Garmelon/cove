@@ -10,7 +10,6 @@ use std::fmt;
 
 use chrono::{DateTime, Utc};
 use serde::{de, ser, Deserialize, Serialize};
-use serde_json::Value;
 
 /// Describes an account and its preferred name.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -146,7 +145,7 @@ impl<'de> Deserialize<'de> for Snowflake {
 
 /// Time is specified as a signed 64-bit integer, giving the number of seconds
 /// since the Unix Epoch.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Time(#[serde(with = "chrono::serde::ts_seconds")] pub DateTime<Utc>);
 
 /// Identifies a user.
@@ -156,5 +155,5 @@ pub struct Time(#[serde(with = "chrono::serde::ts_seconds")] pub DateTime<Utc>);
 ///
 /// It is possible for this value to have no prefix and colon, and there is no
 /// fixed format for the unique value.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UserId(pub String);

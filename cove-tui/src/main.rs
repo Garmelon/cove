@@ -3,6 +3,7 @@
 mod chat;
 mod euph;
 mod log;
+mod replies;
 mod store;
 mod ui;
 mod vault;

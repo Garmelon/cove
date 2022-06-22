@@ -184,6 +184,14 @@ impl fmt::Display for PacketType {
     }
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum PacketError {
+    #[error("throttled: {0}")]
+    Throttled(String),
+    #[error("error: {0}")]
+    Error(String),
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Packet {
     pub id: Option<String>,
@@ -193,6 +201,21 @@ pub struct Packet {
     #[serde(default)]
     pub throttled: bool,
     pub throttled_reason: Option<String>,
+}
+
+impl Packet {
+    pub fn data(self) -> Result<Value, PacketError> {
+        if self.throttled {
+            let reason = self
+                .throttled_reason
+                .unwrap_or_else(|| "no reason given".to_string());
+            Err(PacketError::Throttled(reason))
+        } else if let Some(error) = self.error {
+            Err(PacketError::Error(error))
+        } else {
+            Ok(self.data.unwrap_or_default())
+        }
+    }
 }
 
 pub trait HasPacketType {
@@ -234,14 +257,10 @@ pub enum DecodeError {
         expected: PacketType,
         actual: PacketType,
     },
-    #[error("throttled: {0}")]
-    Throttled(String),
-    #[error("error: {0}")]
-    Error(String),
-    #[error("no data")]
-    NoData,
     #[error("{0}")]
     SerdeJson(#[from] serde_json::Error),
+    #[error("{0}")]
+    Packet(#[from] PacketError),
 }
 
 pub trait FromPacket: Sized {
@@ -255,15 +274,8 @@ impl<T: HasPacketType + DeserializeOwned> FromPacket for T {
                 expected: Self::packet_type(),
                 actual: packet.r#type,
             })
-        } else if packet.throttled {
-            let reason = packet
-                .throttled_reason
-                .unwrap_or_else(|| "no reason given".to_string());
-            Err(DecodeError::Throttled(reason))
-        } else if let Some(error) = packet.error {
-            Err(DecodeError::Error(error))
         } else {
-            let data = packet.data.unwrap_or_default();
+            let data = packet.data()?;
             Ok(serde_json::from_value(data)?)
         }
     }

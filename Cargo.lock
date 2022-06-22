@@ -192,6 +192,7 @@ dependencies = [
  "edit",
  "futures",
  "parking_lot",
+ "rand",
  "rusqlite",
  "serde",
  "serde_json",
