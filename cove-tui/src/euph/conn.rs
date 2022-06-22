@@ -161,7 +161,7 @@ struct State {
 impl State {
     async fn run(
         ws: WsStream,
-        tx_canary: oneshot::Receiver<Infallible>,
+        mut tx_canary: mpsc::UnboundedReceiver<Infallible>,
         rx_canary: oneshot::Receiver<Infallible>,
         event_tx: mpsc::UnboundedSender<Event>,
         mut event_rx: mpsc::UnboundedReceiver<Event>,
@@ -181,7 +181,7 @@ impl State {
         };
 
         select! {
-            _ = tx_canary => (),
+            _ = tx_canary.recv() => (),
             _ = rx_canary => (),
             _ = Self::listen(&mut ws_rx, &event_tx) => (),
             _ = Self::send_ping_events(&event_tx) => (),
@@ -357,8 +357,9 @@ impl State {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct ConnTx {
-    canary: oneshot::Sender<Infallible>,
+    canary: mpsc::UnboundedSender<Infallible>,
     event_tx: mpsc::UnboundedSender<Event>,
 }
 
@@ -398,6 +399,7 @@ impl ConnTx {
     }
 }
 
+#[derive(Debug)]
 pub struct ConnRx {
     canary: oneshot::Sender<Infallible>,
     packet_rx: mpsc::UnboundedReceiver<Data>,
@@ -412,7 +414,7 @@ impl ConnRx {
 // TODO Combine ConnTx and ConnRx and implement Stream + Sink?
 
 pub fn wrap(ws: WsStream) -> (ConnTx, ConnRx) {
-    let (tx_canary_tx, tx_canary_rx) = oneshot::channel();
+    let (tx_canary_tx, tx_canary_rx) = mpsc::unbounded_channel();
     let (rx_canary_tx, rx_canary_rx) = oneshot::channel();
     let (event_tx, event_rx) = mpsc::unbounded_channel();
     let (packet_tx, packet_rx) = mpsc::unbounded_channel();
