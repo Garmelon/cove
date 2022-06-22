@@ -9,8 +9,7 @@ pub struct Packet {
     pub r#type: PacketType,
     pub data: Option<Value>,
     pub error: Option<String>,
-    #[serde(default)]
-    pub throttled: bool,
+    pub throttled: Option<bool>,
     pub throttled_reason: Option<String>,
 }
 
@@ -174,7 +173,7 @@ impl ParsedPacket {
             Ok(Data::from_value(r#type, data)?)
         };
 
-        let throttled = if packet.throttled {
+        let throttled = if packet.throttled == Some(true) {
             let reason = packet
                 .throttled_reason
                 .unwrap_or_else(|| "no reason given".to_string());
@@ -194,7 +193,7 @@ impl ParsedPacket {
     pub fn to_packet(self) -> serde_json::Result<Packet> {
         let id = self.id;
         let r#type = self.r#type;
-        let throttled = self.throttled.is_some();
+        let throttled = self.throttled.as_ref().map(|_| true);
         let throttled_reason = self.throttled;
 
         Ok(match self.content {
