@@ -2,7 +2,10 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{AuthOption, Message, PersonalAccountView, SessionView, Snowflake, Time, UserId};
+use super::{
+    has_packet_type, AuthOption, HasPacketType, Message, PacketType, PersonalAccountView,
+    SessionView, Snowflake, Time, UserId,
+};
 
 /// Indicates that access to a room is denied.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -17,6 +20,8 @@ pub struct BounceEvent {
     pub ip: Option<String>,
 }
 
+has_packet_type!(BounceEvent);
+
 /// Indicates that the session is being closed. The client will subsequently be
 /// disconnected.
 ///
@@ -27,6 +32,8 @@ pub struct DisconnectEvent {
     /// The reason for disconnection.
     pub reason: String,
 }
+
+has_packet_type!(DisconnectEvent);
 
 /// Sent by the server to the client when a session is started.
 ///
@@ -51,9 +58,13 @@ pub struct HelloEvent {
     pub version: String,
 }
 
+has_packet_type!(HelloEvent);
+
 /// Indicates a session just joined the room.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JoinEvent(pub SessionView);
+
+has_packet_type!(JoinEvent);
 
 /// Sent to all sessions of an agent when that agent is logged in (except for
 /// the session that issued the login command).
@@ -62,10 +73,14 @@ pub struct LoginEvent {
     pub account_id: Snowflake,
 }
 
+has_packet_type!(LoginEvent);
+
 /// Sent to all sessions of an agent when that agent is logged out (except for
 /// the session that issued the logout command).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogoutEvent;
+
+has_packet_type!(LogoutEvent);
 
 /// Indicates some server-side event that impacts the presence of sessions in a
 /// room.
@@ -82,6 +97,8 @@ pub struct NetworkEvent {
     pub server_era: String,
 }
 
+has_packet_type!(NetworkEvent);
+
 /// Announces a nick change by another session in the room.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NickEvent {
@@ -94,6 +111,8 @@ pub struct NickEvent {
     /// The name associated with the session henceforth.
     pub to: String,
 }
+
+has_packet_type!(NickEvent);
 
 /// Indicates that a message in the room has been modified or deleted.
 ///
@@ -110,9 +129,13 @@ pub struct EditMessageEvent {
     pub message: Message,
 }
 
+has_packet_type!(EditMessageEvent);
+
 /// Indicates a session just disconnected from the room.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PartEvent(pub SessionView);
+
+has_packet_type!(PartEvent);
 
 /// Represents a server-to-client ping.
 ///
@@ -127,6 +150,8 @@ pub struct PingEvent {
     pub next: Time,
 }
 
+has_packet_type!(PingEvent);
+
 /// Informs the client that another user wants to chat with them privately.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PmInitiateEvent {
@@ -140,9 +165,13 @@ pub struct PmInitiateEvent {
     pub pm_id: Snowflake,
 }
 
+has_packet_type!(PmInitiateEvent);
+
 /// Indicates a message received by the room from another session.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SendEvent(pub Message);
+
+has_packet_type!(SendEvent);
 
 /// Indicates that a session has successfully joined a room.
 ///
@@ -168,3 +197,5 @@ pub struct SnapshotEvent {
     /// If given, this room is for private chat with the given user.
     pub pm_with_user_id: Option<String>,
 }
+
+has_packet_type!(SnapshotEvent);
