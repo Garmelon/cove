@@ -20,6 +20,7 @@ pub trait Command {
 macro_rules! packets {
     ( $( $name:ident, )*) => {
         #[derive(Debug, Clone)]
+        #[non_exhaustive]
         pub enum Data {
             $( $name(super::$name), )*
             Unimplemented,
