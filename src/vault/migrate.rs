@@ -54,8 +54,8 @@ fn m1(tx: &mut Transaction) -> rusqlite::Result<()> {
             end   INT,
 
             PRIMARY KEY (room, start, end),
-            FOREIGN KEY (room, start) REFERENCES euph_msgs (room, start),
-            FOREIGN KEY (room, end) REFERENCES euph_msgs (room, end)
+            FOREIGN KEY (room, start) REFERENCES euph_msgs (room, id),
+            FOREIGN KEY (room, end) REFERENCES euph_msgs (room, id)
         ) STRICT;
 
         CREATE VIEW euph_trees (room, id) AS
