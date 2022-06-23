@@ -31,7 +31,7 @@ async fn main() -> anyhow::Result<()> {
 
     let mut terminal = Terminal::new()?;
     // terminal.set_measuring(true);
-    Ui::run(&mut terminal, logger, logger_rx).await?;
+    Ui::run(&mut terminal, vault.clone(), logger, logger_rx).await?;
     drop(terminal); // So the vault can print again
 
     vault.close().await;

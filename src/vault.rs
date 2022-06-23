@@ -15,6 +15,7 @@ enum Request {
     Euph(EuphRequest),
 }
 
+#[derive(Debug, Clone)]
 pub struct Vault {
     tx: mpsc::Sender<Request>,
 }
