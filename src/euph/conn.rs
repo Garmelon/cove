@@ -1,5 +1,7 @@
 //! Connection state modeling.
 
+// TODO Catch errors differently when sending into mpsc/oneshot
+
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::time::Duration;

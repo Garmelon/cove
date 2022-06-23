@@ -1,110 +1,128 @@
 use std::convert::Infallible;
 use std::time::Duration;
 
-use futures::stream::{SplitSink, SplitStream};
-use futures::StreamExt;
+use anyhow::bail;
 use tokio::sync::{mpsc, oneshot};
 use tokio::{select, task, time};
 use tokio_tungstenite::tungstenite;
 
-use super::conn::{State, Status, WsStream};
+use super::api::Data;
+use super::conn::{self, ConnRx, ConnTx, Status, WsStream};
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("room stopped")]
+    Stopped,
+}
 
 #[derive(Debug)]
 enum Event {
-    Connected(SplitSink<WsStream, tungstenite::Message>),
+    Connected(ConnTx),
     Disconnected,
-    WsMessage(tungstenite::Message),
-    DoPings,
-    GetStatus(oneshot::Sender<Option<Status>>),
+    Data(Data),
+    Status(oneshot::Sender<Option<Status>>),
 }
 
-async fn run(
-    canary: oneshot::Receiver<Infallible>,
-    tx: mpsc::UnboundedSender<Event>,
-    rx: mpsc::UnboundedReceiver<Event>,
-    url: String,
-) {
-    let state = State::default();
-    select! {
-        _ = canary => (),
-        _ = respond_to_events(state, rx) => (),
-        _ = maintain_connection(tx, url) => (),
+#[derive(Debug)]
+struct State {
+    conn_tx: Option<ConnTx>,
+}
+
+impl State {
+    async fn run(
+        name: String,
+        canary: oneshot::Receiver<Infallible>,
+        event_tx: mpsc::UnboundedSender<Event>,
+        mut event_rx: mpsc::UnboundedReceiver<Event>,
+    ) {
+        let mut state = Self { conn_tx: None };
+
+        select! {
+            _ = canary => (),
+            _ = Self::reconnect(&name, &event_tx) => (),
+            _ = state.handle_events(&mut event_rx) => (),
+        }
     }
-}
 
-async fn respond_to_events(
-    mut state: State,
-    mut rx: mpsc::UnboundedReceiver<Event>,
-) -> anyhow::Result<()> {
-    while let Some(event) = rx.recv().await {
-        match event {
-            Event::Connected(tx) => state.on_connected(tx),
-            Event::Disconnected => state.on_disconnected(),
-            Event::WsMessage(msg) => state.on_ws_message(msg)?,
-            Event::DoPings => state.on_do_pings()?,
-            Event::GetStatus(tx) => {
-                let _ = tx.send(state.status());
+    async fn reconnect(name: &str, event_tx: &mpsc::UnboundedSender<Event>) -> anyhow::Result<()> {
+        loop {
+            let (conn_tx, mut conn_rx) = match Self::connect(name).await? {
+                Some(conn) => conn,
+                None => continue,
+            };
+            event_tx.send(Event::Connected(conn_tx))?;
+
+            while let Ok(data) = conn_rx.recv().await {
+                event_tx.send(Event::Data(data))?;
+            }
+
+            event_tx.send(Event::Disconnected)?;
+            time::sleep(Duration::from_secs(5)).await; // TODO Make configurable
+        }
+    }
+
+    async fn connect(name: &str) -> anyhow::Result<Option<(ConnTx, ConnRx)>> {
+        // TODO Cookies
+        let url = format!("wss://euphoria.io/room/{name}/ws");
+        match tokio_tungstenite::connect_async(&url).await {
+            Ok((ws, _)) => Ok(Some(conn::wrap(ws))),
+            Err(tungstenite::Error::Http(resp)) if resp.status().is_client_error() => {
+                bail!("room {name} doesn't exist");
+            }
+            Err(_) => Ok(None),
+        }
+    }
+
+    async fn handle_events(&mut self, event_rx: &mut mpsc::UnboundedReceiver<Event>) {
+        while let Some(event) = event_rx.recv().await {
+            match event {
+                Event::Connected(conn_tx) => self.conn_tx = Some(conn_tx),
+                Event::Disconnected => self.conn_tx = None,
+                Event::Data(data) => self.on_data(data).await,
+                Event::Status(reply_tx) => self.on_status(reply_tx).await,
             }
         }
     }
-    Ok(())
-}
 
-async fn maintain_connection(tx: mpsc::UnboundedSender<Event>, url: String) -> anyhow::Result<()> {
-    loop {
-        // TODO Cookies
-        let (ws, _) = tokio_tungstenite::connect_async(&url).await?;
-        let (ws_tx, ws_rx) = ws.split();
-        tx.send(Event::Connected(ws_tx))?;
-        select! {
-            _ = receive_messages(&tx, ws_rx) => (),
-            _ = prompt_pings(&tx) => ()
-        }
-        tx.send(Event::Disconnected)?;
-        // TODO Make reconnect delay configurable
-        time::sleep(Duration::from_secs(5)).await;
+    async fn on_data(&self, data: Data) {
+        todo!()
+    }
+
+    async fn on_status(&self, reply_tx: oneshot::Sender<Option<Status>>) {
+        let status = if let Some(conn_tx) = &self.conn_tx {
+            conn_tx.status().await.ok()
+        } else {
+            None
+        };
+
+        let _ = reply_tx.send(status);
     }
 }
 
-async fn receive_messages(
-    tx: &mpsc::UnboundedSender<Event>,
-    mut rx: SplitStream<WsStream>,
-) -> anyhow::Result<()> {
-    while let Some(msg) = rx.next().await {
-        tx.send(Event::WsMessage(msg?))?;
-    }
-    Ok(())
-}
-
-async fn prompt_pings(tx: &mpsc::UnboundedSender<Event>) -> anyhow::Result<()> {
-    loop {
-        // TODO Make ping delay configurable
-        time::sleep(Duration::from_secs(10)).await;
-        tx.send(Event::DoPings)?;
-    }
-}
-
+#[derive(Debug)]
 pub struct Room {
     canary: oneshot::Sender<Infallible>,
-    tx: mpsc::UnboundedSender<Event>,
+    event_tx: mpsc::UnboundedSender<Event>,
 }
 
 impl Room {
-    pub fn start(url: String) -> Self {
-        let (event_tx, event_rx) = mpsc::unbounded_channel();
+    pub fn new(name: String) -> Self {
         let (canary_tx, canary_rx) = oneshot::channel();
+        let (event_tx, event_rx) = mpsc::unbounded_channel();
 
-        task::spawn(run(canary_rx, event_tx.clone(), event_rx, url));
+        task::spawn(State::run(name, canary_rx, event_tx.clone(), event_rx));
 
         Self {
             canary: canary_tx,
-            tx: event_tx,
+            event_tx,
         }
     }
 
-    pub async fn status(&self) -> anyhow::Result<Option<Status>> {
+    pub async fn status(&self) -> Result<Option<Status>, Error> {
         let (tx, rx) = oneshot::channel();
-        self.tx.send(Event::GetStatus(tx))?;
-        Ok(rx.await?)
+        self.event_tx
+            .send(Event::Status(tx))
+            .map_err(|_| Error::Stopped)?;
+        rx.await.map_err(|_| Error::Stopped)
     }
 }
