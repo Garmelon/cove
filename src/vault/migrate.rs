@@ -36,7 +36,7 @@ fn m1(tx: &mut Transaction) -> rusqlite::Result<()> {
 
             -- SessionView
             user_id             TEXT NOT NULL,
-            name                TEXT
+            name                TEXT,
             server_id           TEXT NOT NULL,
             server_era          TEXT NOT NULL,
             session_id          TEXT NOT NULL,
@@ -63,14 +63,15 @@ fn m1(tx: &mut Transaction) -> rusqlite::Result<()> {
         FROM euph_msgs
         WHERE parent IS NULL
         UNION
-        (
+        SELECT *
+        FROM (
             SELECT room, parent
             FROM euph_msgs
             WHERE parent IS NOT NULL
             EXCEPT
             SELECT room, id
             FROM euph_msgs
-        )
+        );
         ",
     )
 }
