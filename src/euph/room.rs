@@ -42,10 +42,14 @@ impl State {
             conn_tx: None,
         };
 
-        select! {
-            _ = canary => (),
-            _ = Self::reconnect(&name, &event_tx) => (),
-            _ = state.handle_events(&mut event_rx) => (),
+        let result = select! {
+            _ = canary => Ok(()),
+            _ = Self::reconnect(&name, &event_tx) => Ok(()),
+            e = state.handle_events(&mut event_rx) => e,
+        };
+
+        if let Err(e) = result {
+            error!("e&{name}: {}", e);
         }
     }
 
