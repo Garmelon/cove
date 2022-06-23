@@ -344,7 +344,7 @@ impl EuphRequest {
             Self::add_span(&tx, &room, None, next_msg_id)?;
         } else {
             let first_msg_id = msgs.first().unwrap().id;
-            let last_msg_id = msgs.first().unwrap().id;
+            let last_msg_id = msgs.last().unwrap().id;
 
             let mut stmt = tx.prepare("
                 INSERT OR REPLACE INTO euph_msgs (
