@@ -137,6 +137,7 @@ dependencies = [
  "directories",
  "edit",
  "futures",
+ "log",
  "parking_lot",
  "rand",
  "rusqlite",

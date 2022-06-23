@@ -2,18 +2,28 @@
 
 mod chat;
 mod euph;
-mod log;
+mod logger;
 mod replies;
 mod store;
 mod ui;
 mod vault;
 
 use directories::ProjectDirs;
+use log::info;
 use toss::terminal::Terminal;
 use ui::Ui;
 
+use crate::logger::Logger;
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let logger = Logger::init(log::Level::Debug);
+    info!(
+        "Welcome to {} {}",
+        env!("CARGO_PKG_NAME"),
+        env!("CARGO_PKG_VERSION")
+    );
+
     let dirs = ProjectDirs::from("de", "plugh", "cove").expect("unable to determine directories");
     println!("Data dir: {}", dirs.data_dir().to_string_lossy());
 
@@ -21,7 +31,7 @@ async fn main() -> anyhow::Result<()> {
 
     let mut terminal = Terminal::new()?;
     // terminal.set_measuring(true);
-    Ui::run(&mut terminal).await?;
+    Ui::run(&mut terminal, logger.clone()).await?;
     drop(terminal); // So the vault can print again
 
     vault.close().await;

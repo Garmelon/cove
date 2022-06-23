@@ -2,6 +2,7 @@ use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent};
+use log::debug;
 use parking_lot::FairMutex;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -10,7 +11,7 @@ use toss::frame::{Frame, Pos, Size};
 use toss::terminal::Terminal;
 
 use crate::chat::Chat;
-use crate::log::{Log, LogMsg};
+use crate::logger::{LogMsg, Logger};
 use crate::store::dummy::{DummyMsg, DummyStore};
 
 #[derive(Debug)]
@@ -31,20 +32,16 @@ enum Visible {
 
 pub struct Ui {
     event_tx: UnboundedSender<UiEvent>,
-    log: Log,
 
     visible: Visible,
     chat: Chat<DummyMsg, DummyStore>,
-    log_chat: Chat<LogMsg, Log>,
+    log_chat: Chat<LogMsg, Logger>,
 }
 
 impl Ui {
     const POLL_DURATION: Duration = Duration::from_millis(100);
 
-    pub async fn run(terminal: &mut Terminal) -> anyhow::Result<()> {
-        let log = Log::new();
-        log.log("Hello", "world!");
-
+    pub async fn run(terminal: &mut Terminal, logger: Logger) -> anyhow::Result<()> {
         let (event_tx, event_rx) = mpsc::unbounded_channel();
         let crossterm_lock = Arc::new(FairMutex::new(()));
 
@@ -54,7 +51,6 @@ impl Ui {
         let crossterm_event_task = task::spawn_blocking(|| {
             Self::poll_crossterm_events(event_tx_clone, weak_crossterm_lock)
         });
-        log.log("main", "Started input polling task");
 
         // Prepare dummy message store and chat for testing
         let store = DummyStore::new()
@@ -82,10 +78,9 @@ impl Ui {
         // the rest of the UI is also shut down and the client stops.
         let mut ui = Self {
             event_tx,
-            log: log.clone(),
             visible: Visible::Log,
             chat,
-            log_chat: Chat::new(log),
+            log_chat: Chat::new(logger),
         };
         let result = tokio::select! {
             e = ui.run_main(terminal, event_rx, crossterm_lock) => e,
@@ -184,7 +179,7 @@ impl Ui {
         }
 
         match event.code {
-            KeyCode::Char('e') => self.log.log("EE E", "E ee e!"),
+            KeyCode::Char('e') => debug!("{:#?}", event),
             KeyCode::F(1) => self.visible = Visible::Main,
             KeyCode::F(2) => self.visible = Visible::Log,
             _ => {}
