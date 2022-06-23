@@ -2,6 +2,7 @@ use std::convert::Infallible;
 use std::time::Duration;
 
 use anyhow::bail;
+use log::{error, info, warn};
 use tokio::sync::{mpsc, oneshot};
 use tokio::{select, task, time};
 use tokio_tungstenite::tungstenite;
@@ -25,6 +26,7 @@ enum Event {
 
 #[derive(Debug)]
 struct State {
+    name: String,
     conn_tx: Option<ConnTx>,
 }
 
@@ -35,7 +37,10 @@ impl State {
         event_tx: mpsc::UnboundedSender<Event>,
         mut event_rx: mpsc::UnboundedReceiver<Event>,
     ) {
-        let mut state = Self { conn_tx: None };
+        let mut state = Self {
+            name: name.clone(),
+            conn_tx: None,
+        };
 
         select! {
             _ = canary => (),
@@ -46,16 +51,19 @@ impl State {
 
     async fn reconnect(name: &str, event_tx: &mpsc::UnboundedSender<Event>) -> anyhow::Result<()> {
         loop {
+            info!("e&{}: connecting", name);
             let (conn_tx, mut conn_rx) = match Self::connect(name).await? {
                 Some(conn) => conn,
                 None => continue,
             };
+            info!("e&{}: connected", name);
             event_tx.send(Event::Connected(conn_tx))?;
 
             while let Ok(data) = conn_rx.recv().await {
                 event_tx.send(Event::Data(data))?;
             }
 
+            info!("e&{}: disconnected", name);
             event_tx.send(Event::Disconnected)?;
             time::sleep(Duration::from_secs(5)).await; // TODO Make configurable
         }
@@ -73,19 +81,67 @@ impl State {
         }
     }
 
-    async fn handle_events(&mut self, event_rx: &mut mpsc::UnboundedReceiver<Event>) {
+    async fn handle_events(
+        &mut self,
+        event_rx: &mut mpsc::UnboundedReceiver<Event>,
+    ) -> anyhow::Result<()> {
         while let Some(event) = event_rx.recv().await {
             match event {
                 Event::Connected(conn_tx) => self.conn_tx = Some(conn_tx),
                 Event::Disconnected => self.conn_tx = None,
-                Event::Data(data) => self.on_data(data).await,
+                Event::Data(data) => self.on_data(data).await?,
                 Event::Status(reply_tx) => self.on_status(reply_tx).await,
             }
         }
+        Ok(())
     }
 
-    async fn on_data(&self, data: Data) {
-        todo!()
+    async fn on_data(&self, data: Data) -> anyhow::Result<()> {
+        match data {
+            Data::BounceEvent(_) => {
+                error!("e&{}: auth not implemented", self.name);
+                bail!("auth not implemented");
+            }
+            Data::DisconnectEvent(e) => {
+                warn!("e&{}: disconnected for reason {:?}", self.name, e.reason);
+            }
+            Data::HelloEvent(_) => {}
+            Data::JoinEvent(e) => {
+                info!("e&{}: {:?} joined", self.name, e.0.name);
+            }
+            Data::LoginEvent(_) => {}
+            Data::LogoutEvent(_) => {}
+            Data::NetworkEvent(e) => {
+                info!("e&{}: network event ({})", self.name, e.r#type);
+            }
+            Data::NickEvent(e) => {
+                info!("e&{}: {:?} renamed to {:?}", self.name, e.from, e.to);
+            }
+            Data::EditMessageEvent(_) => {
+                info!("e&{}: a message was edited", self.name);
+            }
+            Data::PartEvent(e) => {
+                info!("e&{}: {:?} left", self.name, e.0.name);
+            }
+            Data::PingEvent(_) => {}
+            Data::PmInitiateEvent(e) => {
+                info!(
+                    "e&{}: {:?} initiated a pm from &{}",
+                    self.name, e.from_nick, e.from_room
+                );
+            }
+            Data::SendEvent(_) => {}
+            Data::SnapshotEvent(e) => {
+                info!("e&{}: successfully joined", self.name);
+                if let Some(nick) = e.nick {
+                    info!("e&{}: using nick {nick:?}", self.name);
+                } else {
+                    info!("e&{}: no nick set", self.name);
+                }
+            }
+            _ => {}
+        }
+        Ok(())
     }
 
     async fn on_status(&self, reply_tx: oneshot::Sender<Option<Status>>) {
