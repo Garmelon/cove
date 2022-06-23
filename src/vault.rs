@@ -17,13 +17,13 @@ enum Request {
 
 #[derive(Debug, Clone)]
 pub struct Vault {
-    tx: mpsc::Sender<Request>,
+    tx: mpsc::UnboundedSender<Request>,
 }
 
 impl Vault {
     pub async fn close(&self) {
         let (tx, rx) = oneshot::channel();
-        let _ = self.tx.send(Request::Close(tx)).await;
+        let _ = self.tx.send(Request::Close(tx));
         let _ = rx.await;
     }
 
@@ -35,7 +35,7 @@ impl Vault {
     }
 }
 
-fn run(conn: Connection, mut rx: mpsc::Receiver<Request>) {
+fn run(conn: Connection, mut rx: mpsc::UnboundedReceiver<Request>) {
     while let Some(request) = rx.blocking_recv() {
         match request {
             Request::Close(tx) => {
@@ -71,7 +71,7 @@ pub fn launch(path: &Path) -> rusqlite::Result<Vault> {
 
     migrate::migrate(&mut conn)?;
 
-    let (tx, rx) = mpsc::channel(8);
+    let (tx, rx) = mpsc::unbounded_channel();
     thread::spawn(move || run(conn, rx));
     Ok(Vault { tx })
 }

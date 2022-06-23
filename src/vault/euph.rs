@@ -48,7 +48,7 @@ impl From<EuphRequest> for Request {
 }
 
 pub struct EuphVault {
-    pub(super) tx: mpsc::Sender<Request>,
+    pub(super) tx: mpsc::UnboundedSender<Request>,
     pub(super) room: String,
 }
 
@@ -62,7 +62,7 @@ impl MsgStore<EuphMsg> for EuphVault {
             id: *id,
             result: tx,
         };
-        let _ = self.tx.send(request.into()).await;
+        let _ = self.tx.send(request.into());
         rx.await.unwrap()
     }
 
@@ -74,7 +74,7 @@ impl MsgStore<EuphMsg> for EuphVault {
             root: *root,
             result: tx,
         };
-        let _ = self.tx.send(request.into()).await;
+        let _ = self.tx.send(request.into());
         rx.await.unwrap()
     }
 
@@ -86,7 +86,7 @@ impl MsgStore<EuphMsg> for EuphVault {
             root: *root,
             result: tx,
         };
-        let _ = self.tx.send(request.into()).await;
+        let _ = self.tx.send(request.into());
         rx.await.unwrap()
     }
 
@@ -98,7 +98,7 @@ impl MsgStore<EuphMsg> for EuphVault {
             root: *root,
             result: tx,
         };
-        let _ = self.tx.send(request.into()).await;
+        let _ = self.tx.send(request.into());
         rx.await.unwrap()
     }
 
@@ -109,7 +109,7 @@ impl MsgStore<EuphMsg> for EuphVault {
             room: self.room.clone(),
             result: tx,
         };
-        let _ = self.tx.send(request.into()).await;
+        let _ = self.tx.send(request.into());
         rx.await.unwrap()
     }
 
@@ -120,7 +120,7 @@ impl MsgStore<EuphMsg> for EuphVault {
             room: self.room.clone(),
             result: tx,
         };
-        let _ = self.tx.send(request.into()).await;
+        let _ = self.tx.send(request.into());
         rx.await.unwrap()
     }
 }
