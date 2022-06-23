@@ -11,6 +11,7 @@ use toss::frame::{Frame, Pos, Size};
 use toss::terminal::Terminal;
 
 use crate::chat::Chat;
+use crate::euph;
 use crate::logger::{LogMsg, Logger};
 use crate::store::dummy::{DummyMsg, DummyStore};
 
@@ -34,6 +35,7 @@ pub struct Ui {
     event_tx: UnboundedSender<UiEvent>,
 
     visible: Visible,
+    room: euph::Room,
     chat: Chat<DummyMsg, DummyStore>,
     log_chat: Chat<LogMsg, Logger>,
 }
@@ -41,7 +43,11 @@ pub struct Ui {
 impl Ui {
     const POLL_DURATION: Duration = Duration::from_millis(100);
 
-    pub async fn run(terminal: &mut Terminal, logger: Logger) -> anyhow::Result<()> {
+    pub async fn run(
+        terminal: &mut Terminal,
+        logger: Logger,
+        logger_rx: mpsc::UnboundedReceiver<()>,
+    ) -> anyhow::Result<()> {
         let (event_tx, event_rx) = mpsc::unbounded_channel();
         let crossterm_lock = Arc::new(FairMutex::new(()));
 
@@ -77,16 +83,17 @@ impl Ui {
         // On the other hand, if the crossterm_event_task stops for any reason,
         // the rest of the UI is also shut down and the client stops.
         let mut ui = Self {
-            event_tx,
+            event_tx: event_tx.clone(),
             visible: Visible::Log,
+            room: euph::Room::new("test".to_string()),
             chat,
             log_chat: Chat::new(logger),
         };
-        let result = tokio::select! {
-            e = ui.run_main(terminal, event_rx, crossterm_lock) => e,
-            Ok(e) = crossterm_event_task => e,
-        };
-        result
+        tokio::select! {
+            e = ui.run_main(terminal, event_rx, crossterm_lock) => Ok(e),
+            _ = Self::update_on_log_event(logger_rx, &event_tx) => Ok(Ok(())),
+            e = crossterm_event_task => e,
+        }?
     }
 
     fn poll_crossterm_events(
@@ -101,6 +108,17 @@ impl Ui {
             }
         }
         Ok(())
+    }
+
+    async fn update_on_log_event(
+        mut logger_rx: mpsc::UnboundedReceiver<()>,
+        event_tx: &mpsc::UnboundedSender<UiEvent>,
+    ) {
+        while let Some(()) = logger_rx.recv().await {
+            if event_tx.send(UiEvent::Redraw).is_err() {
+                break;
+            }
+        }
     }
 
     async fn run_main(

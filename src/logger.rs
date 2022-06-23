@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use log::{Level, Log};
 use parking_lot::Mutex;
+use tokio::sync::mpsc;
 
 use crate::store::{Msg, MsgStore, Path, Tree};
 
@@ -41,7 +42,10 @@ impl Msg for LogMsg {
 }
 
 #[derive(Debug, Clone)]
-pub struct Logger(Arc<Mutex<Vec<LogMsg>>>);
+pub struct Logger {
+    event_tx: mpsc::UnboundedSender<()>,
+    messages: Arc<Mutex<Vec<LogMsg>>>,
+}
 
 #[async_trait]
 impl MsgStore<LogMsg> for Logger {
@@ -51,7 +55,7 @@ impl MsgStore<LogMsg> for Logger {
 
     async fn tree(&self, root: &usize) -> Tree<LogMsg> {
         let msgs = self
-            .0
+            .messages
             .lock()
             .get(*root)
             .map(|msg| vec![msg.clone()])
@@ -64,17 +68,17 @@ impl MsgStore<LogMsg> for Logger {
     }
 
     async fn next_tree(&self, tree: &usize) -> Option<usize> {
-        let len = self.0.lock().len();
+        let len = self.messages.lock().len();
         tree.checked_add(1).filter(|t| *t < len)
     }
 
     async fn first_tree(&self) -> Option<usize> {
-        let empty = self.0.lock().is_empty();
+        let empty = self.messages.lock().is_empty();
         Some(0).filter(|_| !empty)
     }
 
     async fn last_tree(&self) -> Option<usize> {
-        self.0.lock().len().checked_sub(1)
+        self.messages.lock().len().checked_sub(1)
     }
 }
 
@@ -88,7 +92,7 @@ impl Log for Logger {
             return;
         }
 
-        let mut guard = self.0.lock();
+        let mut guard = self.messages.lock();
         let msg = LogMsg {
             id: guard.len(),
             time: Utc::now(),
@@ -96,18 +100,24 @@ impl Log for Logger {
             content: format!("<{}> {}", record.target(), record.args()),
         };
         guard.push(msg);
+
+        let _ = self.event_tx.send(());
     }
 
     fn flush(&self) {}
 }
 
 impl Logger {
-    pub fn init(level: Level) -> &'static Self {
-        let logger = Box::leak(Box::new(Self(Arc::new(Mutex::new(Vec::new())))));
+    pub fn init(level: Level) -> (Self, mpsc::UnboundedReceiver<()>) {
+        let (event_tx, event_rx) = mpsc::unbounded_channel();
+        let logger = Self {
+            event_tx,
+            messages: Arc::new(Mutex::new(Vec::new())),
+        };
 
-        log::set_logger(logger).expect("logger already set");
+        log::set_boxed_logger(Box::new(logger.clone())).expect("logger already set");
         log::set_max_level(level.to_level_filter());
 
-        logger
+        (logger, event_rx)
     }
 }

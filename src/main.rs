@@ -17,7 +17,7 @@ use crate::logger::Logger;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let logger = Logger::init(log::Level::Debug);
+    let (logger, logger_rx) = Logger::init(log::Level::Debug);
     info!(
         "Welcome to {} {}",
         env!("CARGO_PKG_NAME"),
@@ -31,7 +31,7 @@ async fn main() -> anyhow::Result<()> {
 
     let mut terminal = Terminal::new()?;
     // terminal.set_measuring(true);
-    Ui::run(&mut terminal, logger.clone()).await?;
+    Ui::run(&mut terminal, logger, logger_rx).await?;
     drop(terminal); // So the vault can print again
 
     vault.close().await;
