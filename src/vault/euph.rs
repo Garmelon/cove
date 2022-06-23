@@ -158,7 +158,7 @@ pub(super) enum EuphRequest {
 
 impl EuphRequest {
     pub(super) fn perform(self, conn: &Connection) {
-        let _ = match self {
+        let result = match self {
             EuphRequest::Path { room, id, result } => Self::path(conn, room, id, result),
             EuphRequest::Tree { room, root, result } => Self::tree(conn, room, root, result),
             EuphRequest::PrevTree { room, root, result } => {
@@ -170,6 +170,13 @@ impl EuphRequest {
             EuphRequest::FirstTree { room, result } => Self::first_tree(conn, room, result),
             EuphRequest::LastTree { room, result } => Self::last_tree(conn, room, result),
         };
+        if let Err(e) = result {
+            // If an error occurs here, the rest of the UI will likely panic and
+            // crash soon. By printing this to stderr instead of logging it, we
+            // can filter it out and read it later.
+            // TODO Better vault error handling
+            eprintln!("{e}");
+        }
     }
 
     fn path(
