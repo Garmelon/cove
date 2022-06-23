@@ -41,7 +41,7 @@ impl FromSql for Time {
 pub struct EuphMsg {
     id: Snowflake,
     parent: Option<Snowflake>,
-    time: DateTime<Utc>,
+    time: Time,
     nick: String,
     content: String,
 }
@@ -58,7 +58,7 @@ impl Msg for EuphMsg {
     }
 
     fn time(&self) -> DateTime<Utc> {
-        self.time
+        self.time.0
     }
 
     fn nick(&self) -> String {
@@ -347,7 +347,7 @@ impl EuphRequest {
             let last_msg_id = msgs.first().unwrap().id;
 
             let mut stmt = tx.prepare("
-                INSERT INTO euph_msgs (
+                INSERT OR REPLACE INTO euph_msgs (
                     room, id, parent, previous_edit_id, time, content, encryption_key_id, edited, deleted, truncated,
                     user_id, name, server_id, server_era, session_id, is_staff, is_manager, client_address, real_client_address
                 )
@@ -397,12 +397,14 @@ impl EuphRequest {
         let path = conn
             .prepare(
                 "
-                WITH RECURSIVE path (room, id) = (
+                WITH RECURSIVE
+                path (room, id) AS (
                     VALUES (?, ?)
                 UNION
-                    SELECT (room, parent)
+                    SELECT room, parent
                     FROM euph_msgs
                     JOIN path USING (room, id)
+                    WHERE parent IS NOT NULL
                 )
                 SELECT id
                 FROM path
@@ -425,24 +427,25 @@ impl EuphRequest {
         let msgs = conn
             .prepare(
                 "
-                WITH RECURSIVE tree (room, id) = (
+                WITH RECURSIVE
+                tree (room, id) AS (
                     VALUES (?, ?)
                 UNION
-                    SELECT (euph_msgs.room, euph_msgs.id)
+                    SELECT euph_msgs.room, euph_msgs.id
                     FROM euph_msgs
                     JOIN tree
                         ON tree.room = euph_msgs.room
                         AND tree.id = euph_msgs.parent
                 )
-                SELECT (id, parent, time, name, content)
-                FROM euph_msg
+                SELECT id, parent, time, name, content
+                FROM euph_msgs
                 JOIN tree USING (room, id)
                 ORDER BY id ASC
                 ",
             )?
             .query_map(params![room, root], |row| {
                 Ok(EuphMsg {
-                    id: Snowflake(row.get(0)?),
+                    id: row.get(0)?,
                     parent: row.get(1)?,
                     time: row.get(2)?,
                     nick: row.get(3)?,
