@@ -35,7 +35,7 @@ impl Vault {
     }
 }
 
-fn run(conn: Connection, mut rx: mpsc::UnboundedReceiver<Request>) {
+fn run(mut conn: Connection, mut rx: mpsc::UnboundedReceiver<Request>) {
     while let Some(request) = rx.blocking_recv() {
         match request {
             Request::Close(tx) => {
@@ -47,7 +47,7 @@ fn run(conn: Connection, mut rx: mpsc::UnboundedReceiver<Request>) {
                 drop(tx);
                 break;
             }
-            Request::Euph(r) => r.perform(&conn),
+            Request::Euph(r) => r.perform(&mut conn),
         }
     }
 }
