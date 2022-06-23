@@ -251,12 +251,11 @@ impl State {
             self.replies.complete(id, packet.content.clone());
         }
 
-        // Shovel events into self.packet_tx, assuming that no event ever
-        // errors. Events with errors are simply ignored.
+        // Shovel events and successful replies into self.packet_tx. Assumes
+        // that no even ever errors and that erroring replies are not
+        // interesting.
         if let Ok(data) = &packet.content {
-            if data.is_event() {
-                self.packet_tx.send(data.clone())?;
-            }
+            self.packet_tx.send(data.clone())?;
         }
 
         // Play a game of table tennis
