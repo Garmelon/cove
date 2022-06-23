@@ -7,8 +7,11 @@ use tokio::sync::{mpsc, oneshot};
 use tokio::{select, task, time};
 use tokio_tungstenite::tungstenite;
 
+use crate::ui::UiEvent;
+use crate::vault::EuphVault;
+
 use super::api::Data;
-use super::conn::{self, ConnRx, ConnTx, Status, WsStream};
+use super::conn::{self, ConnRx, ConnTx, Status};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -27,25 +30,23 @@ enum Event {
 #[derive(Debug)]
 struct State {
     name: String,
+    vault: EuphVault,
+    ui_event_tx: mpsc::UnboundedSender<UiEvent>,
     conn_tx: Option<ConnTx>,
 }
 
 impl State {
     async fn run(
-        name: String,
+        mut self,
         canary: oneshot::Receiver<Infallible>,
         event_tx: mpsc::UnboundedSender<Event>,
         mut event_rx: mpsc::UnboundedReceiver<Event>,
     ) {
-        let mut state = Self {
-            name: name.clone(),
-            conn_tx: None,
-        };
-
+        let name = self.name.clone();
         let result = select! {
             _ = canary => Ok(()),
             _ = Self::reconnect(&name, &event_tx) => Ok(()),
-            e = state.handle_events(&mut event_rx) => e,
+            e = self.handle_events(&mut event_rx) => e,
         };
 
         if let Err(e) = result {
@@ -106,42 +107,43 @@ impl State {
                 error!("e&{}: auth not implemented", self.name);
                 bail!("auth not implemented");
             }
-            Data::DisconnectEvent(e) => {
-                warn!("e&{}: disconnected for reason {:?}", self.name, e.reason);
+            Data::DisconnectEvent(d) => {
+                warn!("e&{}: disconnected for reason {:?}", self.name, d.reason);
             }
             Data::HelloEvent(_) => {}
-            Data::JoinEvent(e) => {
-                info!("e&{}: {:?} joined", self.name, e.0.name);
+            Data::JoinEvent(d) => {
+                info!("e&{}: {:?} joined", self.name, d.0.name);
             }
             Data::LoginEvent(_) => {}
             Data::LogoutEvent(_) => {}
-            Data::NetworkEvent(e) => {
-                info!("e&{}: network event ({})", self.name, e.r#type);
+            Data::NetworkEvent(d) => {
+                info!("e&{}: network event ({})", self.name, d.r#type);
             }
-            Data::NickEvent(e) => {
-                info!("e&{}: {:?} renamed to {:?}", self.name, e.from, e.to);
+            Data::NickEvent(d) => {
+                info!("e&{}: {:?} renamed to {:?}", self.name, d.from, d.to);
             }
             Data::EditMessageEvent(_) => {
                 info!("e&{}: a message was edited", self.name);
             }
-            Data::PartEvent(e) => {
-                info!("e&{}: {:?} left", self.name, e.0.name);
+            Data::PartEvent(d) => {
+                info!("e&{}: {:?} left", self.name, d.0.name);
             }
             Data::PingEvent(_) => {}
-            Data::PmInitiateEvent(e) => {
+            Data::PmInitiateEvent(d) => {
                 info!(
                     "e&{}: {:?} initiated a pm from &{}",
-                    self.name, e.from_nick, e.from_room
+                    self.name, d.from_nick, d.from_room
                 );
             }
             Data::SendEvent(_) => {}
-            Data::SnapshotEvent(e) => {
+            Data::SnapshotEvent(d) => {
                 info!("e&{}: successfully joined", self.name);
-                if let Some(nick) = e.nick {
-                    info!("e&{}: using nick {nick:?}", self.name);
-                } else {
-                    info!("e&{}: no nick set", self.name);
-                }
+                self.vault.add_messages(d.log, None);
+                let _ = self.ui_event_tx.send(UiEvent::Redraw);
+            }
+            Data::LogReply(d) => {
+                self.vault.add_messages(d.log, d.before);
+                let _ = self.ui_event_tx.send(UiEvent::Redraw);
             }
             _ => {}
         }
@@ -166,11 +168,22 @@ pub struct Room {
 }
 
 impl Room {
-    pub fn new(name: String) -> Self {
+    pub fn new(
+        name: String,
+        vault: EuphVault,
+        ui_event_tx: mpsc::UnboundedSender<UiEvent>,
+    ) -> Self {
         let (canary_tx, canary_rx) = oneshot::channel();
         let (event_tx, event_rx) = mpsc::unbounded_channel();
 
-        task::spawn(State::run(name, canary_rx, event_tx.clone(), event_rx));
+        let state = State {
+            name,
+            vault,
+            ui_event_tx,
+            conn_tx: None,
+        };
+
+        task::spawn(state.run(canary_rx, event_tx.clone(), event_rx));
 
         Self {
             canary: canary_tx,

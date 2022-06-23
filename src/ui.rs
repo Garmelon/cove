@@ -60,7 +60,9 @@ impl Ui {
             Self::poll_crossterm_events(event_tx_clone, weak_crossterm_lock)
         });
 
-        let chat = Chat::new(vault.euph("test".to_string()));
+        let room_vault = vault.euph("test".to_string());
+        let chat = Chat::new(room_vault.clone());
+        let room = euph::Room::new("test".to_string(), room_vault, event_tx.clone());
 
         // Run main UI.
         //
@@ -75,7 +77,7 @@ impl Ui {
             event_tx: event_tx.clone(),
             vault,
             visible: Visible::Log,
-            room: euph::Room::new("test".to_string()),
+            room,
             chat,
             log_chat: Chat::new(logger),
         };
