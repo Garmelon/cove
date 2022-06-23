@@ -44,7 +44,7 @@ pub fn after_nick(frame: &mut Frame, indent: usize, nick: &str) -> i32 {
 }
 
 pub fn proportion_to_line(height: u16, proportion: f32) -> i32 {
-    ((height - 1) as f32 * proportion).ceil() as i32
+    ((height - 1) as f32 * proportion).round() as i32
 }
 
 pub fn line_to_proportion(height: u16, line: i32) -> f32 {
