@@ -7,7 +7,8 @@ use std::{fs, thread};
 use rusqlite::Connection;
 use tokio::sync::{mpsc, oneshot};
 
-use self::euph::{EuphRequest, EuphVault};
+use self::euph::EuphRequest;
+pub use self::euph::{EuphMsg, EuphVault};
 
 enum Request {
     Close(oneshot::Sender<()>),
