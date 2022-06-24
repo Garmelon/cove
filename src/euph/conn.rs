@@ -223,6 +223,7 @@ impl State {
         event_rx: &mut mpsc::UnboundedReceiver<Event>,
     ) -> anyhow::Result<()> {
         while let Some(ev) = event_rx.recv().await {
+            self.replies.purge();
             match ev {
                 Event::Message(msg) => self.on_msg(msg, event_tx)?,
                 Event::SendCmd(data, reply_tx) => self.on_send_cmd(data, reply_tx).await?,
