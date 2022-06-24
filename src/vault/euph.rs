@@ -100,6 +100,17 @@ impl EuphVault {
         };
         let _ = self.tx.send(request.into());
     }
+
+    pub async fn last_span(&self) -> Option<(Option<Snowflake>, Option<Snowflake>)> {
+        // TODO vault::Error
+        let (tx, rx) = oneshot::channel();
+        let request = EuphRequest::LastSpan {
+            room: self.room.clone(),
+            result: tx,
+        };
+        let _ = self.tx.send(request.into());
+        rx.await.unwrap()
+    }
 }
 
 #[async_trait]
@@ -186,6 +197,10 @@ pub(super) enum EuphRequest {
         msgs: Vec<Message>,
         next_msg: Option<Snowflake>,
     },
+    LastSpan {
+        room: String,
+        result: oneshot::Sender<Option<(Option<Snowflake>, Option<Snowflake>)>>,
+    },
     Path {
         room: String,
         id: Snowflake,
@@ -229,6 +244,7 @@ impl EuphRequest {
                 msgs,
                 next_msg,
             } => Self::add_msgs(conn, room, msgs, next_msg),
+            EuphRequest::LastSpan { room, result } => Self::last_span(conn, room, result),
             EuphRequest::Path { room, id, result } => Self::path(conn, room, id, result),
             EuphRequest::Tree { room, root, result } => Self::tree(conn, room, root, result),
             EuphRequest::PrevTree { room, root, result } => {
@@ -399,6 +415,27 @@ impl EuphRequest {
         }
 
         tx.commit()?;
+        Ok(())
+    }
+
+    fn last_span(
+        conn: &Connection,
+        room: String,
+        result: oneshot::Sender<Option<(Option<Snowflake>, Option<Snowflake>)>>,
+    ) -> rusqlite::Result<()> {
+        let span = conn
+            .prepare(
+                "
+            SELECT start, end
+            FROM euph_spans
+            WHERE room = ?
+            ORDER BY start, end DESC
+            LIMIT 1
+            ",
+            )?
+            .query_row([room], |row| Ok((row.get(0)?, row.get(1)?)))
+            .optional()?;
+        let _ = result.send(span);
         Ok(())
     }
 

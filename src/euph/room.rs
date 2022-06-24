@@ -1,8 +1,10 @@
 use std::convert::Infallible;
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::bail;
 use log::{error, info, warn};
+use parking_lot::Mutex;
 use tokio::sync::{mpsc, oneshot};
 use tokio::{select, task, time};
 use tokio_tungstenite::tungstenite;
@@ -10,7 +12,7 @@ use tokio_tungstenite::tungstenite;
 use crate::ui::UiEvent;
 use crate::vault::EuphVault;
 
-use super::api::{Data, Snowflake};
+use super::api::{Data, Log, Snowflake};
 use super::conn::{self, ConnRx, ConnTx, Status};
 
 #[derive(Debug, thiserror::Error)]
@@ -25,6 +27,7 @@ enum Event {
     Disconnected,
     Data(Data),
     Status(oneshot::Sender<Option<Status>>),
+    RequestLogs,
 }
 
 #[derive(Debug)]
@@ -32,8 +35,12 @@ struct State {
     name: String,
     vault: EuphVault,
     ui_event_tx: mpsc::UnboundedSender<UiEvent>,
+
     conn_tx: Option<ConnTx>,
-    last_msg_id: Option<Snowflake>,
+    /// `None` before any `snapshot-event`, then either `Some(None)` or
+    /// `Some(Some(id))`.
+    last_msg_id: Option<Option<Snowflake>>,
+    requesting_logs: Arc<Mutex<bool>>,
 }
 
 impl State {
@@ -47,6 +54,7 @@ impl State {
         let result = select! {
             _ = canary => Ok(()),
             _ = Self::reconnect(&name, &event_tx) => Ok(()),
+            _ = Self::regularly_request_logs(&event_tx) => Ok(()),
             e = self.handle_events(&mut event_rx) => e,
         };
 
@@ -87,6 +95,13 @@ impl State {
         }
     }
 
+    async fn regularly_request_logs(event_tx: &mpsc::UnboundedSender<Event>) {
+        loop {
+            time::sleep(Duration::from_secs(10)).await; // TODO Make configurable
+            let _ = event_tx.send(Event::RequestLogs);
+        }
+    }
+
     async fn handle_events(
         &mut self,
         event_rx: &mut mpsc::UnboundedReceiver<Event>,
@@ -100,6 +115,7 @@ impl State {
                 }
                 Event::Data(data) => self.on_data(data).await?,
                 Event::Status(reply_tx) => self.on_status(reply_tx).await,
+                Event::RequestLogs => self.on_request_logs(),
             }
         }
         Ok(())
@@ -140,14 +156,18 @@ impl State {
                 );
             }
             Data::SendEvent(d) => {
-                let id = d.0.id;
-                self.vault.add_message(d.0, self.last_msg_id);
-                self.last_msg_id = Some(id);
-                let _ = self.ui_event_tx.send(UiEvent::Redraw);
+                if let Some(last_msg_id) = &mut self.last_msg_id {
+                    let id = d.0.id;
+                    self.vault.add_message(d.0, *last_msg_id);
+                    *last_msg_id = Some(id);
+                    let _ = self.ui_event_tx.send(UiEvent::Redraw);
+                } else {
+                    bail!("send event before snapshot event");
+                }
             }
             Data::SnapshotEvent(d) => {
                 info!("e&{}: successfully joined", self.name);
-                self.last_msg_id = d.log.last().map(|m| m.id);
+                self.last_msg_id = Some(d.log.last().map(|m| m.id));
                 self.vault.add_messages(d.log, None);
                 let _ = self.ui_event_tx.send(UiEvent::Redraw);
             }
@@ -156,10 +176,14 @@ impl State {
                 let _ = self.ui_event_tx.send(UiEvent::Redraw);
             }
             Data::SendReply(d) => {
-                let id = d.0.id;
-                self.vault.add_message(d.0, self.last_msg_id);
-                self.last_msg_id = Some(id);
-                let _ = self.ui_event_tx.send(UiEvent::Redraw);
+                if let Some(last_msg_id) = &mut self.last_msg_id {
+                    let id = d.0.id;
+                    self.vault.add_message(d.0, *last_msg_id);
+                    *last_msg_id = Some(id);
+                    let _ = self.ui_event_tx.send(UiEvent::Redraw);
+                } else {
+                    bail!("send reply before snapshot event");
+                }
             }
             _ => {}
         }
@@ -174,6 +198,44 @@ impl State {
         };
 
         let _ = reply_tx.send(status);
+    }
+
+    fn on_request_logs(&self) {
+        if let Some(conn_tx) = &self.conn_tx {
+            // Check whether logs are already being requested
+            let mut guard = self.requesting_logs.lock();
+            if *guard {
+                return;
+            } else {
+                *guard = true;
+            }
+            drop(guard);
+
+            // No logs are being requested and we've reserved our spot, so let's
+            // request some logs!
+            let vault = self.vault.clone();
+            let conn_tx = conn_tx.clone();
+            let requesting_logs = self.requesting_logs.clone();
+            task::spawn(async move {
+                let result = Self::request_logs(vault, conn_tx).await;
+                *requesting_logs.lock() = false;
+                result
+            });
+        }
+    }
+
+    async fn request_logs(vault: EuphVault, conn_tx: ConnTx) -> anyhow::Result<()> {
+        let before = match vault.last_span().await {
+            Some((None, _)) => return Ok(()), // Already at top of room history
+            Some((Some(before), _)) => Some(before),
+            None => None,
+        };
+
+        let _ = conn_tx.send(Log { n: 1000, before }).await?;
+        // The code handling incoming events and replies also handles
+        // `LogReply`s, so we don't need to do anything special here.
+
+        Ok(())
     }
 }
 
@@ -199,6 +261,7 @@ impl Room {
             ui_event_tx,
             conn_tx: None,
             last_msg_id: None,
+            requesting_logs: Arc::new(Mutex::new(false)),
         };
 
         task::spawn(state.run(canary_rx, event_tx.clone(), event_rx));
@@ -215,5 +278,11 @@ impl Room {
             .send(Event::Status(tx))
             .map_err(|_| Error::Stopped)?;
         rx.await.map_err(|_| Error::Stopped)
+    }
+
+    pub fn request_logs(&self) -> Result<(), Error> {
+        self.event_tx
+            .send(Event::RequestLogs)
+            .map_err(|_| Error::Stopped)
     }
 }
