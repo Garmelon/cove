@@ -97,7 +97,7 @@ impl State {
 
     async fn regularly_request_logs(event_tx: &mpsc::UnboundedSender<Event>) {
         loop {
-            time::sleep(Duration::from_secs(3)).await; // TODO Make configurable
+            time::sleep(Duration::from_secs(2)).await; // TODO Make configurable
             let _ = event_tx.send(Event::RequestLogs);
         }
     }
