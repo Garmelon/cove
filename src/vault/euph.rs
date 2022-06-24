@@ -3,7 +3,7 @@ use std::mem;
 use async_trait::async_trait;
 use chrono::{DateTime, TimeZone, Utc};
 use rusqlite::types::{FromSql, FromSqlError, ToSqlOutput, Value, ValueRef};
-use rusqlite::{params, Connection, OptionalExtension, ToSql, Transaction};
+use rusqlite::{named_params, params, Connection, OptionalExtension, ToSql, Transaction};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::euph::api::{Message, Snowflake, Time};
@@ -266,19 +266,41 @@ impl EuphRequest {
     }
 
     fn insert_msgs(tx: &Transaction, room: &str, msgs: Vec<Message>) -> rusqlite::Result<()> {
-        let mut stmt = tx.prepare("
-                INSERT OR REPLACE INTO euph_msgs (
-                    room, id, parent, previous_edit_id, time, content, encryption_key_id, edited, deleted, truncated,
-                    user_id, name, server_id, server_era, session_id, is_staff, is_manager, client_address, real_client_address
-                )
-                VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?
-                )
-            ")?;
+        let mut insert_msg = tx.prepare(
+            "
+            INSERT OR REPLACE INTO euph_msgs (
+                room, id, parent, previous_edit_id, time, content, encryption_key_id, edited, deleted, truncated,
+                user_id, name, server_id, server_era, session_id, is_staff, is_manager, client_address, real_client_address
+            )
+            VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?, ?, ?
+            )
+            "
+        )?;
+        let mut delete_trees = tx.prepare(
+            "
+            DELETE FROM euph_trees
+            WHERE room = ? AND id = ?
+            ",
+        )?;
+        let mut insert_trees = tx.prepare(
+            "
+            INSERT OR IGNORE INTO euph_trees (room, id)
+            SELECT *
+            FROM (VALUES (:room, :id))
+            WHERE NOT EXISTS(
+                SELECT *
+                FROM euph_msgs
+                WHERE room = :room
+                AND id = :id
+                AND parent IS NOT NULL
+            )
+            ",
+        )?;
 
         for msg in msgs {
-            stmt.execute(params![
+            insert_msg.execute(params![
                 room,
                 msg.id,
                 msg.parent,
@@ -299,29 +321,14 @@ impl EuphRequest {
                 msg.sender.client_address,
                 msg.sender.real_client_address,
             ])?;
+
+            if let Some(parent) = msg.parent {
+                delete_trees.execute(params![room, msg.id])?;
+                insert_trees.execute(named_params! {":room": room,":id": parent})?;
+            } else {
+                insert_trees.execute(named_params! {":room": room,":id": msg.id})?;
+            }
         }
-
-        // Update euph_trees
-        tx.execute_batch(
-            "
-            DELETE FROM euph_trees;
-
-            INSERT INTO euph_trees (room, id)
-            SELECT room, id
-            FROM euph_msgs
-            WHERE parent IS NULL
-            UNION
-            SELECT room, parent
-            FROM euph_msgs
-            WHERE parent IS NOT NULL
-            AND NOT EXISTS(
-                SELECT *
-                FROM euph_msgs AS parents
-                WHERE parents.room = euph_msgs.room
-                AND parents.id = euph_msgs.parent
-            );
-            ",
-        )?;
 
         Ok(())
     }
