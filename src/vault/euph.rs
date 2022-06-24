@@ -477,10 +477,10 @@ impl EuphRequest {
                     SELECT room, parent
                     FROM euph_msgs
                     JOIN path USING (room, id)
-                    WHERE parent IS NOT NULL
                 )
                 SELECT id
                 FROM path
+                WHERE id IS NOT NULL
                 ORDER BY id ASC
                 ",
             )?
