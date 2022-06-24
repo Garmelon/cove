@@ -311,7 +311,7 @@ impl State {
             content: Ok(data),
             throttled: None,
         }
-        .to_packet()?;
+        .into_packet()?;
 
         let msg = tungstenite::Message::Text(serde_json::to_string(&packet)?);
         self.ws_tx.send(msg).await?;
@@ -328,7 +328,7 @@ impl State {
             content: Ok(data),
             throttled: None,
         }
-        .to_packet()?;
+        .into_packet()?;
 
         let msg = tungstenite::Message::Text(serde_json::to_string(&packet)?);
         self.ws_tx.send(msg).await?;
@@ -369,6 +369,7 @@ impl State {
 
 #[derive(Debug, Clone)]
 pub struct ConnTx {
+    #[allow(dead_code)]
     canary: mpsc::UnboundedSender<Infallible>,
     event_tx: mpsc::UnboundedSender<Event>,
 }
@@ -411,6 +412,7 @@ impl ConnTx {
 
 #[derive(Debug)]
 pub struct ConnRx {
+    #[allow(dead_code)]
     canary: oneshot::Sender<Infallible>,
     packet_rx: mpsc::UnboundedReceiver<Data>,
 }

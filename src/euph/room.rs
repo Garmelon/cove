@@ -179,6 +179,7 @@ impl State {
 
 #[derive(Debug)]
 pub struct Room {
+    #[allow(dead_code)]
     canary: oneshot::Sender<Infallible>,
     event_tx: mpsc::UnboundedSender<Event>,
 }

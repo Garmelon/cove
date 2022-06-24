@@ -37,7 +37,7 @@ macro_rules! packets {
                 })
             }
 
-            pub fn to_value(self) -> serde_json::Result<Value> {
+            pub fn into_value(self) -> serde_json::Result<Value> {
                 Ok(match self{
                     $( Self::$name(p) => serde_json::to_value(p)?, )*
                     Self::Unimplemented => panic!("using unimplemented data"),
@@ -46,7 +46,7 @@ macro_rules! packets {
 
             pub fn packet_type(&self) -> PacketType {
                 match self {
-                    $( Self::$name(p) => PacketType::$name, )*
+                    $( Self::$name(_) => PacketType::$name, )*
                     Self::Unimplemented => panic!("using unimplemented data"),
                 }
             }
@@ -194,7 +194,7 @@ impl ParsedPacket {
         })
     }
 
-    pub fn to_packet(self) -> serde_json::Result<Packet> {
+    pub fn into_packet(self) -> serde_json::Result<Packet> {
         let id = self.id;
         let r#type = self.r#type;
         let throttled = self.throttled.is_some();
@@ -204,7 +204,7 @@ impl ParsedPacket {
             Ok(data) => Packet {
                 id,
                 r#type,
-                data: Some(data.to_value()?),
+                data: Some(data.into_value()?),
                 error: None,
                 throttled,
                 throttled_reason,
