@@ -53,7 +53,7 @@ fn m1(tx: &mut Transaction) -> rusqlite::Result<()> {
             start INT,
             end   INT,
 
-            PRIMARY KEY (room, start, end),
+            UNIQUE (room, start, end),
             FOREIGN KEY (room, start) REFERENCES euph_msgs (room, id),
             FOREIGN KEY (room, end) REFERENCES euph_msgs (room, id),
 
