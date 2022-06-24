@@ -10,7 +10,7 @@ use tokio_tungstenite::tungstenite;
 use crate::ui::UiEvent;
 use crate::vault::EuphVault;
 
-use super::api::Data;
+use super::api::{Data, Snowflake};
 use super::conn::{self, ConnRx, ConnTx, Status};
 
 #[derive(Debug, thiserror::Error)]
@@ -33,6 +33,7 @@ struct State {
     vault: EuphVault,
     ui_event_tx: mpsc::UnboundedSender<UiEvent>,
     conn_tx: Option<ConnTx>,
+    last_msg_id: Option<Snowflake>,
 }
 
 impl State {
@@ -93,7 +94,10 @@ impl State {
         while let Some(event) = event_rx.recv().await {
             match event {
                 Event::Connected(conn_tx) => self.conn_tx = Some(conn_tx),
-                Event::Disconnected => self.conn_tx = None,
+                Event::Disconnected => {
+                    self.conn_tx = None;
+                    self.last_msg_id = None;
+                }
                 Event::Data(data) => self.on_data(data).await?,
                 Event::Status(reply_tx) => self.on_status(reply_tx).await,
             }
@@ -101,7 +105,7 @@ impl State {
         Ok(())
     }
 
-    async fn on_data(&self, data: Data) -> anyhow::Result<()> {
+    async fn on_data(&mut self, data: Data) -> anyhow::Result<()> {
         match data {
             Data::BounceEvent(_) => {
                 error!("e&{}: auth not implemented", self.name);
@@ -135,14 +139,26 @@ impl State {
                     self.name, d.from_nick, d.from_room
                 );
             }
-            Data::SendEvent(_) => {}
+            Data::SendEvent(d) => {
+                let id = d.0.id;
+                self.vault.add_message(d.0, self.last_msg_id);
+                self.last_msg_id = Some(id);
+                let _ = self.ui_event_tx.send(UiEvent::Redraw);
+            }
             Data::SnapshotEvent(d) => {
                 info!("e&{}: successfully joined", self.name);
+                self.last_msg_id = d.log.last().map(|m| m.id);
                 self.vault.add_messages(d.log, None);
                 let _ = self.ui_event_tx.send(UiEvent::Redraw);
             }
             Data::LogReply(d) => {
                 self.vault.add_messages(d.log, d.before);
+                let _ = self.ui_event_tx.send(UiEvent::Redraw);
+            }
+            Data::SendReply(d) => {
+                let id = d.0.id;
+                self.vault.add_message(d.0, self.last_msg_id);
+                self.last_msg_id = Some(id);
                 let _ = self.ui_event_tx.send(UiEvent::Redraw);
             }
             _ => {}
@@ -181,6 +197,7 @@ impl Room {
             vault,
             ui_event_tx,
             conn_tx: None,
+            last_msg_id: None,
         };
 
         task::spawn(state.run(canary_rx, event_tx.clone(), event_rx));

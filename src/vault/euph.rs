@@ -249,11 +249,50 @@ impl EuphRequest {
         }
     }
 
+    fn insert_msgs(tx: &Transaction, room: &str, msgs: Vec<Message>) -> rusqlite::Result<()> {
+        let mut stmt = tx.prepare("
+                INSERT OR REPLACE INTO euph_msgs (
+                    room, id, parent, previous_edit_id, time, content, encryption_key_id, edited, deleted, truncated,
+                    user_id, name, server_id, server_era, session_id, is_staff, is_manager, client_address, real_client_address
+                )
+                VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?
+                )
+            ")?;
+
+        for msg in msgs {
+            stmt.execute(params![
+                room,
+                msg.id,
+                msg.parent,
+                msg.previous_edit_id,
+                msg.time,
+                msg.content,
+                msg.encryption_key_id,
+                msg.edited,
+                msg.deleted,
+                msg.truncated,
+                msg.sender.id.0,
+                msg.sender.name,
+                msg.sender.server_id,
+                msg.sender.server_era,
+                msg.sender.session_id,
+                msg.sender.is_staff,
+                msg.sender.is_manager,
+                msg.sender.client_address,
+                msg.sender.real_client_address,
+            ])?;
+        }
+
+        Ok(())
+    }
+
     fn add_span(
         tx: &Transaction,
         room: &str,
-        first_msg_id: Option<Snowflake>,
-        last_msg_id: Option<Snowflake>,
+        start: Option<Snowflake>,
+        end: Option<Snowflake>,
     ) -> rusqlite::Result<()> {
         // Retrieve all spans for the room
         let mut spans = tx
@@ -272,7 +311,7 @@ impl EuphRequest {
             .collect::<Result<Vec<_>, _>>()?;
 
         // Add new span and sort spans lexicographically
-        spans.push((first_msg_id, last_msg_id));
+        spans.push((start, end));
         spans.sort_unstable();
 
         // Combine overlapping spans (including newly added span)
@@ -324,12 +363,19 @@ impl EuphRequest {
     }
 
     fn add_msg(
-        conn: &Connection,
+        conn: &mut Connection,
         room: String,
         msg: Message,
         prev_msg: Option<Snowflake>,
     ) -> rusqlite::Result<()> {
-        todo!()
+        let tx = conn.transaction()?;
+
+        let end = msg.id;
+        Self::insert_msgs(&tx, &room, vec![msg])?;
+        Self::add_span(&tx, &room, prev_msg, Some(end))?;
+
+        tx.commit()?;
+        Ok(())
     }
 
     fn add_msgs(
@@ -346,42 +392,10 @@ impl EuphRequest {
             let first_msg_id = msgs.first().unwrap().id;
             let last_msg_id = msgs.last().unwrap().id;
 
-            let mut stmt = tx.prepare("
-                INSERT OR REPLACE INTO euph_msgs (
-                    room, id, parent, previous_edit_id, time, content, encryption_key_id, edited, deleted, truncated,
-                    user_id, name, server_id, server_era, session_id, is_staff, is_manager, client_address, real_client_address
-                )
-                VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?
-                )
-            ")?;
-            for msg in msgs {
-                stmt.execute(params![
-                    room,
-                    msg.id,
-                    msg.parent,
-                    msg.previous_edit_id,
-                    msg.time,
-                    msg.content,
-                    msg.encryption_key_id,
-                    msg.edited,
-                    msg.deleted,
-                    msg.truncated,
-                    msg.sender.id.0,
-                    msg.sender.name,
-                    msg.sender.server_id,
-                    msg.sender.server_era,
-                    msg.sender.session_id,
-                    msg.sender.is_staff,
-                    msg.sender.is_manager,
-                    msg.sender.client_address,
-                    msg.sender.real_client_address,
-                ])?;
-            }
+            Self::insert_msgs(&tx, &room, msgs)?;
 
-            let last_msg_id = next_msg_id.unwrap_or(last_msg_id);
-            Self::add_span(&tx, &room, Some(first_msg_id), Some(last_msg_id))?;
+            let end = next_msg_id.unwrap_or(last_msg_id);
+            Self::add_span(&tx, &room, Some(first_msg_id), Some(end))?;
         }
 
         tx.commit()?;

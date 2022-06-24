@@ -69,13 +69,21 @@ pub struct Joining {
 }
 
 impl Joining {
-    fn on_data(&mut self, data: Data) {
+    fn on_data(&mut self, data: &Data) -> anyhow::Result<()> {
         match data {
-            Data::BounceEvent(p) => self.bounce = Some(p),
-            Data::HelloEvent(p) => self.hello = Some(p),
-            Data::SnapshotEvent(p) => self.snapshot = Some(p),
+            Data::BounceEvent(p) => self.bounce = Some(p.clone()),
+            Data::HelloEvent(p) => self.hello = Some(p.clone()),
+            Data::SnapshotEvent(p) => self.snapshot = Some(p.clone()),
+            d @ (Data::JoinEvent(_)
+            | Data::NetworkEvent(_)
+            | Data::NickEvent(_)
+            | Data::EditMessageEvent(_)
+            | Data::PartEvent(_)
+            | Data::PmInitiateEvent(_)
+            | Data::SendEvent(_)) => bail!("unexpected {}", d.packet_type()),
             _ => {}
         }
+        Ok(())
     }
 
     fn joined(&self) -> Option<Joined> {
@@ -105,13 +113,14 @@ pub struct Joined {
 }
 
 impl Joined {
-    fn on_data(&mut self, data: Data) {
+    fn on_data(&mut self, data: &Data) {
         match data {
             Data::JoinEvent(p) => {
-                self.listing.insert(p.0.id.clone(), p.0);
+                self.listing.insert(p.0.id.clone(), p.0.clone());
             }
             Data::SendEvent(p) => {
-                self.listing.insert(p.0.sender.id.clone(), p.0.sender);
+                self.listing
+                    .insert(p.0.sender.id.clone(), p.0.sender.clone());
             }
             Data::PartEvent(p) => {
                 self.listing.remove(&p.0.id);
@@ -125,12 +134,12 @@ impl Joined {
             }
             Data::NickEvent(p) => {
                 if let Some(session) = self.listing.get_mut(&p.id) {
-                    session.name = p.to;
+                    session.name = p.to.clone();
                 }
             }
             Data::NickReply(p) => {
                 assert_eq!(self.session.id, p.id);
-                self.session.name = p.to;
+                self.session.name = p.to.clone();
             }
             // The who reply is broken and can't be trusted right now, so we'll
             // not even look at it.
@@ -253,13 +262,6 @@ impl State {
             self.replies.complete(id, packet.content.clone());
         }
 
-        // Shovel events and successful replies into self.packet_tx. Assumes
-        // that no even ever errors and that erroring replies are not
-        // interesting.
-        if let Ok(data) = &packet.content {
-            self.packet_tx.send(data.clone())?;
-        }
-
         // Play a game of table tennis
         match &packet.content {
             Ok(Data::PingReply(p)) => self.last_euph_pong = p.time,
@@ -272,16 +274,23 @@ impl State {
         }
 
         // Update internal state
-        if let Ok(data) = packet.content {
+        if let Ok(data) = &packet.content {
             match &mut self.status {
                 Status::Joining(joining) => {
-                    joining.on_data(data);
+                    joining.on_data(data)?;
                     if let Some(joined) = joining.joined() {
                         self.status = Status::Joined(joined);
                     }
                 }
                 Status::Joined(joined) => joined.on_data(data),
             }
+        }
+
+        // Shovel events and successful replies into self.packet_tx. Assumes
+        // that no even ever errors and that erroring replies are not
+        // interesting.
+        if let Ok(data) = packet.content {
+            self.packet_tx.send(data)?;
         }
 
         Ok(())
