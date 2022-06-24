@@ -74,6 +74,12 @@ fn m1(tx: &mut Transaction) -> rusqlite::Result<()> {
             SELECT room, id
             FROM euph_msgs
         );
+
+        CREATE INDEX euph_idx_msgs_room_id_parent
+        ON euph_msgs (room, id, parent);
+
+        CREATE INDEX euph_idx_msgs_room_parent_id
+        ON euph_msgs (room, parent, id);
         ",
     )
 }
