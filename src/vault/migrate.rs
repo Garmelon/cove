@@ -60,19 +60,11 @@ fn m1(tx: &mut Transaction) -> rusqlite::Result<()> {
             CHECK (start IS NULL OR end IS NOT NULL)
         ) STRICT;
 
-        CREATE VIEW euph_trees (room, id) AS
-        SELECT room, id
-        FROM euph_msgs
-        WHERE parent IS NULL
-        UNION
-        SELECT *
-        FROM (
-            SELECT room, parent
-            FROM euph_msgs
-            WHERE parent IS NOT NULL
-            EXCEPT
-            SELECT room, id
-            FROM euph_msgs
+        CREATE TABLE euph_trees (
+            room TEXT NOT NULL,
+            id INT NOT NULL,
+
+            PRIMARY KEY (room, id)
         );
 
         CREATE INDEX euph_idx_msgs_room_id_parent

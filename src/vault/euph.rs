@@ -301,6 +301,28 @@ impl EuphRequest {
             ])?;
         }
 
+        // Update euph_trees
+        tx.execute_batch(
+            "
+            DELETE FROM euph_trees;
+
+            INSERT INTO euph_trees (room, id)
+            SELECT room, id
+            FROM euph_msgs
+            WHERE parent IS NULL
+            UNION
+            SELECT room, parent
+            FROM euph_msgs
+            WHERE parent IS NOT NULL
+            AND NOT EXISTS(
+                SELECT *
+                FROM euph_msgs AS parents
+                WHERE parents.room = euph_msgs.room
+                AND parents.id = euph_msgs.parent
+            );
+            ",
+        )?;
+
         Ok(())
     }
 
