@@ -1,5 +1,6 @@
 mod euph;
 mod migrate;
+mod prepare;
 
 use std::path::Path;
 use std::{fs, thread};
@@ -70,6 +71,7 @@ pub fn launch(path: &Path) -> rusqlite::Result<Vault> {
     conn.pragma_update(None, "trusted_schema", false)?;
 
     migrate::migrate(&mut conn)?;
+    prepare::prepare(&mut conn)?;
 
     let (tx, rx) = mpsc::unbounded_channel();
     thread::spawn(move || run(conn, rx));
