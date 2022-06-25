@@ -61,12 +61,13 @@ fn render_block<M: Msg>(frame: &mut Frame, pos: Pos, size: Size, block: &Block<M
                     continue;
                 }
 
-                render_indent(frame, pos.x, y, block.cursor, block.indent);
-
                 if i == 0 {
+                    render_indent(frame, pos.x, y, block.cursor, block.indent);
                     render_time(frame, pos.x, y, block.cursor, block.time);
                     render_nick(frame, pos.x, y, block.indent, &msg.nick);
                 } else {
+                    render_indent(frame, pos.x, y, false, block.indent + 1);
+                    render_indent(frame, pos.x, y, block.cursor, block.indent);
                     render_time(frame, pos.x, y, block.cursor, None);
                 }
 
