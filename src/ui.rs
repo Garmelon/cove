@@ -76,7 +76,7 @@ impl Ui {
         let mut ui = Self {
             event_tx: event_tx.clone(),
             vault,
-            visible: Visible::Log,
+            visible: Visible::Main,
             room,
             chat,
             log_chat: Chat::new(logger),
