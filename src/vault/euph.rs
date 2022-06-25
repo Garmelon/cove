@@ -66,7 +66,7 @@ impl Msg for EuphMsg {
     }
 
     fn content(&self) -> String {
-        self.content.clone()
+        self.content.trim().to_string()
     }
 }
 
