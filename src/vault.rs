@@ -40,7 +40,7 @@ fn run(mut conn: Connection, mut rx: mpsc::UnboundedReceiver<Request>) {
     while let Some(request) = rx.blocking_recv() {
         match request {
             Request::Close(tx) => {
-                println!("Optimizing vault");
+                println!("Closing vault");
                 let _ = conn.execute_batch("PRAGMA optimize");
                 // Ensure `Vault::close` exits only after the sqlite connection
                 // has been closed properly.

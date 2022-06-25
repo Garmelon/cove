@@ -1,6 +1,7 @@
 use rusqlite::Connection;
 
 pub fn prepare(conn: &mut Connection) -> rusqlite::Result<()> {
+    println!("Opening vault");
     conn.execute_batch(
         "
         CREATE TEMPORARY TABLE euph_trees (
