@@ -455,12 +455,12 @@ impl EuphRequest {
         let span = conn
             .prepare(
                 "
-            SELECT start, end
-            FROM euph_spans
-            WHERE room = ?
-            ORDER BY start, end DESC
-            LIMIT 1
-            ",
+                SELECT start, end
+                FROM euph_spans
+                WHERE room = ?
+                ORDER BY start DESC
+                LIMIT 1
+                ",
             )?
             .query_row([room], |row| Ok((row.get(0)?, row.get(1)?)))
             .optional()?;
