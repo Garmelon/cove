@@ -273,6 +273,10 @@ impl Room {
         }
     }
 
+    pub fn stopped(&self) -> bool {
+        self.event_tx.is_closed()
+    }
+
     pub async fn status(&self) -> Result<Option<Status>, Error> {
         let (tx, rx) = oneshot::channel();
         self.event_tx

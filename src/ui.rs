@@ -1,3 +1,5 @@
+mod rooms;
+
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
@@ -11,9 +13,10 @@ use toss::frame::{Frame, Pos, Size};
 use toss::terminal::Terminal;
 
 use crate::chat::Chat;
-use crate::euph;
 use crate::logger::{LogMsg, Logger};
-use crate::vault::{EuphMsg, EuphVault, Vault};
+use crate::vault::Vault;
+
+use self::rooms::Rooms;
 
 #[derive(Debug)]
 pub enum UiEvent {
@@ -26,18 +29,17 @@ enum EventHandleResult {
     Stop,
 }
 
-enum Visible {
+enum Mode {
     Main,
     Log,
 }
 
 pub struct Ui {
     event_tx: UnboundedSender<UiEvent>,
-    vault: Vault,
 
-    visible: Visible,
-    room: euph::Room,
-    chat: Chat<EuphMsg, EuphVault>,
+    mode: Mode,
+
+    rooms: Rooms,
     log_chat: Chat<LogMsg, Logger>,
 }
 
@@ -60,10 +62,6 @@ impl Ui {
             Self::poll_crossterm_events(event_tx_clone, weak_crossterm_lock)
         });
 
-        let room_vault = vault.euph("test".to_string());
-        let chat = Chat::new(room_vault.clone());
-        let room = euph::Room::new("test".to_string(), room_vault, event_tx.clone());
-
         // Run main UI.
         //
         // If the run_main method exits at any point or if this `run` method is
@@ -75,10 +73,8 @@ impl Ui {
         // the rest of the UI is also shut down and the client stops.
         let mut ui = Self {
             event_tx: event_tx.clone(),
-            vault,
-            visible: Visible::Main,
-            room,
-            chat,
+            mode: Mode::Main,
+            rooms: Rooms::new(vault),
             log_chat: Chat::new(logger),
         };
         tokio::select! {
@@ -163,9 +159,9 @@ impl Ui {
     }
 
     async fn render(&mut self, frame: &mut Frame) -> anyhow::Result<()> {
-        match self.visible {
-            Visible::Main => self.chat.render(frame, Pos::new(0, 0), frame.size()).await,
-            Visible::Log => {
+        match self.mode {
+            Mode::Main => self.rooms.render(frame).await,
+            Mode::Log => {
                 self.log_chat
                     .render(frame, Pos::new(0, 0), frame.size())
                     .await
@@ -190,21 +186,14 @@ impl Ui {
 
         match event.code {
             KeyCode::Char('e') => debug!("{:#?}", event),
-            KeyCode::F(1) => self.visible = Visible::Main,
-            KeyCode::F(2) => self.visible = Visible::Log,
+            KeyCode::F(1) => self.mode = Mode::Main,
+            KeyCode::F(2) => self.mode = Mode::Log,
             _ => {}
         }
 
-        match self.visible {
-            Visible::Main => {
-                self.chat.handle_navigation(terminal, size, event).await;
-                self.chat
-                    .handle_messaging(terminal, crossterm_lock, event)
-                    .await;
-            }
-            Visible::Log => {
-                self.log_chat.handle_navigation(terminal, size, event).await;
-            }
+        match self.mode {
+            Mode::Main => self.rooms.handle_key_event(terminal, event).await,
+            Mode::Log => self.log_chat.handle_navigation(terminal, size, event).await,
         }
 
         EventHandleResult::Continue
