@@ -9,7 +9,7 @@ use tokio::sync::{mpsc, oneshot};
 use crate::euph::api::{Message, Snowflake, Time};
 use crate::store::{Msg, MsgStore, Path, Tree};
 
-use super::Request;
+use super::{Request, Vault};
 
 impl ToSql for Snowflake {
     fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
@@ -76,6 +76,16 @@ impl From<EuphRequest> for Request {
     }
 }
 
+impl Vault {
+    pub async fn euph_rooms(&self) -> Vec<String> {
+        // TODO vault::Error
+        let (tx, rx) = oneshot::channel();
+        let request = EuphRequest::Rooms { result: tx };
+        let _ = self.tx.send(request.into());
+        rx.await.unwrap()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct EuphVault {
     pub(super) tx: mpsc::UnboundedSender<Request>,
@@ -83,6 +93,13 @@ pub struct EuphVault {
 }
 
 impl EuphVault {
+    pub fn join(&self) {
+        let request = EuphRequest::Join {
+            room: self.room.clone(),
+        };
+        let _ = self.tx.send(request.into());
+    }
+
     pub fn add_message(&self, msg: Message, prev_msg: Option<Snowflake>) {
         let request = EuphRequest::AddMsg {
             room: self.room.clone(),
@@ -187,6 +204,12 @@ impl MsgStore<EuphMsg> for EuphVault {
 }
 
 pub(super) enum EuphRequest {
+    Rooms {
+        result: oneshot::Sender<Vec<String>>,
+    },
+    Join {
+        room: String,
+    },
     AddMsg {
         room: String,
         msg: Message,
@@ -234,6 +257,8 @@ pub(super) enum EuphRequest {
 impl EuphRequest {
     pub(super) fn perform(self, conn: &mut Connection) {
         let result = match self {
+            EuphRequest::Rooms { result } => Self::rooms(conn, result),
+            EuphRequest::Join { room } => Self::join(conn, room),
             EuphRequest::AddMsg {
                 room,
                 msg,
@@ -263,6 +288,31 @@ impl EuphRequest {
             // TODO Better vault error handling
             eprintln!("{e}");
         }
+    }
+
+    fn rooms(conn: &mut Connection, result: oneshot::Sender<Vec<String>>) -> rusqlite::Result<()> {
+        let rooms = conn
+            .prepare(
+                "
+                SELECT room
+                FROM euph_rooms
+                ",
+            )?
+            .query_map([], |row| row.get(0))?
+            .collect::<rusqlite::Result<_>>()?;
+        let _ = result.send(rooms);
+        Ok(())
+    }
+
+    fn join(conn: &mut Connection, room: String) -> rusqlite::Result<()> {
+        conn.execute(
+            "
+            INSERT INTO euph_rooms (room)
+            VALUES (?)
+            ",
+            [room],
+        )?;
+        Ok(())
     }
 
     fn insert_msgs(tx: &Transaction, room: &str, msgs: Vec<Message>) -> rusqlite::Result<()> {

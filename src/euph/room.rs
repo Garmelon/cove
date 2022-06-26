@@ -167,6 +167,7 @@ impl State {
             }
             Data::SnapshotEvent(d) => {
                 info!("e&{}: successfully joined", self.name);
+                self.vault.join();
                 self.last_msg_id = Some(d.log.last().map(|m| m.id));
                 self.vault.add_messages(d.log, None);
                 let _ = self.ui_event_tx.send(UiEvent::Redraw);

@@ -21,6 +21,10 @@ const MIGRATIONS: [fn(&mut Transaction) -> rusqlite::Result<()>; 1] = [m1];
 fn m1(tx: &mut Transaction) -> rusqlite::Result<()> {
     tx.execute_batch(
         "
+        CREATE TABLE euph_rooms (
+            room TEXT NOT NULL PRIMARY KEY
+        ) STRICT;
+
         CREATE TABLE euph_msgs (
             -- Message
             room              TEXT NOT NULL,
@@ -45,7 +49,9 @@ fn m1(tx: &mut Transaction) -> rusqlite::Result<()> {
             client_address      TEXT,
             real_client_address TEXT,
 
-            PRIMARY KEY (room, id)
+            PRIMARY KEY (room, id),
+            FOREIGN KEY (room) REFERENCES euph_rooms (room)
+                ON DELETE CASCADE
         ) STRICT;
 
         CREATE TABLE euph_spans (
@@ -54,9 +60,8 @@ fn m1(tx: &mut Transaction) -> rusqlite::Result<()> {
             end   INT,
 
             UNIQUE (room, start, end),
-            FOREIGN KEY (room, start) REFERENCES euph_msgs (room, id),
-            FOREIGN KEY (room, end) REFERENCES euph_msgs (room, id),
-
+            FOREIGN KEY (room) REFERENCES euph_rooms (room)
+                ON DELETE CASCADE,
             CHECK (start IS NULL OR end IS NOT NULL)
         ) STRICT;
 
