@@ -66,19 +66,19 @@ impl State {
     async fn reconnect(name: &str, event_tx: &mpsc::UnboundedSender<Event>) -> anyhow::Result<()> {
         loop {
             info!("e&{}: connecting", name);
-            let (conn_tx, mut conn_rx) = match Self::connect(name).await? {
-                Some(conn) => conn,
-                None => continue,
-            };
-            info!("e&{}: connected", name);
-            event_tx.send(Event::Connected(conn_tx))?;
+            if let Some((conn_tx, mut conn_rx)) = Self::connect(name).await? {
+                info!("e&{}: connected", name);
+                event_tx.send(Event::Connected(conn_tx))?;
 
-            while let Ok(data) = conn_rx.recv().await {
-                event_tx.send(Event::Data(data))?;
+                while let Ok(data) = conn_rx.recv().await {
+                    event_tx.send(Event::Data(data))?;
+                }
+
+                info!("e&{}: disconnected", name);
+                event_tx.send(Event::Disconnected)?;
+            } else {
+                info!("e&{}: could not connect", name);
             }
-
-            info!("e&{}: disconnected", name);
-            event_tx.send(Event::Disconnected)?;
             time::sleep(Duration::from_secs(5)).await; // TODO Make configurable
         }
     }
@@ -90,6 +90,9 @@ impl State {
             Ok((ws, _)) => Ok(Some(conn::wrap(ws))),
             Err(tungstenite::Error::Http(resp)) if resp.status().is_client_error() => {
                 bail!("room {name} doesn't exist");
+            }
+            Err(tungstenite::Error::Url(_) | tungstenite::Error::HttpFormat(_)) => {
+                bail!("format error for room {name}");
             }
             Err(_) => Ok(None),
         }

@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use crossterm::event::{KeyCode, KeyEvent};
+use parking_lot::FairMutex;
 use tokio::sync::mpsc;
 use toss::frame::{Frame, Pos, Size};
 use toss::terminal::Terminal;
@@ -9,7 +11,7 @@ use crate::chat::Chat;
 use crate::euph;
 use crate::vault::{EuphMsg, EuphVault, Vault};
 
-use super::UiEvent;
+use super::{util, UiEvent};
 
 mod style {
     use crossterm::style::{ContentStyle, Stylize};
@@ -159,6 +161,7 @@ impl Rooms {
         terminal: &mut Terminal,
         size: Size,
         ui_event_tx: &mpsc::UnboundedSender<UiEvent>,
+        crossterm_lock: &Arc<FairMutex<()>>,
         event: KeyEvent,
     ) {
         if let Some(focus) = &self.focus {
@@ -201,6 +204,18 @@ impl Rooms {
                                 )
                             });
                         }
+                    }
+                }
+                KeyCode::Char('C') => {
+                    if let Some(room) = util::prompt(terminal, crossterm_lock) {
+                        let room = room.trim().to_string();
+                        self.euph_rooms.entry(room.clone()).or_insert_with(|| {
+                            euph::Room::new(
+                                room.clone(),
+                                self.vault.euph(room),
+                                ui_event_tx.clone(),
+                            )
+                        });
                     }
                 }
                 KeyCode::Char('d') => {

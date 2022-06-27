@@ -1,4 +1,5 @@
 mod rooms;
+mod util;
 
 use std::sync::{Arc, Weak};
 use std::time::Duration;
@@ -194,7 +195,7 @@ impl Ui {
         match self.mode {
             Mode::Main => {
                 self.rooms
-                    .handle_key_event(terminal, size, &self.event_tx, event)
+                    .handle_key_event(terminal, size, &self.event_tx, crossterm_lock, event)
                     .await
             }
             Mode::Log => self.log_chat.handle_navigation(terminal, size, event).await,
