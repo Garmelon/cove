@@ -100,6 +100,11 @@ impl EuphVault {
         let _ = self.tx.send(request.into());
     }
 
+    pub fn delete(self) {
+        let request = EuphRequest::Delete { room: self.room };
+        let _ = self.tx.send(request.into());
+    }
+
     pub fn add_message(&self, msg: Message, prev_msg: Option<Snowflake>) {
         let request = EuphRequest::AddMsg {
             room: self.room.clone(),
@@ -210,6 +215,9 @@ pub(super) enum EuphRequest {
     Join {
         room: String,
     },
+    Delete {
+        room: String,
+    },
     AddMsg {
         room: String,
         msg: Message,
@@ -259,6 +267,7 @@ impl EuphRequest {
         let result = match self {
             EuphRequest::Rooms { result } => Self::rooms(conn, result),
             EuphRequest::Join { room } => Self::join(conn, room),
+            EuphRequest::Delete { room } => Self::delete(conn, room),
             EuphRequest::AddMsg {
                 room,
                 msg,
@@ -309,6 +318,17 @@ impl EuphRequest {
             "
             INSERT OR IGNORE INTO euph_rooms (room)
             VALUES (?)
+            ",
+            [room],
+        )?;
+        Ok(())
+    }
+
+    fn delete(conn: &mut Connection, room: String) -> rusqlite::Result<()> {
+        conn.execute(
+            "
+            DELETE FROM euph_rooms
+            WHERE room = ?
             ",
             [room],
         )?;

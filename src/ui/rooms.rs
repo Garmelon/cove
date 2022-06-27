@@ -225,6 +225,15 @@ impl Rooms {
                         }
                     }
                 }
+                KeyCode::Char('D') => {
+                    if let Some(cursor) = &self.cursor {
+                        if let Some(room) = rooms.get(cursor.index) {
+                            self.euph_rooms.remove(room);
+                            self.euph_chats.remove(room);
+                            self.vault.euph(room.clone()).delete();
+                        }
+                    }
+                }
                 _ => {}
             }
         }
