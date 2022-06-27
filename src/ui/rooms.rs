@@ -82,8 +82,8 @@ impl Rooms {
                 // height - len + index <= line
                 .max(height - rooms.len() as i32 + cursor.index as i32)
                 // Make sure there is no free space above the room list:
-                // line <= len
-                .min(rooms.len() as i32);
+                // line <= index
+                .min(cursor.index as i32);
         }
     }
 
