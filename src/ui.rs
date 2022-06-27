@@ -192,7 +192,11 @@ impl Ui {
         }
 
         match self.mode {
-            Mode::Main => self.rooms.handle_key_event(terminal, size, event).await,
+            Mode::Main => {
+                self.rooms
+                    .handle_key_event(terminal, size, &self.event_tx, event)
+                    .await
+            }
             Mode::Log => self.log_chat.handle_navigation(terminal, size, event).await,
         }
 

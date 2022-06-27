@@ -1,12 +1,15 @@
 use std::collections::{HashMap, HashSet};
 
 use crossterm::event::{KeyCode, KeyEvent};
+use tokio::sync::mpsc;
 use toss::frame::{Frame, Pos, Size};
 use toss::terminal::Terminal;
 
 use crate::chat::Chat;
 use crate::euph;
 use crate::vault::{EuphMsg, EuphVault, Vault};
+
+use super::UiEvent;
 
 mod style {
     use crossterm::style::{ContentStyle, Stylize};
@@ -53,7 +56,14 @@ impl Rooms {
     }
 
     async fn rooms(&self) -> Vec<String> {
-        let mut rooms = self.vault.euph_rooms().await;
+        let mut rooms = HashSet::new();
+        for room in self.vault.euph_rooms().await {
+            rooms.insert(room);
+        }
+        for room in self.euph_rooms.keys().cloned() {
+            rooms.insert(room);
+        }
+        let mut rooms = rooms.into_iter().collect::<Vec<_>>();
         rooms.sort_unstable();
         rooms
     }
@@ -134,11 +144,23 @@ impl Rooms {
             for x in 0..size.width {
                 frame.write(Pos::new(x.into(), y), " ", style);
             }
-            frame.write(Pos::new(0, y), &format!("&{room}"), style);
+            let suffix = if self.euph_rooms.contains_key(room) {
+                "*"
+            } else {
+                ""
+            };
+            let room_str = format!("&{room}{suffix}");
+            frame.write(Pos::new(0, y), &room_str, style);
         }
     }
 
-    pub async fn handle_key_event(&mut self, terminal: &mut Terminal, size: Size, event: KeyEvent) {
+    pub async fn handle_key_event(
+        &mut self,
+        terminal: &mut Terminal,
+        size: Size,
+        ui_event_tx: &mpsc::UnboundedSender<UiEvent>,
+        event: KeyEvent,
+    ) {
         if let Some(focus) = &self.focus {
             if event.code == KeyCode::Esc {
                 self.focus = None;
@@ -165,6 +187,27 @@ impl Rooms {
                     if let Some(cursor) = &mut self.cursor {
                         cursor.index = cursor.index.saturating_sub(1);
                         cursor.line -= 1;
+                    }
+                }
+                KeyCode::Char('c') => {
+                    if let Some(cursor) = &self.cursor {
+                        if let Some(room) = rooms.get(cursor.index) {
+                            let room = room.clone();
+                            self.euph_rooms.entry(room.clone()).or_insert_with(|| {
+                                euph::Room::new(
+                                    room.clone(),
+                                    self.vault.euph(room),
+                                    ui_event_tx.clone(),
+                                )
+                            });
+                        }
+                    }
+                }
+                KeyCode::Char('d') => {
+                    if let Some(cursor) = &self.cursor {
+                        if let Some(room) = rooms.get(cursor.index) {
+                            self.euph_rooms.remove(room);
+                        }
                     }
                 }
                 _ => {}
