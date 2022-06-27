@@ -307,7 +307,7 @@ impl EuphRequest {
     fn join(conn: &mut Connection, room: String) -> rusqlite::Result<()> {
         conn.execute(
             "
-            INSERT INTO euph_rooms (room)
+            INSERT OR IGNORE INTO euph_rooms (room)
             VALUES (?)
             ",
             [room],
