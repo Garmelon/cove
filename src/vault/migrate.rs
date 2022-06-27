@@ -22,7 +22,9 @@ fn m1(tx: &mut Transaction) -> rusqlite::Result<()> {
     tx.execute_batch(
         "
         CREATE TABLE euph_rooms (
-            room TEXT NOT NULL PRIMARY KEY
+            room         TEXT NOT NULL PRIMARY KEY,
+            first_joined TEXT NOT NULL,
+            last_joined  TEXT NOT NULL
         ) STRICT;
 
         CREATE TABLE euph_msgs (

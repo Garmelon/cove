@@ -93,9 +93,10 @@ pub struct EuphVault {
 }
 
 impl EuphVault {
-    pub fn join(&self) {
+    pub fn join(&self, time: DateTime<Utc>) {
         let request = EuphRequest::Join {
             room: self.room.clone(),
+            time,
         };
         let _ = self.tx.send(request.into());
     }
@@ -214,6 +215,7 @@ pub(super) enum EuphRequest {
     },
     Join {
         room: String,
+        time: DateTime<Utc>,
     },
     Delete {
         room: String,
@@ -266,7 +268,7 @@ impl EuphRequest {
     pub(super) fn perform(self, conn: &mut Connection) {
         let result = match self {
             EuphRequest::Rooms { result } => Self::rooms(conn, result),
-            EuphRequest::Join { room } => Self::join(conn, room),
+            EuphRequest::Join { room, time } => Self::join(conn, room, time),
             EuphRequest::Delete { room } => Self::delete(conn, room),
             EuphRequest::AddMsg {
                 room,
@@ -313,13 +315,15 @@ impl EuphRequest {
         Ok(())
     }
 
-    fn join(conn: &mut Connection, room: String) -> rusqlite::Result<()> {
+    fn join(conn: &mut Connection, room: String, time: DateTime<Utc>) -> rusqlite::Result<()> {
         conn.execute(
             "
-            INSERT OR IGNORE INTO euph_rooms (room)
-            VALUES (?)
+            INSERT INTO euph_rooms (room, first_joined, last_joined)
+            VALUES (:room, :time, :time)
+            ON CONFLICT (room) DO UPDATE
+            SET last_joined = :time
             ",
-            [room],
+            named_params! {":room": room, ":time": time},
         )?;
         Ok(())
     }

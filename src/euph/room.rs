@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::bail;
+use chrono::Utc;
 use log::{error, info, warn};
 use parking_lot::Mutex;
 use tokio::sync::{mpsc, oneshot};
@@ -170,7 +171,7 @@ impl State {
             }
             Data::SnapshotEvent(d) => {
                 info!("e&{}: successfully joined", self.name);
-                self.vault.join();
+                self.vault.join(Utc::now());
                 self.last_msg_id = Some(d.log.last().map(|m| m.id));
                 self.vault.add_messages(d.log, None);
                 let _ = self.ui_event_tx.send(UiEvent::Redraw);
