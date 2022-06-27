@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
-use crossterm::event::KeyEvent;
-use toss::frame::{Frame, Pos};
+use crossterm::event::{KeyCode, KeyEvent};
+use toss::frame::{Frame, Pos, Size};
 use toss::terminal::Terminal;
 
 use crate::chat::Chat;
@@ -138,7 +138,37 @@ impl Rooms {
         }
     }
 
-    pub async fn handle_key_event(&mut self, terminal: &mut Terminal, event: KeyEvent) {
-        // TODO
+    pub async fn handle_key_event(&mut self, terminal: &mut Terminal, size: Size, event: KeyEvent) {
+        if let Some(focus) = &self.focus {
+            if event.code == KeyCode::Esc {
+                self.focus = None;
+            }
+        } else {
+            let rooms = self.rooms().await;
+            self.make_consistent(&rooms, size.height.into());
+
+            match event.code {
+                KeyCode::Enter => {
+                    if let Some(cursor) = self.cursor {
+                        if let Some(room) = rooms.get(cursor.index) {
+                            self.focus = Some(room.clone());
+                        }
+                    }
+                }
+                KeyCode::Char('j') => {
+                    if let Some(cursor) = &mut self.cursor {
+                        cursor.index = cursor.index.saturating_add(1);
+                        cursor.line += 1;
+                    }
+                }
+                KeyCode::Char('k') => {
+                    if let Some(cursor) = &mut self.cursor {
+                        cursor.index = cursor.index.saturating_sub(1);
+                        cursor.line -= 1;
+                    }
+                }
+                _ => {}
+            }
+        }
     }
 }
