@@ -63,8 +63,10 @@ impl Rooms {
         for room in self.vault.euph_rooms().await {
             rooms.insert(room);
         }
-        for room in self.euph_rooms.keys().cloned() {
-            rooms.insert(room);
+        for (name, room) in &self.euph_rooms {
+            if room.connected() {
+                rooms.insert(name.clone());
+            }
         }
         let mut rooms = rooms.into_iter().collect::<Vec<_>>();
         rooms.sort_unstable();
@@ -106,7 +108,7 @@ impl Rooms {
             .map(|n| n.to_string())
             .collect::<HashSet<String>>();
 
-        self.euph_rooms.retain(|n, r| rooms.contains(n));
+        self.euph_rooms.retain(|n, _| rooms.contains(n));
         for room in self.euph_rooms.values_mut() {
             room.retain();
         }
@@ -147,8 +149,12 @@ impl Rooms {
             for x in 0..size.width {
                 frame.write(Pos::new(x.into(), y), " ", style);
             }
-            let suffix = if self.euph_rooms.contains_key(room) {
-                "*"
+            let suffix = if let Some(room) = self.euph_rooms.get(room) {
+                if room.connected() {
+                    "*"
+                } else {
+                    ""
+                }
             } else {
                 ""
             };
@@ -165,7 +171,7 @@ impl Rooms {
         event: KeyEvent,
     ) {
         if let Some(room) = &self.focus {
-            if event.code == KeyCode::Esc {
+            if event.code == KeyCode::Enter {
                 self.focus = None;
             } else {
                 let actual_room = self.euph_rooms.entry(room.clone()).or_insert_with(|| {

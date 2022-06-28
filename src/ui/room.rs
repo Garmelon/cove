@@ -41,6 +41,14 @@ impl EuphRoom {
         self.room = None;
     }
 
+    pub fn connected(&self) -> bool {
+        if let Some(room) = &self.room {
+            !room.stopped()
+        } else {
+            false
+        }
+    }
+
     pub fn retain(&mut self) {
         if let Some(room) = &self.room {
             if room.stopped() {
