@@ -57,7 +57,7 @@ fn render_block<M: Msg>(frame: &mut Frame, pos: Pos, size: Size, block: &Block<M
 
             for (i, line) in msg.lines.iter().enumerate() {
                 let y = pos.y + block.line + i as i32;
-                if y < 0 || y >= size.height as i32 {
+                if y < 0 || y >= pos.y + size.height as i32 {
                     continue;
                 }
 
