@@ -63,9 +63,9 @@ impl Event {
 
 #[derive(Debug, Clone, Default)]
 pub struct Joining {
-    hello: Option<HelloEvent>,
-    snapshot: Option<SnapshotEvent>,
-    bounce: Option<BounceEvent>,
+    pub hello: Option<HelloEvent>,
+    pub snapshot: Option<SnapshotEvent>,
+    pub bounce: Option<BounceEvent>,
 }
 
 impl Joining {
@@ -107,9 +107,9 @@ impl Joining {
 
 #[derive(Debug, Clone)]
 pub struct Joined {
-    session: SessionView,
-    account: Option<PersonalAccountView>,
-    listing: HashMap<UserId, SessionView>,
+    pub session: SessionView,
+    pub account: Option<PersonalAccountView>,
+    pub listing: HashMap<UserId, SessionView>,
 }
 
 impl Joined {

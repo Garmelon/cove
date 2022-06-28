@@ -93,6 +93,10 @@ pub struct EuphVault {
 }
 
 impl EuphVault {
+    pub fn room(&self) -> &str {
+        &self.room
+    }
+
     pub fn join(&self, time: DateTime<Utc>) {
         let request = EuphRequest::Join {
             room: self.room.clone(),

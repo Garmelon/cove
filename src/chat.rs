@@ -52,6 +52,10 @@ impl<M: Msg, S: MsgStore<M>> Chat<M, S> {
             tree: TreeView::new(),
         }
     }
+
+    pub fn store(&self) -> &S {
+        &self.store
+    }
 }
 
 impl<M: Msg, S: MsgStore<M>> Chat<M, S> {

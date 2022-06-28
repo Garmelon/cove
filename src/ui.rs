@@ -1,3 +1,4 @@
+mod room;
 mod rooms;
 mod util;
 
@@ -75,7 +76,7 @@ impl Ui {
         let mut ui = Self {
             event_tx: event_tx.clone(),
             mode: Mode::Main,
-            rooms: Rooms::new(vault),
+            rooms: Rooms::new(vault, event_tx.clone()),
             log_chat: Chat::new(logger),
         };
         tokio::select! {
@@ -195,7 +196,7 @@ impl Ui {
         match self.mode {
             Mode::Main => {
                 self.rooms
-                    .handle_key_event(terminal, size, &self.event_tx, crossterm_lock, event)
+                    .handle_key_event(terminal, size, crossterm_lock, event)
                     .await
             }
             Mode::Log => self.log_chat.handle_navigation(terminal, size, event).await,

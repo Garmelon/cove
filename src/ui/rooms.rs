@@ -11,6 +11,7 @@ use crate::chat::Chat;
 use crate::euph;
 use crate::vault::{EuphMsg, EuphVault, Vault};
 
+use super::room::EuphRoom;
 use super::{util, UiEvent};
 
 mod style {
@@ -33,6 +34,7 @@ struct Cursor {
 
 pub struct Rooms {
     vault: Vault,
+    ui_event_tx: mpsc::UnboundedSender<UiEvent>,
 
     /// Cursor position inside the room list.
     ///
@@ -42,18 +44,17 @@ pub struct Rooms {
     /// If set, a single room is displayed in full instead of the room list.
     focus: Option<String>,
 
-    euph_rooms: HashMap<String, euph::Room>,
-    euph_chats: HashMap<String, Chat<EuphMsg, EuphVault>>,
+    euph_rooms: HashMap<String, EuphRoom>,
 }
 
 impl Rooms {
-    pub fn new(vault: Vault) -> Self {
+    pub fn new(vault: Vault, ui_event_tx: mpsc::UnboundedSender<UiEvent>) -> Self {
         Self {
             vault,
+            ui_event_tx,
             cursor: None,
             focus: None,
             euph_rooms: HashMap::new(),
-            euph_chats: HashMap::new(),
         }
     }
 
@@ -105,9 +106,10 @@ impl Rooms {
             .map(|n| n.to_string())
             .collect::<HashSet<String>>();
 
-        self.euph_rooms
-            .retain(|n, r| rooms.contains(n) && !r.stopped());
-        self.euph_chats.retain(|n, _| rooms.contains(n));
+        self.euph_rooms.retain(|n, r| rooms.contains(n));
+        for room in self.euph_rooms.values_mut() {
+            room.retain();
+        }
     }
 
     fn make_consistent(&mut self, rooms: &[String], height: i32) {
@@ -117,11 +119,10 @@ impl Rooms {
 
     pub async fn render(&mut self, frame: &mut Frame) {
         if let Some(room) = &self.focus {
-            let chat = self
-                .euph_chats
-                .entry(room.clone())
-                .or_insert_with(|| Chat::new(self.vault.euph(room.clone())));
-            chat.render(frame, Pos::new(0, 0), frame.size()).await;
+            let actual_room = self.euph_rooms.entry(room.clone()).or_insert_with(|| {
+                EuphRoom::new(self.vault.euph(room.clone()), self.ui_event_tx.clone())
+            });
+            actual_room.render(frame).await;
         } else {
             self.render_rooms(frame).await;
         }
@@ -160,13 +161,19 @@ impl Rooms {
         &mut self,
         terminal: &mut Terminal,
         size: Size,
-        ui_event_tx: &mpsc::UnboundedSender<UiEvent>,
         crossterm_lock: &Arc<FairMutex<()>>,
         event: KeyEvent,
     ) {
-        if let Some(focus) = &self.focus {
+        if let Some(room) = &self.focus {
             if event.code == KeyCode::Esc {
                 self.focus = None;
+            } else {
+                let actual_room = self.euph_rooms.entry(room.clone()).or_insert_with(|| {
+                    EuphRoom::new(self.vault.euph(room.clone()), self.ui_event_tx.clone())
+                });
+                actual_room
+                    .handle_key_event(terminal, size, crossterm_lock, event)
+                    .await;
             }
         } else {
             let rooms = self.rooms().await;
@@ -196,26 +203,28 @@ impl Rooms {
                     if let Some(cursor) = &self.cursor {
                         if let Some(room) = rooms.get(cursor.index) {
                             let room = room.clone();
-                            self.euph_rooms.entry(room.clone()).or_insert_with(|| {
-                                euph::Room::new(
-                                    room.clone(),
-                                    self.vault.euph(room),
-                                    ui_event_tx.clone(),
-                                )
-                            });
+                            let actual_room =
+                                self.euph_rooms.entry(room.clone()).or_insert_with(|| {
+                                    EuphRoom::new(
+                                        self.vault.euph(room.clone()),
+                                        self.ui_event_tx.clone(),
+                                    )
+                                });
+                            actual_room.connect();
                         }
                     }
                 }
                 KeyCode::Char('C') => {
                     if let Some(room) = util::prompt(terminal, crossterm_lock) {
                         let room = room.trim().to_string();
-                        self.euph_rooms.entry(room.clone()).or_insert_with(|| {
-                            euph::Room::new(
-                                room.clone(),
-                                self.vault.euph(room),
-                                ui_event_tx.clone(),
-                            )
-                        });
+                        let actual_room =
+                            self.euph_rooms.entry(room.clone()).or_insert_with(|| {
+                                EuphRoom::new(
+                                    self.vault.euph(room.clone()),
+                                    self.ui_event_tx.clone(),
+                                )
+                            });
+                        actual_room.connect();
                     }
                 }
                 KeyCode::Char('d') => {
@@ -229,7 +238,6 @@ impl Rooms {
                     if let Some(cursor) = &self.cursor {
                         if let Some(room) = rooms.get(cursor.index) {
                             self.euph_rooms.remove(room);
-                            self.euph_chats.remove(room);
                             self.vault.euph(room.clone()).delete();
                         }
                     }

@@ -13,7 +13,7 @@ use tokio_tungstenite::tungstenite;
 use crate::ui::UiEvent;
 use crate::vault::EuphVault;
 
-use super::api::{Data, Log, Snowflake};
+use super::api::{Data, Log, Nick, Send, Snowflake};
 use super::conn::{self, ConnRx, ConnTx, Status};
 
 #[derive(Debug, thiserror::Error)]
@@ -29,6 +29,8 @@ enum Event {
     Data(Data),
     Status(oneshot::Sender<Option<Status>>),
     RequestLogs,
+    Nick(String),
+    Send(Option<Snowflake>, String),
 }
 
 #[derive(Debug)]
@@ -120,6 +122,8 @@ impl State {
                 Event::Data(data) => self.on_data(data).await?,
                 Event::Status(reply_tx) => self.on_status(reply_tx).await,
                 Event::RequestLogs => self.on_request_logs(),
+                Event::Nick(name) => self.on_nick(name),
+                Event::Send(parent, content) => self.on_send(parent, content),
             }
         }
         Ok(())
@@ -164,7 +168,6 @@ impl State {
                     let id = d.0.id;
                     self.vault.add_message(d.0, *last_msg_id);
                     *last_msg_id = Some(id);
-                    let _ = self.ui_event_tx.send(UiEvent::Redraw);
                 } else {
                     bail!("send event before snapshot event");
                 }
@@ -174,24 +177,22 @@ impl State {
                 self.vault.join(Utc::now());
                 self.last_msg_id = Some(d.log.last().map(|m| m.id));
                 self.vault.add_messages(d.log, None);
-                let _ = self.ui_event_tx.send(UiEvent::Redraw);
             }
             Data::LogReply(d) => {
                 self.vault.add_messages(d.log, d.before);
-                let _ = self.ui_event_tx.send(UiEvent::Redraw);
             }
             Data::SendReply(d) => {
                 if let Some(last_msg_id) = &mut self.last_msg_id {
                     let id = d.0.id;
                     self.vault.add_message(d.0, *last_msg_id);
                     *last_msg_id = Some(id);
-                    let _ = self.ui_event_tx.send(UiEvent::Redraw);
                 } else {
                     bail!("send reply before snapshot event");
                 }
             }
             _ => {}
         }
+        let _ = self.ui_event_tx.send(UiEvent::Redraw);
         Ok(())
     }
 
@@ -242,6 +243,24 @@ impl State {
 
         Ok(())
     }
+
+    fn on_nick(&self, name: String) {
+        if let Some(conn_tx) = &self.conn_tx {
+            let conn_tx = conn_tx.clone();
+            task::spawn(async move {
+                let _ = conn_tx.send(Nick { name }).await;
+            });
+        }
+    }
+
+    fn on_send(&self, parent: Option<Snowflake>, content: String) {
+        if let Some(conn_tx) = &self.conn_tx {
+            let conn_tx = conn_tx.clone();
+            task::spawn(async move {
+                let _ = conn_tx.send(Send { content, parent }).await;
+            });
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -252,16 +271,12 @@ pub struct Room {
 }
 
 impl Room {
-    pub fn new(
-        name: String,
-        vault: EuphVault,
-        ui_event_tx: mpsc::UnboundedSender<UiEvent>,
-    ) -> Self {
+    pub fn new(vault: EuphVault, ui_event_tx: mpsc::UnboundedSender<UiEvent>) -> Self {
         let (canary_tx, canary_rx) = oneshot::channel();
         let (event_tx, event_rx) = mpsc::unbounded_channel();
 
         let state = State {
-            name,
+            name: vault.room().to_string(),
             vault,
             ui_event_tx,
             conn_tx: None,
@@ -292,6 +307,18 @@ impl Room {
     pub fn request_logs(&self) -> Result<(), Error> {
         self.event_tx
             .send(Event::RequestLogs)
+            .map_err(|_| Error::Stopped)
+    }
+
+    pub fn nick(&self, name: String) -> Result<(), Error> {
+        self.event_tx
+            .send(Event::Nick(name))
+            .map_err(|_| Error::Stopped)
+    }
+
+    pub fn send(&self, parent: Option<Snowflake>, content: String) -> Result<(), Error> {
+        self.event_tx
+            .send(Event::Send(parent, content))
             .map_err(|_| Error::Stopped)
     }
 }
