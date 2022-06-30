@@ -7,10 +7,10 @@ use std::convert::Infallible;
 use std::time::Duration;
 
 use anyhow::bail;
-use chrono::Utc;
 use futures::channel::oneshot;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
+use log::warn;
 use rand::Rng;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc;
@@ -344,23 +344,27 @@ impl State {
     async fn do_pings(&mut self, event_tx: &mpsc::UnboundedSender<Event>) -> anyhow::Result<()> {
         // Check old ws ping
         if self.last_ws_ping.is_some() && self.last_ws_ping != self.last_ws_pong {
+            warn!("server missed ws ping");
             bail!("server missed ws ping")
         }
 
         // Send new ws ping
         let mut ws_payload = [0_u8; 8];
         rand::thread_rng().fill(&mut ws_payload);
+        self.last_ws_ping = Some(ws_payload.to_vec());
         self.ws_tx
             .send(tungstenite::Message::Ping(ws_payload.to_vec()))
             .await?;
 
         // Check old euph ping
         if self.last_euph_ping.is_some() && self.last_euph_ping != self.last_euph_pong {
+            warn!("server missed euph ping");
             bail!("server missed euph ping")
         }
 
         // Send new euph ping
-        let euph_payload = Time(Utc::now());
+        let euph_payload = Time::now();
+        self.last_euph_ping = Some(euph_payload);
         let (tx, _) = oneshot::channel();
         event_tx.send(Event::send_cmd(Ping { time: euph_payload }, tx))?;
 

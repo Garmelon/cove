@@ -33,7 +33,7 @@ impl ToSql for Time {
 impl FromSql for Time {
     fn column_result(value: ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
         let timestamp = i64::column_result(value)?;
-        Ok(Self(Utc.timestamp(timestamp, 0)))
+        Ok(Self::new(timestamp))
     }
 }
 

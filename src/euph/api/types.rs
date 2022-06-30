@@ -8,7 +8,7 @@
 
 use std::fmt;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeZone, Utc};
 use serde::{de, ser, Deserialize, Serialize};
 use serde_json::Value;
 
@@ -328,6 +328,16 @@ impl<'de> Deserialize<'de> for Snowflake {
 /// since the Unix Epoch.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Time(#[serde(with = "chrono::serde::ts_seconds")] pub DateTime<Utc>);
+
+impl Time {
+    pub fn new(timestamp: i64) -> Self {
+        Self(Utc.timestamp(timestamp, 0))
+    }
+
+    pub fn now() -> Self {
+        Self::new(Utc::now().timestamp())
+    }
+}
 
 /// Identifies a user.
 ///
