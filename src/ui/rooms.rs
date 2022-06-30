@@ -7,9 +7,7 @@ use tokio::sync::mpsc;
 use toss::frame::{Frame, Pos, Size};
 use toss::terminal::Terminal;
 
-use crate::chat::Chat;
-use crate::euph;
-use crate::vault::{EuphMsg, EuphVault, Vault};
+use crate::vault::Vault;
 
 use super::room::EuphRoom;
 use super::{util, UiEvent};
