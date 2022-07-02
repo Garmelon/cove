@@ -4,6 +4,7 @@ use std::hash::Hash;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use crossterm::style::ContentStyle;
 
 pub trait Msg {
     type Id: Clone + Debug + Hash + Eq + Ord;
@@ -12,6 +13,7 @@ pub trait Msg {
 
     fn time(&self) -> DateTime<Utc>;
     fn nick(&self) -> String;
+    fn nick_style(&self) -> ContentStyle;
     fn content(&self) -> String;
 }
 

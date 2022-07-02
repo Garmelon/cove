@@ -44,10 +44,18 @@ fn render_indent(frame: &mut Frame, x: i32, y: i32, cursor: bool, indent: usize)
     }
 }
 
-fn render_nick(frame: &mut Frame, x: i32, y: i32, indent: usize, nick: &str) {
+fn render_nick(
+    frame: &mut Frame,
+    x: i32,
+    y: i32,
+    indent: usize,
+    nick: &str,
+    nick_style: ContentStyle,
+) {
     let nick_pos = Pos::new(x + util::after_indent(indent), y);
-    let nick = format!("[{}]", nick);
-    frame.write(nick_pos, &nick, ContentStyle::default());
+    let inner_nick_pos = Pos::new(nick_pos.x + 1, nick_pos.y);
+    frame.write(nick_pos, &format!("[{nick}]"), ContentStyle::default());
+    frame.write(inner_nick_pos, nick, nick_style);
 }
 
 fn render_block<M: Msg>(frame: &mut Frame, pos: Pos, size: Size, block: &Block<M::Id>) {
@@ -64,7 +72,7 @@ fn render_block<M: Msg>(frame: &mut Frame, pos: Pos, size: Size, block: &Block<M
                 if i == 0 {
                     render_indent(frame, pos.x, y, block.cursor, block.indent);
                     render_time(frame, pos.x, y, block.cursor, block.time);
-                    render_nick(frame, pos.x, y, block.indent, &msg.nick);
+                    render_nick(frame, pos.x, y, block.indent, &msg.nick, msg.nick_style);
                 } else {
                     render_indent(frame, pos.x, y, false, block.indent + 1);
                     render_indent(frame, pos.x, y, block.cursor, block.indent);

@@ -3,6 +3,7 @@ use std::vec;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use crossterm::style::{ContentStyle, Stylize};
 use log::{Level, Log};
 use parking_lot::Mutex;
 use tokio::sync::mpsc;
@@ -34,6 +35,16 @@ impl Msg for LogMsg {
 
     fn nick(&self) -> String {
         format!("{}", self.level)
+    }
+
+    fn nick_style(&self) -> ContentStyle {
+        match self.level {
+            Level::Error => ContentStyle::default().bold().red(),
+            Level::Warn => ContentStyle::default().bold().yellow(),
+            Level::Info => ContentStyle::default().bold().green(),
+            Level::Debug => ContentStyle::default().bold().blue(),
+            Level::Trace => ContentStyle::default().bold().magenta(),
+        }
     }
 
     fn content(&self) -> String {

@@ -20,7 +20,7 @@ fn msg_to_block<M: Msg>(frame: &mut Frame, size: Size, msg: &M, indent: usize) -
         let content_width = content_width as usize;
         let lines = toss::split_at_indices(&content, &frame.wrap(&content, content_width));
         let lines = lines.into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        Block::msg(msg.id(), indent, msg.time(), nick, lines)
+        Block::msg(msg.id(), indent, msg.time(), nick, msg.nick_style(), lines)
     }
 }
 
