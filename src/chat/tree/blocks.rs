@@ -3,7 +3,7 @@
 use std::collections::VecDeque;
 
 use chrono::{DateTime, Utc};
-use crossterm::style::ContentStyle;
+use toss::styled::Styled;
 
 use crate::chat::Cursor;
 
@@ -24,9 +24,8 @@ impl<I> Block<I> {
         id: I,
         indent: usize,
         time: DateTime<Utc>,
-        nick: String,
-        nick_style: ContentStyle,
-        lines: Vec<String>,
+        nick: Styled,
+        lines: Vec<Styled>,
     ) -> Self {
         Self {
             id,
@@ -35,11 +34,7 @@ impl<I> Block<I> {
             indent,
             time: Some(time),
             cursor: false,
-            body: BlockBody::Msg(MsgBlock {
-                nick,
-                nick_style,
-                lines,
-            }),
+            body: BlockBody::Msg(MsgBlock { nick, lines }),
         }
     }
 
@@ -66,9 +61,8 @@ pub enum BlockBody {
 }
 
 pub struct MsgBlock {
-    pub nick: String,
-    pub nick_style: ContentStyle,
-    pub lines: Vec<String>,
+    pub nick: Styled,
+    pub lines: Vec<Styled>,
 }
 
 /// Pre-layouted messages as a sequence of blocks.

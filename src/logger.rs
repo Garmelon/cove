@@ -7,6 +7,7 @@ use crossterm::style::{ContentStyle, Stylize};
 use log::{Level, Log};
 use parking_lot::Mutex;
 use tokio::sync::mpsc;
+use toss::styled::Styled;
 
 use crate::store::{Msg, MsgStore, Path, Tree};
 
@@ -33,22 +34,20 @@ impl Msg for LogMsg {
         self.time
     }
 
-    fn nick(&self) -> String {
-        format!("{}", self.level)
-    }
-
-    fn nick_style(&self) -> ContentStyle {
-        match self.level {
+    fn nick(&self) -> Styled {
+        let style = match self.level {
             Level::Error => ContentStyle::default().bold().red(),
             Level::Warn => ContentStyle::default().bold().yellow(),
             Level::Info => ContentStyle::default().bold().green(),
             Level::Debug => ContentStyle::default().bold().blue(),
             Level::Trace => ContentStyle::default().bold().magenta(),
-        }
+        };
+        let text = format!("{}", self.level);
+        Styled::new((text, style))
     }
 
-    fn content(&self) -> String {
-        self.content.clone()
+    fn content(&self) -> Styled {
+        Styled::new(&self.content)
     }
 }
 

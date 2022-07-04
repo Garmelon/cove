@@ -13,14 +13,14 @@ fn msg_to_block<M: Msg>(frame: &mut Frame, size: Size, msg: &M, indent: usize) -
     let nick = msg.nick();
     let content = msg.content();
 
-    let content_width = size.width as i32 - util::after_nick(frame, indent, &nick);
+    let content_width = size.width as i32 - util::after_nick(frame, indent, &nick.text());
     if content_width < MIN_CONTENT_WIDTH as i32 {
         Block::placeholder(msg.id(), indent).time(msg.time())
     } else {
         let content_width = content_width as usize;
-        let lines = toss::split_at_indices(&content, &frame.wrap(&content, content_width));
-        let lines = lines.into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        Block::msg(msg.id(), indent, msg.time(), nick, msg.nick_style(), lines)
+        let breaks = frame.wrap(&content.text(), content_width);
+        let lines = content.split_at_indices(&breaks);
+        Block::msg(msg.id(), indent, msg.time(), nick, lines)
     }
 }
 

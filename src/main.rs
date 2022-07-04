@@ -1,5 +1,7 @@
 #![warn(clippy::use_self)]
 
+// TODO Clean up use and manipulation of toss Pos and Size
+
 mod chat;
 mod euph;
 mod logger;

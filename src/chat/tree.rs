@@ -79,6 +79,6 @@ impl<M: Msg> TreeView<M> {
         let blocks = self
             .layout_blocks(store, cursor.as_ref(), frame, size)
             .await;
-        Self::render_blocks(frame, pos, size, &blocks);
+        Self::render_blocks(frame, pos, size, blocks);
     }
 }

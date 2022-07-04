@@ -4,7 +4,7 @@ use std::hash::Hash;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use crossterm::style::ContentStyle;
+use toss::styled::Styled;
 
 pub trait Msg {
     type Id: Clone + Debug + Hash + Eq + Ord;
@@ -12,9 +12,8 @@ pub trait Msg {
     fn parent(&self) -> Option<Self::Id>;
 
     fn time(&self) -> DateTime<Utc>;
-    fn nick(&self) -> String;
-    fn nick_style(&self) -> ContentStyle;
-    fn content(&self) -> String;
+    fn nick(&self) -> Styled;
+    fn content(&self) -> Styled;
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]

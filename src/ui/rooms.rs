@@ -145,7 +145,7 @@ impl Rooms {
             };
 
             for x in 0..size.width {
-                frame.write(Pos::new(x.into(), y), " ", style);
+                frame.write(Pos::new(x.into(), y), (" ", style));
             }
             let suffix = if let Some(room) = self.euph_rooms.get(room) {
                 if room.connected() {
@@ -157,7 +157,7 @@ impl Rooms {
                 ""
             };
             let room_str = format!("&{room}{suffix}");
-            frame.write(Pos::new(0, y), &room_str, style);
+            frame.write(Pos::new(0, y), (&room_str, style));
         }
     }
 

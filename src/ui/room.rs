@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use crossterm::event::{KeyCode, KeyEvent};
-use crossterm::style::ContentStyle;
 use parking_lot::FairMutex;
 use tokio::sync::mpsc;
 use toss::frame::{Frame, Pos, Size};
@@ -80,8 +79,8 @@ impl EuphRoom {
         // Clear area in case something accidentally wrote on it already
         let size = frame.size();
         for x in 0..size.width as i32 {
-            frame.write(Pos::new(x, 0), " ", ContentStyle::default());
-            frame.write(Pos::new(x, 1), "─", ContentStyle::default());
+            frame.write(Pos::new(x, 0), " ");
+            frame.write(Pos::new(x, 1), "─");
         }
 
         // Write status
@@ -104,7 +103,7 @@ impl EuphRoom {
                 }
             }
         };
-        frame.write(Pos::new(0, 0), &status, ContentStyle::default());
+        frame.write(Pos::new(0, 0), status);
     }
 
     pub async fn handle_key_event(

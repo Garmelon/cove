@@ -1,11 +1,11 @@
 use std::mem;
 
 use async_trait::async_trait;
-use chrono::{DateTime, TimeZone, Utc};
-use crossterm::style::ContentStyle;
+use chrono::{DateTime, Utc};
 use rusqlite::types::{FromSql, FromSqlError, ToSqlOutput, Value, ValueRef};
 use rusqlite::{named_params, params, Connection, OptionalExtension, ToSql, Transaction};
 use tokio::sync::{mpsc, oneshot};
+use toss::styled::Styled;
 
 use crate::euph;
 use crate::euph::api::{Message, Snowflake, Time};
@@ -63,16 +63,12 @@ impl Msg for EuphMsg {
         self.time.0
     }
 
-    fn nick(&self) -> String {
-        self.nick.clone()
+    fn nick(&self) -> Styled {
+        (&self.nick, euph::nick_style(&self.nick)).into()
     }
 
-    fn nick_style(&self) -> ContentStyle {
-        euph::nick_style(&self.nick)
-    }
-
-    fn content(&self) -> String {
-        self.content.trim().to_string()
+    fn content(&self) -> Styled {
+        self.content.trim().into()
     }
 }
 
