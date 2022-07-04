@@ -14,8 +14,8 @@ fn normalize(text: &str) -> String {
 /// [0]: https://github.com/euphoria-io/heim/blob/master/client/lib/hueHash.js
 fn hue_hash(text: &str, offset: i64) -> u8 {
     let mut val = 0_i32;
-    for char in text.chars() {
-        let char_val = (char as i32).wrapping_mul(439) % 256;
+    for bibyte in text.encode_utf16() {
+        let char_val = (bibyte as i32).wrapping_mul(439) % 256;
         val = val.wrapping_mul(33).wrapping_add(char_val);
     }
 
