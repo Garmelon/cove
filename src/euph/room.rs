@@ -131,10 +131,7 @@ impl State {
 
     async fn on_data(&mut self, data: Data) -> anyhow::Result<()> {
         match data {
-            Data::BounceEvent(_) => {
-                error!("e&{}: auth not implemented", self.name);
-                bail!("auth not implemented");
-            }
+            Data::BounceEvent(_) => {}
             Data::DisconnectEvent(d) => {
                 warn!("e&{}: disconnected for reason {:?}", self.name, d.reason);
             }
