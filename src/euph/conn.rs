@@ -27,6 +27,10 @@ use super::api::{
 
 pub type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
+/// Timeout used for any kind of reply from the server, including to ws and euph
+/// pings. Also used as the time in-between pings.
+const TIMEOUT: Duration = Duration::from_secs(30); // TODO Make configurable
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("connection closed")]
@@ -182,7 +186,7 @@ impl State {
         let mut state = Self {
             ws_tx,
             last_id: 0,
-            replies: Replies::new(Duration::from_secs(10)), // TODO Make configurable
+            replies: Replies::new(TIMEOUT),
             packet_tx,
             last_ws_ping: None,
             last_ws_pong: None,
@@ -213,7 +217,7 @@ impl State {
     async fn send_ping_events(event_tx: &mpsc::UnboundedSender<Event>) -> anyhow::Result<()> {
         loop {
             event_tx.send(Event::DoPings)?;
-            time::sleep(Duration::from_secs(10)).await; // TODO Make configurable
+            time::sleep(TIMEOUT).await;
         }
     }
 
