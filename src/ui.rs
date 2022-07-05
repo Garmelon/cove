@@ -1,4 +1,5 @@
 mod chat;
+mod list;
 mod room;
 mod rooms;
 mod util;
