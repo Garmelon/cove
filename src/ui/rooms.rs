@@ -1,14 +1,20 @@
 use std::collections::{HashMap, HashSet};
+use std::iter;
 use std::sync::Arc;
 
 use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::style::{ContentStyle, Stylize};
 use parking_lot::FairMutex;
 use tokio::sync::mpsc;
 use toss::frame::{Frame, Pos, Size};
+use toss::styled::Styled;
 use toss::terminal::Terminal;
 
+use crate::euph::api::SessionType;
+use crate::euph::{Joined, Status};
 use crate::vault::Vault;
 
+use super::list::{List, Row};
 use super::room::EuphRoom;
 use super::{util, UiEvent};
 
@@ -34,10 +40,7 @@ pub struct Rooms {
     vault: Vault,
     ui_event_tx: mpsc::UnboundedSender<UiEvent>,
 
-    /// Cursor position inside the room list.
-    ///
-    /// If there are any rooms, this should point to a valid room.
-    cursor: Option<Cursor>,
+    list: List<String>,
 
     /// If set, a single room is displayed in full instead of the room list.
     focus: Option<String>,
@@ -50,7 +53,7 @@ impl Rooms {
         Self {
             vault,
             ui_event_tx,
-            cursor: None,
+            list: List::new(),
             focus: None,
             euph_rooms: HashMap::new(),
         }
@@ -62,7 +65,7 @@ impl Rooms {
             rooms.insert(room);
         }
         for (name, room) in &self.euph_rooms {
-            if room.connected() {
+            if !room.stopped() {
                 rooms.insert(name.clone());
             }
         }
@@ -71,50 +74,27 @@ impl Rooms {
         rooms
     }
 
-    fn make_cursor_consistent(&mut self, rooms: &[String], height: i32) {
-        // Fix index if it's wrong
-        if rooms.is_empty() {
-            self.cursor = None;
-        } else if let Some(cursor) = &mut self.cursor {
-            let max_index = rooms.len() - 1;
-            if cursor.index > max_index {
-                cursor.index = max_index;
-            }
-        } else {
-            self.cursor = Some(Cursor::default());
-        }
+    /// Remove rooms that are not running any more and can't be found in the db.
+    ///
+    /// These kinds of rooms are either
+    /// - failed connection attempts, or
+    /// - rooms that were deleted from the db.
+    async fn stabilize_rooms(&mut self) -> Vec<String> {
+        let mut rooms = self.vault.euph_rooms().await;
+        let rooms_set = rooms.iter().map(|n| n as &str).collect::<HashSet<_>>();
+        self.euph_rooms
+            .retain(|n, r| !r.stopped() || rooms_set.contains(n as &str));
 
-        // Fix line if it's wrong
-        if let Some(cursor) = &mut self.cursor {
-            cursor.line = cursor
-                .line
-                // Make sure the cursor is visible on screen
-                .clamp(0, height - 1)
-                // Make sure there is no free space below the room list:
-                // height - line <= len - index
-                // height - len + index <= line
-                .max(height - rooms.len() as i32 + cursor.index as i32)
-                // Make sure there is no free space above the room list:
-                // line <= index
-                .min(cursor.index as i32);
-        }
-    }
-
-    fn make_euph_rooms_consistent(&mut self, rooms: &[String]) {
-        let rooms = rooms
-            .iter()
-            .map(|n| n.to_string())
-            .collect::<HashSet<String>>();
-
-        self.euph_rooms.retain(|n, _| rooms.contains(n));
         for room in self.euph_rooms.values_mut() {
             room.retain();
         }
-    }
 
-    fn make_consistent(&mut self, rooms: &[String], height: i32) {
-        self.make_cursor_consistent(rooms, height);
-        self.make_euph_rooms_consistent(rooms);
+        for room in self.euph_rooms.keys() {
+            rooms.push(room.clone());
+        }
+        rooms.sort_unstable();
+        rooms.dedup();
+        rooms
     }
 
     pub async fn render(&mut self, frame: &mut Frame) {
@@ -128,37 +108,81 @@ impl Rooms {
         }
     }
 
-    async fn render_rooms(&mut self, frame: &mut Frame) {
-        let size = frame.size();
-
-        let rooms = self.rooms().await;
-        self.make_consistent(&rooms, size.height.into());
-
-        let cursor = self.cursor.unwrap_or_default();
-        for (index, room) in rooms.iter().enumerate() {
-            let y = index as i32 - cursor.index as i32 + cursor.line;
-
-            let style = if index == cursor.index {
-                style::room_inverted()
-            } else {
-                style::room()
-            };
-
-            for x in 0..size.width {
-                frame.write(Pos::new(x.into(), y), (" ", style));
+    fn format_pbln(joined: &Joined) -> String {
+        let mut p = 0_usize;
+        let mut b = 0_usize;
+        let mut l = 0_usize;
+        let mut n = 0_usize;
+        for sess in iter::once(&joined.session).chain(joined.listing.values()) {
+            match sess.id.session_type() {
+                Some(SessionType::Bot) if sess.name.is_empty() => n += 1,
+                Some(SessionType::Bot) => b += 1,
+                _ if sess.name.is_empty() => l += 1,
+                _ => p += 1,
             }
-            let suffix = if let Some(room) = self.euph_rooms.get(room) {
-                if room.connected() {
-                    "*"
-                } else {
-                    ""
-                }
-            } else {
-                ""
-            };
-            let room_str = format!("&{room}{suffix}");
-            frame.write(Pos::new(0, y), (&room_str, style));
         }
+
+        // There must always be either one p, b, l or n since we're including
+        // ourselves.
+        let mut result = vec![];
+        if p > 0 {
+            result.push(format!("{p}p"));
+        }
+        if b > 0 {
+            result.push(format!("{b}b"));
+        }
+        if l > 0 {
+            result.push(format!("{l}l"));
+        }
+        if n > 0 {
+            result.push(format!("{n}n"));
+        }
+        result.join(" ")
+    }
+
+    fn format_status(status: &Option<Status>) -> String {
+        match status {
+            None => " (connecting)".to_string(),
+            Some(Status::Joining(j)) if j.bounce.is_some() => " (auth required)".to_string(),
+            Some(Status::Joining(_)) => " (joining)".to_string(),
+            Some(Status::Joined(j)) => format!(" ({})", Self::format_pbln(j)),
+        }
+    }
+
+    async fn render_rows(&self, rooms: Vec<String>) -> Vec<Row<String>> {
+        let mut rows: Vec<Row<String>> =
+            vec![Row::unsel(("Rooms", ContentStyle::default().bold()))];
+
+        if rooms.is_empty() {
+            rows.push(Row::unsel(("none", ContentStyle::default().dark_grey())))
+        }
+
+        for room in rooms {
+            let bg_style = ContentStyle::default();
+            let bg_sel_style = ContentStyle::default().black().on_white();
+            let room_style = ContentStyle::default().bold().blue();
+            let room_sel_style = ContentStyle::default().bold().black().on_white();
+
+            let mut normal = Styled::new((format!("&{room}"), room_style));
+            let mut selected = Styled::new((format!("&{room}"), room_sel_style));
+            if let Some(room) = self.euph_rooms.get(&room) {
+                if let Some(status) = room.status().await {
+                    let status = Self::format_status(&status);
+                    normal = normal.then((status.clone(), bg_style));
+                    selected = selected.then((status, bg_sel_style));
+                }
+            };
+
+            rows.push(Row::sel(room, normal, bg_style, selected, bg_sel_style));
+        }
+
+        rows
+    }
+
+    async fn render_rooms(&mut self, frame: &mut Frame) {
+        let rooms = self.stabilize_rooms().await;
+        let rows = self.render_rows(rooms).await;
+        self.list.render(frame, Pos::ZERO, frame.size(), rows);
     }
 
     pub async fn handle_key_event(
@@ -180,70 +204,47 @@ impl Rooms {
                     .await;
             }
         } else {
-            let rooms = self.rooms().await;
-            self.make_consistent(&rooms, size.height.into());
+            let height = size.height as usize;
+
+            let rooms = self.stabilize_rooms().await;
+            let rows = self.render_rows(rooms).await;
 
             match event.code {
                 KeyCode::Enter => {
-                    if let Some(cursor) = self.cursor {
-                        if let Some(room) = rooms.get(cursor.index) {
-                            self.focus = Some(room.clone());
-                        }
+                    if let Some(name) = self.list.cursor() {
+                        self.focus = Some(name.clone());
                     }
                 }
-                KeyCode::Char('j') => {
-                    if let Some(cursor) = &mut self.cursor {
-                        cursor.index = cursor.index.saturating_add(1);
-                        cursor.line += 1;
-                    }
-                }
-                KeyCode::Char('k') => {
-                    if let Some(cursor) = &mut self.cursor {
-                        cursor.index = cursor.index.saturating_sub(1);
-                        cursor.line -= 1;
-                    }
-                }
+                KeyCode::Char('j') | KeyCode::Down => self.list.move_cursor_down(height, &rows),
+                KeyCode::Char('k') | KeyCode::Up => self.list.move_cursor_up(height, &rows),
+                KeyCode::Char('J') => self.list.scroll_down(height, &rows), // TODO Replace by Ctrl+E and mouse scroll
+                KeyCode::Char('K') => self.list.scroll_up(height, &rows), // TODO Replace by Ctrl+Y and mouse scroll
                 KeyCode::Char('c') => {
-                    if let Some(cursor) = &self.cursor {
-                        if let Some(room) = rooms.get(cursor.index) {
-                            let room = room.clone();
-                            let actual_room =
-                                self.euph_rooms.entry(room.clone()).or_insert_with(|| {
-                                    EuphRoom::new(
-                                        self.vault.euph(room.clone()),
-                                        self.ui_event_tx.clone(),
-                                    )
-                                });
-                            actual_room.connect();
-                        }
+                    if let Some(name) = self.list.cursor() {
+                        let room = self.euph_rooms.entry(name.clone()).or_insert_with(|| {
+                            EuphRoom::new(self.vault.euph(name.clone()), self.ui_event_tx.clone())
+                        });
+                        room.connect();
                     }
                 }
                 KeyCode::Char('C') => {
-                    if let Some(room) = util::prompt(terminal, crossterm_lock) {
-                        let room = room.trim().to_string();
-                        let actual_room =
-                            self.euph_rooms.entry(room.clone()).or_insert_with(|| {
-                                EuphRoom::new(
-                                    self.vault.euph(room.clone()),
-                                    self.ui_event_tx.clone(),
-                                )
-                            });
-                        actual_room.connect();
+                    if let Some(name) = util::prompt(terminal, crossterm_lock) {
+                        let name = name.trim().to_string();
+                        let room = self.euph_rooms.entry(name.clone()).or_insert_with(|| {
+                            EuphRoom::new(self.vault.euph(name), self.ui_event_tx.clone())
+                        });
+                        room.connect();
                     }
                 }
                 KeyCode::Char('d') => {
-                    if let Some(cursor) = &self.cursor {
-                        if let Some(room) = rooms.get(cursor.index) {
-                            self.euph_rooms.remove(room);
-                        }
+                    if let Some(name) = self.list.cursor() {
+                        self.euph_rooms.remove(name);
                     }
                 }
                 KeyCode::Char('D') => {
-                    if let Some(cursor) = &self.cursor {
-                        if let Some(room) = rooms.get(cursor.index) {
-                            self.euph_rooms.remove(room);
-                            self.vault.euph(room.clone()).delete();
-                        }
+                    if let Some(name) = self.list.cursor() {
+                        self.euph_rooms.remove(name);
+                        self.vault.euph(name.clone()).delete();
                     }
                 }
                 _ => {}

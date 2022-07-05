@@ -348,3 +348,24 @@ impl Time {
 /// fixed format for the unique value.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UserId(pub String);
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum SessionType {
+    Agent,
+    Account,
+    Bot,
+}
+
+impl UserId {
+    pub fn session_type(&self) -> Option<SessionType> {
+        if self.0.starts_with("agent:") {
+            Some(SessionType::Agent)
+        } else if self.0.starts_with("account:") {
+            Some(SessionType::Account)
+        } else if self.0.starts_with("bot:") {
+            Some(SessionType::Bot)
+        } else {
+            None
+        }
+    }
+}

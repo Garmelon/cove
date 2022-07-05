@@ -40,12 +40,16 @@ impl EuphRoom {
         self.room = None;
     }
 
-    pub fn connected(&self) -> bool {
+    pub async fn status(&self) -> Option<Option<Status>> {
         if let Some(room) = &self.room {
-            !room.stopped()
+            room.status().await.ok()
         } else {
-            false
+            None
         }
+    }
+
+    pub fn stopped(&self) -> bool {
+        self.room.as_ref().map(|r| r.stopped()).unwrap_or(true)
     }
 
     pub fn retain(&mut self) {
