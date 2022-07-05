@@ -3,9 +3,9 @@
 use crossterm::style::{ContentStyle, Stylize};
 use toss::frame::Frame;
 
-pub const TIME_FORMAT: &str = "%H:%M ";
-pub const TIME_EMPTY: &str = "      ";
-pub const TIME_WIDTH: usize = 6;
+pub const TIME_FORMAT: &str = "%F %R ";
+pub const TIME_EMPTY: &str = "                 ";
+pub const TIME_WIDTH: usize = TIME_EMPTY.len();
 
 pub fn style_time() -> ContentStyle {
     ContentStyle::default().grey()
