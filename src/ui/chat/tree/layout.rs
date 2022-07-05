@@ -2,12 +2,11 @@
 
 use toss::frame::{Frame, Size};
 
-use crate::chat::Cursor;
 use crate::store::{Msg, MsgStore, Tree};
 
 use super::blocks::{Block, Blocks};
 use super::util::{self, MIN_CONTENT_WIDTH};
-use super::TreeView;
+use super::{Cursor, TreeView};
 
 fn msg_to_block<M: Msg>(frame: &mut Frame, size: Size, msg: &M, indent: usize) -> Block<M::Id> {
     let nick = msg.nick();

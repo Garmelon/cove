@@ -6,10 +6,10 @@ use tokio::sync::mpsc;
 use toss::frame::{Frame, Pos, Size};
 use toss::terminal::Terminal;
 
-use crate::chat::Chat;
 use crate::euph::{self, Status};
 use crate::vault::{EuphMsg, EuphVault};
 
+use super::chat::Chat;
 use super::{util, UiEvent};
 
 pub struct EuphRoom {

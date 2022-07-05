@@ -1,3 +1,4 @@
+mod chat;
 mod room;
 mod rooms;
 mod util;
@@ -14,10 +15,10 @@ use tokio::task;
 use toss::frame::{Frame, Pos, Size};
 use toss::terminal::Terminal;
 
-use crate::chat::Chat;
 use crate::logger::{LogMsg, Logger};
 use crate::vault::Vault;
 
+use self::chat::Chat;
 use self::rooms::Rooms;
 
 #[derive(Debug)]

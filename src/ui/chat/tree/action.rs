@@ -3,10 +3,9 @@ use std::sync::Arc;
 use parking_lot::FairMutex;
 use toss::terminal::Terminal;
 
-use crate::chat::Cursor;
 use crate::store::{Msg, MsgStore};
 
-use super::TreeView;
+use super::{Cursor, TreeView};
 
 impl<M: Msg> TreeView<M> {
     fn prompt_msg(crossterm_lock: &Arc<FairMutex<()>>, terminal: &mut Terminal) -> Option<String> {

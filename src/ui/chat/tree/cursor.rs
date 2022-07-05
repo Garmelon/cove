@@ -2,11 +2,10 @@
 
 use toss::frame::{Frame, Size};
 
-use crate::chat::Cursor;
 use crate::store::{Msg, MsgStore, Tree};
 
 use super::blocks::Blocks;
-use super::{util, TreeView};
+use super::{util, Cursor, TreeView};
 
 impl<M: Msg> TreeView<M> {
     #[allow(clippy::too_many_arguments)]

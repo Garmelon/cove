@@ -5,9 +5,7 @@ use std::collections::VecDeque;
 use chrono::{DateTime, Utc};
 use toss::styled::Styled;
 
-use crate::chat::Cursor;
-
-use super::util;
+use super::{util, Cursor};
 
 pub struct Block<I> {
     pub id: I,
