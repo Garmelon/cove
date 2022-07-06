@@ -189,7 +189,14 @@ impl<Id: Clone + Eq> List<Id> {
         self.clamp_scrolling(height, rows.len());
     }
 
-    pub fn render(&mut self, frame: &mut Frame, pos: Pos, size: Size, rows: Vec<Row<Id>>) {
+    pub fn render(
+        &mut self,
+        frame: &mut Frame,
+        pos: Pos,
+        size: Size,
+        rows: Vec<Row<Id>>,
+        focus: bool,
+    ) {
         self.stabilize(size.height as usize, &rows);
 
         for (i, row) in rows.into_iter().enumerate() {
@@ -208,7 +215,7 @@ impl<Id: Clone + Eq> List<Id> {
                     selected,
                     selected_bg,
                 } => {
-                    let (fg, bg) = if self.cursor() == Some(&id) {
+                    let (fg, bg) = if focus && self.cursor() == Some(&id) {
                         (selected, selected_bg)
                     } else {
                         (normal, normal_bg)

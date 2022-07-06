@@ -149,7 +149,7 @@ impl Rooms {
     async fn render_rooms(&mut self, frame: &mut Frame) {
         let rooms = self.stabilize_rooms().await;
         let rows = self.render_rows(rooms).await;
-        self.list.render(frame, Pos::ZERO, frame.size(), rows);
+        self.list.render(frame, Pos::ZERO, frame.size(), rows, true);
     }
 
     pub async fn handle_key_event(

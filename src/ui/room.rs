@@ -235,7 +235,7 @@ impl EuphRoom {
         }
 
         let rows = Self::render_rows(joined);
-        self.nick_list.render(frame, pos, size, rows);
+        self.nick_list.render(frame, pos, size, rows, false);
     }
 
     fn render_hsplit(frame: &mut Frame, hsplit: i32) {
