@@ -117,12 +117,11 @@ impl Rooms {
     }
 
     async fn render_rows(&self, rooms: Vec<String>) -> Vec<Row<String>> {
-        let mut rows: Vec<Row<String>> =
-            vec![Row::unsel(("Rooms", ContentStyle::default().bold()))];
+        let mut rows: Vec<Row<String>> = vec![];
 
-        if rooms.is_empty() {
-            rows.push(Row::unsel(("none", ContentStyle::default().dark_grey())))
-        }
+        let heading_style = ContentStyle::default().bold();
+        let heading = Styled::new(("Rooms", heading_style)).then(format!(" ({})", rooms.len()));
+        rows.push(Row::unsel(heading));
 
         for room in rooms {
             let bg_style = ContentStyle::default();
