@@ -154,7 +154,7 @@ impl<Id: Clone + Eq> List<Id> {
     pub fn move_cursor_up(&mut self, height: usize, rows: &[Row<Id>]) {
         self.stabilize(height, rows);
 
-        self.cursor = if let Some((cid, cidx)) = &self.cursor {
+        self.cursor = if let Some((_, cidx)) = &self.cursor {
             Self::selectable_before_index(rows, *cidx).or_else(|| Self::first_selectable(rows))
         } else {
             Self::last_selectable(rows)
@@ -167,7 +167,7 @@ impl<Id: Clone + Eq> List<Id> {
     pub fn move_cursor_down(&mut self, height: usize, rows: &[Row<Id>]) {
         self.stabilize(height, rows);
 
-        self.cursor = if let Some((cid, cidx)) = &self.cursor {
+        self.cursor = if let Some((_, cidx)) = &self.cursor {
             Self::selectable_after_index(rows, *cidx).or_else(|| Self::last_selectable(rows))
         } else {
             Self::first_selectable(rows)

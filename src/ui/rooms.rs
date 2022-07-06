@@ -18,24 +18,6 @@ use super::list::{List, Row};
 use super::room::EuphRoom;
 use super::{util, UiEvent};
 
-mod style {
-    use crossterm::style::{ContentStyle, Stylize};
-
-    pub fn room() -> ContentStyle {
-        ContentStyle::default().bold().blue()
-    }
-
-    pub fn room_inverted() -> ContentStyle {
-        ContentStyle::default().bold().black().on_white()
-    }
-}
-
-#[derive(Debug, Default, Clone, Copy)]
-struct Cursor {
-    index: usize,
-    line: i32,
-}
-
 pub struct Rooms {
     vault: Vault,
     ui_event_tx: mpsc::UnboundedSender<UiEvent>,
@@ -57,21 +39,6 @@ impl Rooms {
             focus: None,
             euph_rooms: HashMap::new(),
         }
-    }
-
-    async fn rooms(&self) -> Vec<String> {
-        let mut rooms = HashSet::new();
-        for room in self.vault.euph_rooms().await {
-            rooms.insert(room);
-        }
-        for (name, room) in &self.euph_rooms {
-            if !room.stopped() {
-                rooms.insert(name.clone());
-            }
-        }
-        let mut rooms = rooms.into_iter().collect::<Vec<_>>();
-        rooms.sort_unstable();
-        rooms
     }
 
     /// Remove rooms that are not running any more and can't be found in the db.
