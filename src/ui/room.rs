@@ -151,35 +151,50 @@ impl EuphRoom {
         frame.write(pos, info);
     }
 
-    fn render_row(session: &SessionView) -> Row<String> {
-        if session.name.is_empty() {
+    fn render_row(session: &SessionView, own_session: &SessionView) -> Row<String> {
+        let id = session.session_id.clone();
+
+        let (name, style, style_inv) = if session.name.is_empty() {
             let name = "lurk";
             let style = ContentStyle::default().grey();
             let style_inv = ContentStyle::default().black().on_grey();
-            Row::sel(
-                session.session_id.clone(),
-                Styled::new((name, style)),
-                style,
-                Styled::new((name, style_inv)),
-                style_inv,
-            )
+            (name, style, style_inv)
         } else {
-            let name = &session.name;
+            let name = &session.name as &str;
             let (r, g, b) = euph::nick_color(name);
             let color = Color::Rgb { r, g, b };
             let style = ContentStyle::default().bold().with(color);
             let style_inv = ContentStyle::default().bold().black().on(color);
-            Row::sel(
-                session.session_id.clone(),
-                Styled::new((name, style)),
-                style,
-                Styled::new((name, style_inv)),
-                style_inv,
-            )
-        }
+            (name, style, style_inv)
+        };
+
+        let perms = if session.is_staff {
+            "!"
+        } else if session.is_manager {
+            "*"
+        } else if session.id.session_type() == Some(SessionType::Account) {
+            "~"
+        } else {
+            ""
+        };
+
+        let owner = if session.session_id == own_session.session_id {
+            ">"
+        } else {
+            ""
+        };
+
+        let normal = Styled::new(owner).then(perms).then((name, style));
+        let selected = Styled::new(owner).then(perms).then((name, style_inv));
+        Row::sel(id, normal, style, selected, style_inv)
     }
 
-    fn render_section(rows: &mut Vec<Row<String>>, name: &str, sessions: &[&SessionView]) {
+    fn render_section(
+        rows: &mut Vec<Row<String>>,
+        name: &str,
+        sessions: &[&SessionView],
+        own_session: &SessionView,
+    ) {
         if sessions.is_empty() {
             return;
         }
@@ -193,8 +208,8 @@ impl EuphRoom {
         let row = Styled::new((name, heading_style)).then(format!(" ({})", sessions.len()));
         rows.push(Row::unsel(row));
 
-        for sess in sessions {
-            rows.push(Self::render_row(sess));
+        for session in sessions {
+            rows.push(Self::render_row(session, own_session));
         }
     }
 
@@ -219,10 +234,10 @@ impl EuphRoom {
         nurkers.sort_unstable_by_key(|s| &s.session_id);
 
         let mut rows: Vec<Row<String>> = vec![];
-        Self::render_section(&mut rows, "People", &people);
-        Self::render_section(&mut rows, "Bots", &bots);
-        Self::render_section(&mut rows, "Lurkers", &lurkers);
-        Self::render_section(&mut rows, "Nurkers", &nurkers);
+        Self::render_section(&mut rows, "People", &people, &joined.session);
+        Self::render_section(&mut rows, "Bots", &bots, &joined.session);
+        Self::render_section(&mut rows, "Lurkers", &lurkers, &joined.session);
+        Self::render_section(&mut rows, "Nurkers", &nurkers, &joined.session);
         rows
     }
 
