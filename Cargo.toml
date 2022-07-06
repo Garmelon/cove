@@ -7,7 +7,7 @@ edition = "2021"
 anyhow = "1.0.58"
 async-trait = "0.1.56"
 chrono = { version = "0.4.19", features = ["serde"] }
-crossterm = "0.23.2"
+crossterm = "0.24.0"
 directories = "4.0.1"
 edit = "0.1.4"
 futures = "0.3.21"
@@ -16,8 +16,8 @@ palette = { version = "0.6.0", default-features = false, features = ["std"] }
 parking_lot = "0.12.1"
 rand = "0.8.5"
 rusqlite = { version = "0.27.0", features = ["chrono"] }
-serde = { version = "1.0.137", features = ["derive"] }
-serde_json = "1.0.81"
+serde = { version = "1.0.138", features = ["derive"] }
+serde_json = "1.0.82"
 thiserror = "1.0.31"
 tokio = { version = "1.19.2", features = ["full"] }
 
@@ -27,4 +27,4 @@ features = ["rustls-tls-native-roots"]
 
 [dependencies.toss]
 git = "https://github.com/Garmelon/toss.git"
-rev = "ee9d6018c0efb5e6eb02db94dff7483d33b96a43"
+rev = "26bf89023e254778b9dcb826840f677ed7105292"
