@@ -41,11 +41,11 @@ impl FromSql for Time {
 
 #[derive(Debug, Clone)]
 pub struct EuphMsg {
-    id: Snowflake,
-    parent: Option<Snowflake>,
-    time: Time,
-    nick: String,
-    content: String,
+    pub id: Snowflake,
+    pub parent: Option<Snowflake>,
+    pub time: Time,
+    pub nick: String,
+    pub content: String,
 }
 
 impl Msg for EuphMsg {
