@@ -59,7 +59,7 @@ fn write_msg(file: &mut BufWriter<File>, indent_string: &str, msg: &EuphMsg) -> 
             let time = msg.time.0.format(TIME_FORMAT);
             writeln!(file, "{time} {indent_string}[{nick}] {line}")?;
         } else {
-            writeln!(file, "{TIME_EMPTY} {indent_string} {nick_empty}  {line}")?;
+            writeln!(file, "{TIME_EMPTY} {indent_string}| {nick_empty} {line}")?;
         }
     }
 
@@ -67,6 +67,6 @@ fn write_msg(file: &mut BufWriter<File>, indent_string: &str, msg: &EuphMsg) -> 
 }
 
 fn write_placeholder(file: &mut BufWriter<File>, indent_string: &str) -> anyhow::Result<()> {
-    writeln!(file, "{TIME_EMPTY} {indent_string}...")?;
+    writeln!(file, "{TIME_EMPTY} {indent_string}[...]")?;
     Ok(())
 }
