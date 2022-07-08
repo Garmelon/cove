@@ -208,6 +208,7 @@ dependencies = [
  "tokio",
  "tokio-tungstenite",
  "toss",
+ "unicode-segmentation",
  "unicode-width",
 ]
 
@@ -1245,7 +1246,7 @@ dependencies = [
 [[package]]
 name = "toss"
 version = "0.1.0"
-source = "git+https://github.com/Garmelon/toss.git?rev=26bf89023e254778b9dcb826840f677ed7105292#26bf89023e254778b9dcb826840f677ed7105292"
+source = "git+https://github.com/Garmelon/toss.git?rev=d693712dab61d806c3ac36083d27016e67794154#d693712dab61d806c3ac36083d27016e67794154"
 dependencies = [
  "crossterm",
  "unicode-linebreak",

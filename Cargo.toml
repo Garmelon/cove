@@ -21,6 +21,7 @@ serde = { version = "1.0.138", features = ["derive"] }
 serde_json = "1.0.82"
 thiserror = "1.0.31"
 tokio = { version = "1.19.2", features = ["full"] }
+unicode-segmentation = "1.9.0"
 unicode-width = "0.1.9"
 
 [dependencies.tokio-tungstenite]
@@ -29,4 +30,4 @@ features = ["rustls-tls-native-roots"]
 
 [dependencies.toss]
 git = "https://github.com/Garmelon/toss.git"
-rev = "26bf89023e254778b9dcb826840f677ed7105292"
+rev = "d693712dab61d806c3ac36083d27016e67794154"
