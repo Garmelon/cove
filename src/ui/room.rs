@@ -219,7 +219,11 @@ impl EuphRoom {
         let mut lurkers = vec![];
         let mut nurkers = vec![];
 
-        for sess in iter::once(&joined.session).chain(joined.listing.values()) {
+        let mut sessions = iter::once(&joined.session)
+            .chain(joined.listing.values())
+            .collect::<Vec<_>>();
+        sessions.sort_unstable_by_key(|s| &s.name);
+        for sess in sessions {
             match sess.id.session_type() {
                 Some(SessionType::Bot) if sess.name.is_empty() => nurkers.push(sess),
                 Some(SessionType::Bot) => bots.push(sess),
