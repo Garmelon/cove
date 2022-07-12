@@ -15,7 +15,9 @@ use crate::euph::{Joined, Status};
 use crate::vault::Vault;
 
 use super::room::EuphRoom;
+use super::widgets::background::Background;
 use super::widgets::list::{List, ListState};
+use super::widgets::text::Text;
 use super::widgets::Widget;
 use super::{util, UiEvent};
 
@@ -120,7 +122,7 @@ impl Rooms {
     async fn render_rows(&self, list: &mut List<String>, rooms: Vec<String>) {
         let heading_style = ContentStyle::default().bold();
         let heading = Styled::new(("Rooms", heading_style)).then(format!(" ({})", rooms.len()));
-        list.add_unsel(heading);
+        list.add_unsel(Text::new(heading));
 
         for room in rooms {
             let bg_style = ContentStyle::default();
@@ -138,7 +140,11 @@ impl Rooms {
                 }
             };
 
-            list.add_sel(room, normal, bg_style, selected, bg_sel_style);
+            list.add_sel(
+                room,
+                Text::new(normal),
+                Background::new(Text::new(selected), bg_sel_style),
+            );
         }
     }
 

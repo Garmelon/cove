@@ -14,7 +14,10 @@ use crate::euph::{self, Joined, Status};
 use crate::vault::{EuphMsg, EuphVault};
 
 use super::chat::Chat;
+use super::widgets::background::Background;
+use super::widgets::empty::Empty;
 use super::widgets::list::{List, ListState};
+use super::widgets::text::Text;
 use super::widgets::Widget;
 use super::{util, UiEvent};
 
@@ -188,7 +191,11 @@ impl EuphRoom {
 
         let normal = Styled::new(owner).then(perms).then((name, style));
         let selected = Styled::new(owner).then(perms).then((name, style_inv));
-        list.add_sel(id, normal, style, selected, style_inv);
+        list.add_sel(
+            id,
+            Text::new(normal),
+            Background::new(Text::new(selected), style_inv),
+        );
     }
 
     fn render_section(
@@ -204,11 +211,11 @@ impl EuphRoom {
         let heading_style = ContentStyle::new().bold();
 
         if !list.is_empty() {
-            list.add_unsel("");
+            list.add_unsel(Empty);
         }
 
         let row = Styled::new((name, heading_style)).then(format!(" ({})", sessions.len()));
-        list.add_unsel(row);
+        list.add_unsel(Text::new(row));
 
         for session in sessions {
             Self::render_row(list, session, own_session);

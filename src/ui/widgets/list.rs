@@ -1,10 +1,8 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use crossterm::style::ContentStyle;
 use parking_lot::Mutex;
 use toss::frame::{Frame, Pos, Size};
-use toss::styled::Styled;
 
 use super::Widget;
 
@@ -12,7 +10,7 @@ use super::Widget;
 // State //
 ///////////
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Cursor<Id> {
     /// Id of the element the cursor is pointing to.
     ///
@@ -123,16 +121,6 @@ impl<Id: Clone> InnerListState<Id> {
     }
 }
 
-impl<Id: Eq> InnerListState<Id> {
-    fn focusing(&self, id: &Id) -> bool {
-        if let Some(cursor) = &self.cursor {
-            cursor.id == *id
-        } else {
-            false
-        }
-    }
-}
-
 impl<Id: Clone + Eq> InnerListState<Id> {
     fn selectable_of_id(&self, id: &Id) -> Option<Cursor<Id>> {
         self.rows.iter().enumerate().find_map(|(i, r)| match r {
@@ -217,31 +205,38 @@ impl<Id: Clone> ListState<Id> {
 // Widget //
 ////////////
 
-// TODO Use widgets for rows
-#[derive(Debug)]
 enum Row<Id> {
-    Unselectable(Styled),
+    Unselectable {
+        normal: Box<dyn Widget + Send>,
+    },
     Selectable {
         id: Id,
-        normal: Styled,
-        normal_bg: ContentStyle,
-        selected: Styled,
-        selected_bg: ContentStyle,
+        normal: Box<dyn Widget + Send>,
+        selected: Box<dyn Widget + Send>,
     },
 }
 
 impl<Id> Row<Id> {
     fn id(&self) -> Option<&Id> {
         match self {
-            Row::Unselectable(_) => None,
+            Row::Unselectable { .. } => None,
             Row::Selectable { id, .. } => Some(id),
         }
     }
 
-    fn styled(&self) -> &Styled {
+    fn size(&self, frame: &mut Frame, max_width: Option<u16>, max_height: Option<u16>) -> Size {
         match self {
-            Row::Unselectable(styled) => styled,
-            Row::Selectable { normal, .. } => normal,
+            Row::Unselectable { normal } => normal.size(frame, max_width, max_height),
+            Row::Selectable {
+                normal, selected, ..
+            } => {
+                let normal_size = normal.size(frame, max_width, max_height);
+                let selected_size = selected.size(frame, max_width, max_height);
+                Size::new(
+                    normal_size.width.max(selected_size.width),
+                    normal_size.height.max(selected_size.height),
+                )
+            }
         }
     }
 }
@@ -270,70 +265,75 @@ impl<Id> List<Id> {
         self.rows.is_empty()
     }
 
-    pub fn add_unsel<S: Into<Styled>>(&mut self, styled: S) {
-        self.rows.push(Row::Unselectable(styled.into()));
+    pub fn add_unsel<W: 'static + Widget + Send>(&mut self, normal: W) {
+        self.rows.push(Row::Unselectable {
+            normal: Box::new(normal),
+        });
     }
 
-    pub fn add_sel<S1, S2>(
-        &mut self,
-        id: Id,
-        normal: S1,
-        normal_bg: ContentStyle,
-        selected: S2,
-        selected_bg: ContentStyle,
-    ) where
-        S1: Into<Styled>,
-        S2: Into<Styled>,
+    pub fn add_sel<W1, W2>(&mut self, id: Id, normal: W1, selected: W2)
+    where
+        W1: 'static + Widget + Send,
+        W2: 'static + Widget + Send,
     {
         self.rows.push(Row::Selectable {
             id,
-            normal: normal.into(),
-            normal_bg,
-            selected: selected.into(),
-            selected_bg,
+            normal: Box::new(normal),
+            selected: Box::new(selected),
         });
     }
 }
 
 #[async_trait]
 impl<Id: Clone + Eq + Send> Widget for List<Id> {
-    fn size(&self, frame: &mut Frame, _max_width: Option<u16>, _max_height: Option<u16>) -> Size {
+    fn size(&self, frame: &mut Frame, max_width: Option<u16>, _max_height: Option<u16>) -> Size {
         let width = self
             .rows
             .iter()
-            .map(|r| frame.width_styled(r.styled()))
+            .map(|r| r.size(frame, max_width, Some(1)).width)
             .max()
             .unwrap_or(0);
         let height = self.rows.len();
-        Size::new(width as u16, height as u16)
+        Size::new(width, height as u16)
     }
 
     async fn render(self: Box<Self>, frame: &mut Frame, pos: Pos, size: Size) {
-        let mut guard = self.state.lock();
-        guard.stabilize(&self.rows, size.height.into());
+        // Guard acquisition and dropping must be inside its own block or the
+        // compiler complains that "future created by async block is not
+        // `Send`", pointing to the function body.
+        //
+        // I assume this is because I'm using the parking lot mutex whose guard
+        // is not Send, and even though I was explicitly dropping it with
+        // drop(), rustc couldn't figure this out without some help.
+        let (offset, cursor) = {
+            let mut guard = self.state.lock();
+            guard.stabilize(&self.rows, size.height.into());
+            (guard.offset as i32, guard.cursor.clone())
+        };
+
+        let row_size = Size::new(size.width, 1);
         for (i, row) in self.rows.into_iter().enumerate() {
-            let dy = i as i32 - guard.offset as i32;
+            let dy = i as i32 - offset;
             if dy < 0 || dy >= size.height as i32 {
                 break;
             }
 
             let pos = pos + Pos::new(0, dy);
             match row {
-                Row::Unselectable(styled) => frame.write(pos, styled),
+                Row::Unselectable { normal } => normal.render(frame, pos, row_size).await,
                 Row::Selectable {
                     id,
                     normal,
-                    normal_bg,
                     selected,
-                    selected_bg,
                 } => {
-                    let (fg, bg) = if self.focus && guard.focusing(&id) {
-                        (selected, selected_bg)
-                    } else {
-                        (normal, normal_bg)
-                    };
-                    frame.write(pos, (" ".repeat(size.width.into()), bg));
-                    frame.write(pos, fg);
+                    let focusing = self.focus
+                        && if let Some(cursor) = &cursor {
+                            cursor.id == id
+                        } else {
+                            false
+                        };
+                    let widget = if focusing { selected } else { normal };
+                    widget.render(frame, pos, row_size).await;
                 }
             }
         }
