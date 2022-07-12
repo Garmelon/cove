@@ -47,7 +47,7 @@ impl Widget for Text {
         Size::new(min_width as u16, min_height as u16)
     }
 
-    async fn render(&self, frame: &mut Frame, pos: Pos, size: Size) {
+    async fn render(self, frame: &mut Frame, pos: Pos, size: Size) {
         for (i, line) in self
             .wrapped(frame, Some(size.width))
             .into_iter()
