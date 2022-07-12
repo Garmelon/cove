@@ -4,7 +4,7 @@ mod list;
 mod room;
 mod rooms;
 mod util;
-mod widget;
+mod widgets;
 
 use std::sync::{Arc, Weak};
 use std::time::Duration;
