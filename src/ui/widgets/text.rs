@@ -40,7 +40,7 @@ impl Widget for Text {
         let lines = self.wrapped(frame, max_width);
         let min_width = lines
             .iter()
-            .map(|l| frame.width(&l.text()))
+            .map(|l| frame.width_styled(l))
             .max()
             .unwrap_or(0);
         let min_height = lines.len();
