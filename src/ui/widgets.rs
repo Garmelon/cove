@@ -1,3 +1,4 @@
+pub mod background;
 pub mod list;
 pub mod text;
 
