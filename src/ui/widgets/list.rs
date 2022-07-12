@@ -308,7 +308,7 @@ impl<Id: Clone + Eq + Send> Widget for List<Id> {
         Size::new(width as u16, height as u16)
     }
 
-    async fn render(self, frame: &mut Frame, pos: Pos, size: Size) {
+    async fn render(self: Box<Self>, frame: &mut Frame, pos: Pos, size: Size) {
         let mut guard = self.state.lock();
         guard.stabilize(&self.rows, size.height.into());
         for (i, row) in self.rows.into_iter().enumerate() {
