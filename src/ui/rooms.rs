@@ -14,15 +14,16 @@ use crate::euph::api::SessionType;
 use crate::euph::{Joined, Status};
 use crate::vault::Vault;
 
-use super::list::{List, Row};
 use super::room::EuphRoom;
+use super::widgets::list::{List, ListState};
+use super::widgets::Widget;
 use super::{util, UiEvent};
 
 pub struct Rooms {
     vault: Vault,
     ui_event_tx: mpsc::UnboundedSender<UiEvent>,
 
-    list: List<String>,
+    list: ListState<String>,
 
     /// If set, a single room is displayed in full instead of the room list.
     focus: Option<String>,
@@ -35,7 +36,7 @@ impl Rooms {
         Self {
             vault,
             ui_event_tx,
-            list: List::new(),
+            list: ListState::new(),
             focus: None,
             euph_rooms: HashMap::new(),
         }
@@ -116,12 +117,10 @@ impl Rooms {
         }
     }
 
-    async fn render_rows(&self, rooms: Vec<String>) -> Vec<Row<String>> {
-        let mut rows: Vec<Row<String>> = vec![];
-
+    async fn render_rows(&self, list: &mut List<String>, rooms: Vec<String>) {
         let heading_style = ContentStyle::default().bold();
         let heading = Styled::new(("Rooms", heading_style)).then(format!(" ({})", rooms.len()));
-        rows.push(Row::unsel(heading));
+        list.add_unsel(heading);
 
         for room in rooms {
             let bg_style = ContentStyle::default();
@@ -139,16 +138,15 @@ impl Rooms {
                 }
             };
 
-            rows.push(Row::sel(room, normal, bg_style, selected, bg_sel_style));
+            list.add_sel(room, normal, bg_style, selected, bg_sel_style);
         }
-
-        rows
     }
 
     async fn render_rooms(&mut self, frame: &mut Frame) {
         let rooms = self.stabilize_rooms().await;
-        let rows = self.render_rows(rooms).await;
-        self.list.render(frame, Pos::ZERO, frame.size(), rows, true);
+        let mut list = self.list.list().focus(true);
+        self.render_rows(&mut list, rooms).await;
+        list.render(frame, Pos::ZERO, frame.size()).await;
     }
 
     pub async fn handle_key_event(
@@ -170,21 +168,12 @@ impl Rooms {
                     .await;
             }
         } else {
-            let height = size.height as usize;
-
-            let rooms = self.stabilize_rooms().await;
-            let rows = self.render_rows(rooms).await;
-
             match event.code {
-                KeyCode::Enter => {
-                    if let Some(name) = self.list.cursor() {
-                        self.focus = Some(name.clone());
-                    }
-                }
-                KeyCode::Char('j') | KeyCode::Down => self.list.move_cursor_down(height, &rows),
-                KeyCode::Char('k') | KeyCode::Up => self.list.move_cursor_up(height, &rows),
-                KeyCode::Char('J') => self.list.scroll_down(height, &rows), // TODO Replace by Ctrl+E and mouse scroll
-                KeyCode::Char('K') => self.list.scroll_up(height, &rows), // TODO Replace by Ctrl+Y and mouse scroll
+                KeyCode::Enter => self.focus = self.list.cursor(),
+                KeyCode::Char('j') | KeyCode::Down => self.list.move_cursor_down(),
+                KeyCode::Char('k') | KeyCode::Up => self.list.move_cursor_up(),
+                KeyCode::Char('J') => self.list.scroll_down(), // TODO Replace by Ctrl+E and mouse scroll
+                KeyCode::Char('K') => self.list.scroll_up(), // TODO Replace by Ctrl+Y and mouse scroll
                 KeyCode::Char('c') => {
                     if let Some(name) = self.list.cursor() {
                         let room = self.euph_rooms.entry(name.clone()).or_insert_with(|| {
@@ -204,12 +193,12 @@ impl Rooms {
                 }
                 KeyCode::Char('d') => {
                     if let Some(name) = self.list.cursor() {
-                        self.euph_rooms.remove(name);
+                        self.euph_rooms.remove(&name);
                     }
                 }
                 KeyCode::Char('D') => {
                     if let Some(name) = self.list.cursor() {
-                        self.euph_rooms.remove(name);
+                        self.euph_rooms.remove(&name);
                         self.vault.euph(name.clone()).delete();
                     }
                 }
