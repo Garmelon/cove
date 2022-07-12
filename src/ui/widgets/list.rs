@@ -58,14 +58,6 @@ impl<Id: Clone> InnerListState<Id> {
             .find_map(|(i, r)| r.as_ref().map(|c| Cursor::new(c.clone(), i)))
     }
 
-    fn last_selectable(&self) -> Option<Cursor<Id>> {
-        self.rows
-            .iter()
-            .enumerate()
-            .rev()
-            .find_map(|(i, r)| r.as_ref().map(|c| Cursor::new(c.clone(), i)))
-    }
-
     fn selectable_at_or_before_index(&self, i: usize) -> Option<Cursor<Id>> {
         self.rows
             .iter()
