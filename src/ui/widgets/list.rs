@@ -266,6 +266,10 @@ impl<Id> List<Id> {
         self
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.rows.is_empty()
+    }
+
     pub fn add_unsel<S: Into<Styled>>(&mut self, styled: S) {
         self.rows.push(Row::Unselectable(styled.into()));
     }

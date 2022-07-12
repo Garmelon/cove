@@ -14,7 +14,8 @@ use crate::euph::{self, Joined, Status};
 use crate::vault::{EuphMsg, EuphVault};
 
 use super::chat::Chat;
-use super::list::{List, Row};
+use super::widgets::list::{List, ListState};
+use super::widgets::Widget;
 use super::{util, UiEvent};
 
 pub struct EuphRoom {
@@ -23,7 +24,7 @@ pub struct EuphRoom {
     chat: Chat<EuphMsg, EuphVault>,
 
     nick_list_width: u16,
-    nick_list: List<String>,
+    nick_list: ListState<String>,
 }
 
 impl EuphRoom {
@@ -33,7 +34,7 @@ impl EuphRoom {
             room: None,
             chat: Chat::new(vault),
             nick_list_width: 24,
-            nick_list: List::new(),
+            nick_list: ListState::new(),
         }
     }
 
@@ -125,7 +126,8 @@ impl EuphRoom {
 
         self.chat.render(frame, chat_pos, chat_size).await;
         self.render_status(frame, status_pos, status);
-        self.render_nick_list(frame, nick_list_pos, nick_list_size, joined);
+        self.render_nick_list(frame, nick_list_pos, nick_list_size, joined)
+            .await;
         Self::render_vsplit_hsplit(frame, vsplit, hsplit);
     }
 
@@ -151,7 +153,7 @@ impl EuphRoom {
         frame.write(pos, info);
     }
 
-    fn render_row(session: &SessionView, own_session: &SessionView) -> Row<String> {
+    fn render_row(list: &mut List<String>, session: &SessionView, own_session: &SessionView) {
         let id = session.session_id.clone();
 
         let (name, style, style_inv) = if session.name.is_empty() {
@@ -186,11 +188,11 @@ impl EuphRoom {
 
         let normal = Styled::new(owner).then(perms).then((name, style));
         let selected = Styled::new(owner).then(perms).then((name, style_inv));
-        Row::sel(id, normal, style, selected, style_inv)
+        list.add_sel(id, normal, style, selected, style_inv);
     }
 
     fn render_section(
-        rows: &mut Vec<Row<String>>,
+        list: &mut List<String>,
         name: &str,
         sessions: &[&SessionView],
         own_session: &SessionView,
@@ -201,19 +203,19 @@ impl EuphRoom {
 
         let heading_style = ContentStyle::new().bold();
 
-        if !rows.is_empty() {
-            rows.push(Row::unsel(""));
+        if !list.is_empty() {
+            list.add_unsel("");
         }
 
         let row = Styled::new((name, heading_style)).then(format!(" ({})", sessions.len()));
-        rows.push(Row::unsel(row));
+        list.add_unsel(row);
 
         for session in sessions {
-            rows.push(Self::render_row(session, own_session));
+            Self::render_row(list, session, own_session);
         }
     }
 
-    fn render_rows(joined: &Joined) -> Vec<Row<String>> {
+    fn render_rows(list: &mut List<String>, joined: &Joined) {
         let mut people = vec![];
         let mut bots = vec![];
         let mut lurkers = vec![];
@@ -237,15 +239,13 @@ impl EuphRoom {
         lurkers.sort_unstable_by_key(|s| &s.session_id);
         nurkers.sort_unstable_by_key(|s| &s.session_id);
 
-        let mut rows: Vec<Row<String>> = vec![];
-        Self::render_section(&mut rows, "People", &people, &joined.session);
-        Self::render_section(&mut rows, "Bots", &bots, &joined.session);
-        Self::render_section(&mut rows, "Lurkers", &lurkers, &joined.session);
-        Self::render_section(&mut rows, "Nurkers", &nurkers, &joined.session);
-        rows
+        Self::render_section(list, "People", &people, &joined.session);
+        Self::render_section(list, "Bots", &bots, &joined.session);
+        Self::render_section(list, "Lurkers", &lurkers, &joined.session);
+        Self::render_section(list, "Nurkers", &nurkers, &joined.session);
     }
 
-    fn render_nick_list(&mut self, frame: &mut Frame, pos: Pos, size: Size, joined: &Joined) {
+    async fn render_nick_list(&mut self, frame: &mut Frame, pos: Pos, size: Size, joined: &Joined) {
         // Clear area in case there's overdraw from the chat or status
         for y in pos.y..(pos.y + size.height as i32) {
             for x in pos.x..(pos.x + size.width as i32) {
@@ -253,8 +253,9 @@ impl EuphRoom {
             }
         }
 
-        let rows = Self::render_rows(joined);
-        self.nick_list.render(frame, pos, size, rows, false);
+        let mut list = self.nick_list.list();
+        Self::render_rows(&mut list, joined);
+        list.render(frame, pos, size).await;
     }
 
     fn render_hsplit(frame: &mut Frame, hsplit: i32) {
