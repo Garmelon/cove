@@ -14,15 +14,26 @@ const TIME_FORMAT: &str = "%F %T";
 const TIME_EMPTY: &str = "                   ";
 
 pub async fn export(vault: &Vault, room: String, file: &Path) -> anyhow::Result<()> {
+    println!("Exporting &{room} to {}", file.to_string_lossy());
     let mut file = BufWriter::new(File::create(file)?);
     let vault = vault.euph(room);
 
+    let mut exported_trees = 0;
+    let mut exported_msgs = 0;
     let mut tree_id = vault.first_tree().await;
     while let Some(some_tree_id) = tree_id {
         let tree = vault.tree(&some_tree_id).await;
         write_tree(&mut file, &tree, some_tree_id, 0)?;
         tree_id = vault.next_tree(&some_tree_id).await;
+
+        exported_trees += 1;
+        exported_msgs += tree.len();
+
+        if exported_trees % 10000 == 0 {
+            println!("Exported {exported_trees} trees, {exported_msgs} messages")
+        }
     }
+    println!("Exported {exported_trees} trees, {exported_msgs} messages in total");
 
     Ok(())
 }

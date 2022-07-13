@@ -75,6 +75,10 @@ impl<M: Msg> Tree<M> {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.msgs.len()
+    }
+
     pub fn root(&self) -> &M::Id {
         &self.root
     }
