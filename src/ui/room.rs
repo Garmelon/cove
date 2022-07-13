@@ -262,7 +262,9 @@ impl EuphRoom {
 
         let mut list = self.nick_list.list();
         Self::render_rows(&mut list, joined);
-        Box::new(list).render(frame, pos, size).await;
+        frame.push(pos, size);
+        Box::new(list).render(frame).await;
+        frame.pop();
     }
 
     fn render_hsplit(frame: &mut Frame, hsplit: i32) {

@@ -24,13 +24,14 @@ impl Widget for Background {
         self.inner.size(frame, max_width, max_height)
     }
 
-    async fn render(self: Box<Self>, frame: &mut Frame, pos: Pos, size: Size) {
+    async fn render(self: Box<Self>, frame: &mut Frame) {
+        let size = frame.size();
         for dy in 0..size.height {
             for dx in 0..size.width {
-                frame.write(pos + Pos::new(dx.into(), dy.into()), (" ", self.style));
+                frame.write(Pos::new(dx.into(), dy.into()), (" ", self.style));
             }
         }
 
-        self.inner.render(frame, pos, size).await;
+        self.inner.render(frame).await;
     }
 }

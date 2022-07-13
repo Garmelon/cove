@@ -30,4 +30,4 @@ features = ["rustls-tls-native-roots"]
 
 [dependencies.toss]
 git = "https://github.com/Garmelon/toss.git"
-rev = "e4e1454e8064269350ff7f10b2dcbb388d26c57d"
+rev = "14aedaf25212cd50924566821ad37645a4cacf28"

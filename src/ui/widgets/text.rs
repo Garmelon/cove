@@ -47,13 +47,14 @@ impl Widget for Text {
         Size::new(min_width as u16, min_height as u16)
     }
 
-    async fn render(self: Box<Self>, frame: &mut Frame, pos: Pos, size: Size) {
+    async fn render(self: Box<Self>, frame: &mut Frame) {
+        let size = frame.size();
         for (i, line) in self
             .wrapped(frame, Some(size.width))
             .into_iter()
             .enumerate()
         {
-            frame.write(pos + Pos::new(0, i as i32), line);
+            frame.write(Pos::new(0, i as i32), line);
         }
     }
 }

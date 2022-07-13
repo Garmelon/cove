@@ -289,7 +289,9 @@ impl<Id: Clone + Eq + Send> Widget for List<Id> {
         Size::new(width, height as u16)
     }
 
-    async fn render(self: Box<Self>, frame: &mut Frame, pos: Pos, size: Size) {
+    async fn render(self: Box<Self>, frame: &mut Frame) {
+        let size = frame.size();
+
         // Guard acquisition and dropping must be inside its own block or the
         // compiler complains that "future created by async block is not
         // `Send`", pointing to the function body.
@@ -310,9 +312,9 @@ impl<Id: Clone + Eq + Send> Widget for List<Id> {
                 break;
             }
 
-            let pos = pos + Pos::new(0, dy);
+            frame.push(Pos::new(0, dy), row_size);
             match row {
-                Row::Unselectable { normal } => normal.render(frame, pos, row_size).await,
+                Row::Unselectable { normal } => normal.render(frame).await,
                 Row::Selectable {
                     id,
                     normal,
@@ -325,9 +327,10 @@ impl<Id: Clone + Eq + Send> Widget for List<Id> {
                             false
                         };
                     let widget = if focusing { selected } else { normal };
-                    widget.render(frame, pos, row_size).await;
+                    widget.render(frame).await;
                 }
             }
+            frame.pop();
         }
     }
 }

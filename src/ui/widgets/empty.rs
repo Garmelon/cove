@@ -11,5 +11,5 @@ impl Widget for Empty {
         Size::ZERO
     }
 
-    async fn render(self: Box<Self>, _frame: &mut Frame, _pos: Pos, _size: Size) {}
+    async fn render(self: Box<Self>, _frame: &mut Frame) {}
 }

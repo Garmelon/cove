@@ -152,7 +152,7 @@ impl Rooms {
         let rooms = self.stabilize_rooms().await;
         let mut list = self.list.list().focus(true);
         self.render_rows(&mut list, rooms).await;
-        Box::new(list).render(frame, Pos::ZERO, frame.size()).await;
+        Box::new(list).render(frame).await;
     }
 
     pub async fn handle_key_event(
