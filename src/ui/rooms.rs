@@ -6,7 +6,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crossterm::style::{ContentStyle, Stylize};
 use parking_lot::FairMutex;
 use tokio::sync::mpsc;
-use toss::frame::{Frame, Pos, Size};
+use toss::frame::{Frame, Size};
 use toss::styled::Styled;
 use toss::terminal::Terminal;
 

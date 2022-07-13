@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use toss::frame::{Frame, Pos, Size};
+use toss::frame::{Frame, Size};
 
 use super::Widget;
 
