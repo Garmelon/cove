@@ -291,10 +291,12 @@ impl EuphRoom {
         crossterm_lock: &Arc<FairMutex<()>>,
         event: KeyEvent,
     ) {
-        let chat_size = Size {
-            height: size.height - 2,
-            ..size
-        };
+        // Position of vertical line between main part and nick list
+        let vsplit = size.width.saturating_sub(self.nick_list_width + 1) as i32;
+        // Position of horizontal line between status and chat
+        let hsplit = 1_i32;
+        let chat_size = Size::new(vsplit as u16, size.height.saturating_sub(hsplit as u16 + 1));
+
         self.chat
             .handle_navigation(terminal, chat_size, event)
             .await;
