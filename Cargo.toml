@@ -16,7 +16,7 @@ log = { version = "0.4.17", features = ["std"] }
 palette = { version = "0.6.0", default-features = false, features = ["std"] }
 parking_lot = "0.12.1"
 rand = "0.8.5"
-rusqlite = { version = "0.27.0", features = ["chrono"] }
+rusqlite = { version = "0.27.0", features = ["bundled", "chrono"] }
 serde = { version = "1.0.138", features = ["derive"] }
 serde_json = "1.0.82"
 thiserror = "1.0.31"
