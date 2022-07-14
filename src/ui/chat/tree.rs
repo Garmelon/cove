@@ -1,84 +1,126 @@
-mod action;
-mod blocks;
-mod cursor;
-mod layout;
-mod render;
-mod util;
+// mod action;
+// mod blocks;
+// mod cursor;
+// mod layout;
+// mod render;
+// mod util;
 
-use std::marker::PhantomData;
 use std::sync::Arc;
 
-use crossterm::event::{KeyCode, KeyEvent};
-use parking_lot::FairMutex;
-use toss::frame::{Frame, Pos, Size};
-use toss::terminal::Terminal;
+use async_trait::async_trait;
+use tokio::sync::Mutex;
+use toss::frame::{Frame, Size};
 
 use crate::store::{Msg, MsgStore};
+use crate::ui::widgets::Widget;
 
-use super::Cursor;
+///////////
+// State //
+///////////
 
-pub struct TreeView<M: Msg> {
-    // pub focus: Option<M::Id>,
-    // pub folded: HashSet<M::Id>,
-    // pub minimized: HashSet<M::Id>,
-    phantom: PhantomData<M::Id>, // TODO Remove
+/// The anchor specifies a specific line in a room's history.
+enum Anchor<I> {
+    /// The bottom of the room's history stays fixed.
+    Bottom,
+    /// The top of a message stays fixed.
+    Msg(I),
+    /// The line after a message's subtree stays fixed.
+    After(I),
 }
 
-impl<M: Msg> TreeView<M> {
-    pub fn new() -> Self {
+struct Compose<I> {
+    /// The message that the cursor was on when composing began, or `None` if it
+    /// was [`Cursor::Bottom`].
+    ///
+    /// Used to jump back to the original position when composing is aborted
+    /// because the editor may be moved during composing.
+    coming_from: Option<I>,
+    /// The parent message of this reply, or `None` if it will be a new
+    /// top-level message.
+    parent: Option<I>,
+    // TODO Editor state
+    // TODO Whether currently editing or moving cursor
+}
+
+struct Placeholder<I> {
+    /// See [`Composing::coming_from`].
+    coming_from: Option<I>,
+    /// See [`Composing::parent`].
+    after: Option<I>,
+}
+
+enum Cursor<I> {
+    /// No cursor visible because it is at the bottom of the chat history.
+    ///
+    /// See also [`Anchor::Bottom`].
+    Bottom,
+    /// The cursor points to a message.
+    ///
+    /// See also [`Anchor::Msg`].
+    Msg(I),
+    /// The cursor has turned into an editor because we're composing a new
+    /// message.
+    ///
+    /// See also [`Anchor::After`].
+    Compose(Compose<I>),
+    /// A placeholder message is being displayed for a message that was just
+    /// sent by the user.
+    ///
+    /// Will be replaced by a [`Cursor::Msg`] as soon as the server replies to
+    /// the send command with the sent message. Otherwise, it will
+    ///
+    /// See also [`Anchor::After`].
+    Placeholder(Placeholder<I>),
+}
+
+struct InnerTreeViewState<M: Msg, S: MsgStore<M>> {
+    store: S,
+    anchor: Anchor<M::Id>,
+    anchor_line: i32,
+    cursor: Cursor<M::Id>,
+}
+
+impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
+    fn new(store: S) -> Self {
         Self {
-            phantom: PhantomData,
+            store,
+            anchor: Anchor::Bottom,
+            anchor_line: 0,
+            cursor: Cursor::Bottom,
         }
     }
+}
 
-    pub async fn handle_navigation<S: MsgStore<M>>(
-        &mut self,
-        s: &mut S,
-        c: &mut Option<Cursor<M::Id>>,
-        t: &mut Terminal,
-        z: Size,
-        event: KeyEvent,
-    ) {
-        match event.code {
-            KeyCode::Char('k') => self.move_up(s, c, t.frame(), z).await,
-            KeyCode::Char('j') => self.move_down(s, c, t.frame(), z).await,
-            KeyCode::Char('K') => self.move_up_sibling(s, c, t.frame(), z).await,
-            KeyCode::Char('J') => self.move_down_sibling(s, c, t.frame(), z).await,
-            KeyCode::Char('z') | KeyCode::Char('Z') => self.center_cursor(s, c, t.frame(), z).await,
-            KeyCode::Char('g') => self.move_to_first(s, c, t.frame(), z).await,
-            KeyCode::Char('G') => self.move_to_last(s, c, t.frame(), z).await,
-            KeyCode::Esc => *c = None, // TODO Make 'G' do the same thing?
-            _ => {}
-        }
+pub struct TreeViewState<M: Msg, S: MsgStore<M>>(Arc<Mutex<InnerTreeViewState<M, S>>>);
+
+impl<M: Msg, S: MsgStore<M>> TreeViewState<M, S> {
+    pub fn new(store: S) -> Self {
+        Self(Arc::new(Mutex::new(InnerTreeViewState::new(store))))
     }
 
-    pub async fn handle_messaging<S: MsgStore<M>>(
-        &mut self,
-        s: &mut S,
-        c: &mut Option<Cursor<M::Id>>,
-        t: &mut Terminal,
-        l: &Arc<FairMutex<()>>,
-        event: KeyEvent,
-    ) -> Option<(Option<M::Id>, String)> {
-        match event.code {
-            KeyCode::Char('r') => Self::reply_normal(s, c, t, l).await,
-            KeyCode::Char('R') => Self::reply_alternate(s, c, t, l).await,
-            KeyCode::Char('t') | KeyCode::Char('T') => Self::create_new_thread(t, l).await,
-            _ => None,
-        }
+    pub fn widget(&self) -> TreeView<M, S> {
+        TreeView(self.0.clone())
+    }
+}
+
+////////////
+// Widget //
+////////////
+
+pub struct TreeView<M: Msg, S: MsgStore<M>>(Arc<Mutex<InnerTreeViewState<M, S>>>);
+
+#[async_trait]
+impl<M, S> Widget for TreeView<M, S>
+where
+    M: Msg,
+    M::Id: Send,
+    S: MsgStore<M> + Send + Sync,
+{
+    fn size(&self, _frame: &mut Frame, _max_width: Option<u16>, _max_height: Option<u16>) -> Size {
+        Size::ZERO
     }
 
-    pub async fn render<S: MsgStore<M>>(
-        &mut self,
-        store: &mut S,
-        cursor: &Option<Cursor<M::Id>>,
-        frame: &mut Frame,
-        pos: Pos,
-        size: Size,
-    ) {
-        let blocks = self
-            .layout_blocks(store, cursor.as_ref(), frame, size)
-            .await;
-        Self::render_blocks(frame, pos, size, blocks);
+    async fn render(self: Box<Self>, frame: &mut Frame) {
+        todo!()
     }
 }

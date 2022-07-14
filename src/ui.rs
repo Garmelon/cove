@@ -20,8 +20,9 @@ use toss::terminal::Terminal;
 use crate::logger::{LogMsg, Logger};
 use crate::vault::Vault;
 
-use self::chat::Chat;
+use self::chat::{Chat, ChatState};
 use self::rooms::Rooms;
+use self::widgets::Widget;
 
 #[derive(Debug)]
 pub enum UiEvent {
@@ -45,7 +46,7 @@ pub struct Ui {
     mode: Mode,
 
     rooms: Rooms,
-    log_chat: Chat<LogMsg, Logger>,
+    log_chat: ChatState<LogMsg, Logger>,
 }
 
 impl Ui {
@@ -80,7 +81,7 @@ impl Ui {
             event_tx: event_tx.clone(),
             mode: Mode::Main,
             rooms: Rooms::new(vault, event_tx.clone()),
-            log_chat: Chat::new(logger),
+            log_chat: ChatState::new(logger),
         };
         tokio::select! {
             e = ui.run_main(terminal, event_rx, crossterm_lock) => Ok(e),
@@ -166,11 +167,7 @@ impl Ui {
     async fn render(&mut self, frame: &mut Frame) -> anyhow::Result<()> {
         match self.mode {
             Mode::Main => self.rooms.render(frame).await,
-            Mode::Log => {
-                self.log_chat
-                    .render(frame, Pos::new(0, 0), frame.size())
-                    .await
-            }
+            Mode::Log => Box::new(self.log_chat.widget()).render(frame).await,
         }
         Ok(())
     }
@@ -202,7 +199,10 @@ impl Ui {
                     .handle_key_event(terminal, size, crossterm_lock, event)
                     .await
             }
-            Mode::Log => self.log_chat.handle_navigation(terminal, size, event).await,
+            Mode::Log => {
+                // TODO Uncomment
+                // self.log_chat.handle_navigation(terminal, size, event).await
+            }
         }
 
         EventHandleResult::Continue

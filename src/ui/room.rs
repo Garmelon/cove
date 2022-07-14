@@ -13,7 +13,7 @@ use crate::euph::api::{SessionType, SessionView};
 use crate::euph::{self, Joined, Status};
 use crate::vault::{EuphMsg, EuphVault};
 
-use super::chat::Chat;
+use super::chat::ChatState;
 use super::widgets::background::Background;
 use super::widgets::empty::Empty;
 use super::widgets::list::{List, ListState};
@@ -24,7 +24,7 @@ use super::{util, UiEvent};
 pub struct EuphRoom {
     ui_event_tx: mpsc::UnboundedSender<UiEvent>,
     room: Option<euph::Room>,
-    chat: Chat<EuphMsg, EuphVault>,
+    chat: ChatState<EuphMsg, EuphVault>,
 
     nick_list_width: u16,
     nick_list: ListState<String>,
@@ -35,7 +35,7 @@ impl EuphRoom {
         Self {
             ui_event_tx,
             room: None,
-            chat: Chat::new(vault),
+            chat: ChatState::new(vault),
             nick_list_width: 24,
             nick_list: ListState::new(),
         }
@@ -100,7 +100,9 @@ impl EuphRoom {
         let chat_pos = Pos::new(0, hsplit + 1);
         let chat_size = Size::new(size.width, size.height.saturating_sub(hsplit as u16 + 1));
 
-        self.chat.render(frame, chat_pos, chat_size).await;
+        frame.push(chat_pos, chat_size);
+        Box::new(self.chat.widget()).render(frame).await;
+        frame.pop();
         self.render_status(frame, status_pos, status);
         Self::render_hsplit(frame, hsplit);
     }
@@ -127,7 +129,9 @@ impl EuphRoom {
         let nick_list_pos = Pos::new(vsplit + 1, 0);
         let nick_list_size = Size::new(self.nick_list_width, size.height);
 
-        self.chat.render(frame, chat_pos, chat_size).await;
+        frame.push(chat_pos, chat_size);
+        Box::new(self.chat.widget()).render(frame).await;
+        frame.pop();
         self.render_status(frame, status_pos, status);
         self.render_nick_list(frame, nick_list_pos, nick_list_size, joined)
             .await;
@@ -297,9 +301,9 @@ impl EuphRoom {
         let hsplit = 1_i32;
         let chat_size = Size::new(vsplit as u16, size.height.saturating_sub(hsplit as u16 + 1));
 
-        self.chat
-            .handle_navigation(terminal, chat_size, event)
-            .await;
+        // self.chat
+        //     .handle_navigation(terminal, chat_size, event)
+        //     .await;
 
         if let Some(room) = &self.room {
             if let Ok(Some(Status::Joined(_))) = room.status().await {
@@ -309,13 +313,13 @@ impl EuphRoom {
                     }
                 }
 
-                if let Some((parent, content)) = self
-                    .chat
-                    .handle_messaging(terminal, crossterm_lock, event)
-                    .await
-                {
-                    let _ = room.send(parent, content);
-                }
+                // if let Some((parent, content)) = self
+                //     .chat
+                //     .handle_messaging(terminal, crossterm_lock, event)
+                //     .await
+                // {
+                //     let _ = room.send(parent, content);
+                // }
             }
         }
     }
