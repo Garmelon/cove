@@ -309,7 +309,7 @@ impl<Id: Clone + Eq + Send> Widget for List<Id> {
         for (i, row) in self.rows.into_iter().enumerate() {
             let dy = i as i32 - offset;
             if dy < 0 || dy >= size.height as i32 {
-                break;
+                continue;
             }
 
             frame.push(Pos::new(0, dy), row_size);
