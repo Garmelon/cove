@@ -1,5 +1,5 @@
 // mod action;
-// mod blocks;
+mod blocks;
 // mod cursor;
 // mod layout;
 // mod render;
