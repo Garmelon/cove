@@ -18,34 +18,10 @@ use crate::ui::widgets::Widget;
 // State //
 ///////////
 
-/// The anchor specifies a specific line in a room's history.
-enum Anchor<I> {
-    /// The bottom of the room's history stays fixed.
-    Bottom,
-    /// The top of a message stays fixed.
-    Msg(I),
-    /// The line after a message's subtree stays fixed.
-    After(I),
-}
-
-struct Compose<I> {
-    /// The message that the cursor was on when composing began, or `None` if it
-    /// was [`Cursor::Bottom`].
-    ///
-    /// Used to jump back to the original position when composing is aborted
-    /// because the editor may be moved during composing.
+/// Position of a cursor that is displayed as the last child of its parent
+/// message, or last thread if it has no parent.
+struct LastChild<I> {
     coming_from: Option<I>,
-    /// The parent message of this reply, or `None` if it will be a new
-    /// top-level message.
-    parent: Option<I>,
-    // TODO Editor state
-    // TODO Whether currently editing or moving cursor
-}
-
-struct Placeholder<I> {
-    /// See [`Composing::coming_from`].
-    coming_from: Option<I>,
-    /// See [`Composing::parent`].
     after: Option<I>,
 }
 
@@ -55,38 +31,34 @@ enum Cursor<I> {
     /// See also [`Anchor::Bottom`].
     Bottom,
     /// The cursor points to a message.
-    ///
-    /// See also [`Anchor::Msg`].
     Msg(I),
     /// The cursor has turned into an editor because we're composing a new
     /// message.
-    ///
-    /// See also [`Anchor::After`].
-    Compose(Compose<I>),
+    Compose(LastChild<I>),
     /// A placeholder message is being displayed for a message that was just
     /// sent by the user.
     ///
     /// Will be replaced by a [`Cursor::Msg`] as soon as the server replies to
-    /// the send command with the sent message. Otherwise, it will
-    ///
-    /// See also [`Anchor::After`].
-    Placeholder(Placeholder<I>),
+    /// the send command with the sent message.
+    Placeholder(LastChild<I>),
 }
 
 struct InnerTreeViewState<M: Msg, S: MsgStore<M>> {
     store: S,
-    anchor: Anchor<M::Id>,
-    anchor_line: i32,
+    last_blocks: (), // TODO
+    last_cursor: Cursor<M::Id>,
     cursor: Cursor<M::Id>,
+    editor: (), // TODO
 }
 
 impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     fn new(store: S) -> Self {
         Self {
             store,
-            anchor: Anchor::Bottom,
-            anchor_line: 0,
+            last_blocks: (),
+            last_cursor: Cursor::Bottom,
             cursor: Cursor::Bottom,
+            editor: (),
         }
     }
 }
@@ -121,6 +93,17 @@ where
     }
 
     async fn render(self: Box<Self>, frame: &mut Frame) {
+        // Determine current cursor position
+        //   If cursor in last blocks, use that
+        //   If cursor below last cursor, use last line
+        //   Otherwise, use first line
+        // Layout starting from cursor tree
+        // Make cursor visible
+        //   If cursor was moved last, scroll so it is fully visible
+        //   Otherwise, move cursor so it is barely visible
+        // Clamp scrolling and fill screen again
+        // Update last layout and last cursor position
+        // Draw layout to screen
         todo!()
     }
 }
