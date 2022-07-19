@@ -50,9 +50,9 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         if let Some(block) = last_blocks.find(|b| cursor.matches_block(b)) {
             block.line
         } else if last_cursor_path < cursor_path {
-            // Not using size.height - 1 because markers like
-            // MarkerBlock::Bottom in the line below the last visible line are
-            // still relevant to us.
+            // If the cursor is bottom, the bottom marker needs to be located at
+            // the line below the last visible line. If it is a normal message
+            // cursor, it will be made visible again one way or another later.
             size.height.into()
         } else {
             0
@@ -133,13 +133,17 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             });
             blocks
         } else {
-            let mut blocks = Blocks::new_below(cursor_line);
-            blocks.push_front(Block::bottom());
-            blocks
+            Blocks::new_bottom(cursor_line)
         }
     }
 
     fn scroll_so_cursor_is_visible(blocks: &mut Blocks<M::Id>, cursor: &Cursor<M::Id>, size: Size) {
+        if !matches!(cursor, Cursor::Msg(_)) {
+            // In all other cases, there is special scrolling behaviour, so
+            // let's not interfere.
+            return;
+        }
+
         if let Some(block) = blocks.find(|b| cursor.matches_block(b)) {
             let min_line = 0;
             let max_line = size.height as i32 - block.height();
@@ -155,11 +159,9 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         }
     }
 
-    /// Try to obtain a normal cursor (i.e. no composing or placeholder cursor)
-    /// pointing to the block.
-    fn as_direct_cursor(block: &Block<M::Id>) -> Option<Cursor<M::Id>> {
+    /// Try to obtain a [`Cursor::Msg`] pointing to the block.
+    fn as_msg_cursor(block: &Block<M::Id>) -> Option<Cursor<M::Id>> {
         match &block.body {
-            BlockBody::Marker(MarkerBlock::Bottom) => Some(Cursor::Bottom),
             BlockBody::Msg(MsgBlock { id, .. }) => Some(Cursor::Msg(id.clone())),
             _ => None,
         }
@@ -170,14 +172,9 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         cursor: &mut Cursor<M::Id>,
         size: Size,
     ) {
-        if matches!(cursor, Cursor::Compose(_) | Cursor::Placeholder(_)) {
-            // In this case, we can't easily move the cursor since moving it
-            // would change how the entire layout is rendered in
-            // difficult-to-predict ways.
-            //
-            // Also, the user has initiated a reply to get into this state. This
-            // confirms that they want their cursor in precisely its current
-            // place. Moving it might lead to mis-replies and frustration.
+        if !matches!(cursor, Cursor::Msg(_)) {
+            // In all other cases, there is special scrolling behaviour, so
+            // let's not interfere.
             return;
         }
 
@@ -190,14 +187,14 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                 blocks
                     .iter()
                     .filter(|b| b.line >= min_line)
-                    .find_map(Self::as_direct_cursor)
+                    .find_map(Self::as_msg_cursor)
             } else if block.line > max_line {
                 // Move cursor to last possible visible block
                 blocks
                     .iter()
                     .rev()
                     .filter(|b| b.line <= max_line)
-                    .find_map(Self::as_direct_cursor)
+                    .find_map(Self::as_msg_cursor)
             } else {
                 None
             };

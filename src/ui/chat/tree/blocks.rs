@@ -1,6 +1,7 @@
 //! Intermediate representation of chat history as blocks of things.
 
 use std::collections::{vec_deque, VecDeque};
+use std::iter;
 
 use chrono::{DateTime, Utc};
 use toss::styled::Styled;
@@ -55,9 +56,9 @@ pub struct Block<I> {
 }
 
 impl<I> Block<I> {
-    pub fn bottom() -> Self {
+    pub fn bottom(line: i32) -> Self {
         Self {
-            line: 0,
+            line,
             time: None,
             indent: 0,
             body: BlockBody::Marker(MarkerBlock::Bottom),
@@ -143,16 +144,19 @@ pub struct Blocks<I> {
 
 impl<I> Blocks<I> {
     pub fn new() -> Self {
-        Self::new_below(0)
-    }
-
-    /// Create a new [`Blocks`] such that prepending a single line will result
-    /// in `top_line = bottom_line = line`.
-    pub fn new_below(line: i32) -> Self {
         Self {
             blocks: VecDeque::new(),
-            top_line: line + 1,
-            bottom_line: line,
+            top_line: 1,
+            bottom_line: 0,
+            roots: None,
+        }
+    }
+
+    pub fn new_bottom(line: i32) -> Self {
+        Self {
+            blocks: iter::once(Block::bottom(line)).collect(),
+            top_line: line,
+            bottom_line: line - 1,
             roots: None,
         }
     }
