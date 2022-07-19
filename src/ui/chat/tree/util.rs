@@ -17,7 +17,7 @@ pub fn style_time_inverted() -> ContentStyle {
 }
 
 pub const INDENT: &str = "│ ";
-pub const INDENT_WIDTH: usize = INDENT.len();
+pub const INDENT_WIDTH: usize = 2;
 
 pub fn style_indent() -> ContentStyle {
     ContentStyle::default().dark_grey()
