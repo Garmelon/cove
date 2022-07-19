@@ -2,102 +2,13 @@
 
 use toss::frame::{Frame, Size};
 
-use crate::store::{Msg, MsgStore, Tree};
+use crate::store::{Msg, MsgStore, Path, Tree};
 
-use super::blocks::{Block, Blocks};
-use super::util::{self, MIN_CONTENT_WIDTH};
-use super::{Cursor, TreeView};
+use super::blocks::{Block, BlockBody, Blocks, MarkerBlock};
+use super::{util, Cursor, InnerTreeViewState};
 
-fn msg_to_block<M: Msg>(frame: &mut Frame, size: Size, msg: &M, indent: usize) -> Block<M::Id> {
-    let nick = msg.nick();
-    let content = msg.content();
-
-    let content_width = size.width as i32 - util::after_nick(frame, indent, &nick.text());
-    if content_width < MIN_CONTENT_WIDTH as i32 {
-        Block::placeholder(msg.id(), indent).time(msg.time())
-    } else {
-        let content_width = content_width as usize;
-        let breaks = frame.wrap(&content.text(), content_width);
-        let lines = content.split_at_indices(&breaks);
-        Block::msg(msg.id(), indent, msg.time(), nick, lines)
-    }
-}
-
-fn layout_subtree<M: Msg>(
-    frame: &mut Frame,
-    size: Size,
-    tree: &Tree<M>,
-    indent: usize,
-    id: &M::Id,
-    result: &mut Blocks<M::Id>,
-) {
-    let block = if let Some(msg) = tree.msg(id) {
-        msg_to_block(frame, size, msg, indent)
-    } else {
-        Block::placeholder(id.clone(), indent)
-    };
-    result.push_back(block);
-
-    if let Some(children) = tree.children(id) {
-        for child in children {
-            layout_subtree(frame, size, tree, indent + 1, child, result);
-        }
-    }
-}
-
-fn layout_tree<M: Msg>(frame: &mut Frame, size: Size, tree: Tree<M>) -> Blocks<M::Id> {
-    let mut blocks = Blocks::new();
-    layout_subtree(frame, size, &tree, 0, tree.root(), &mut blocks);
-    blocks
-}
-
+/*
 impl<M: Msg> TreeView<M> {
-    pub async fn expand_blocks_up<S: MsgStore<M>>(
-        store: &S,
-        frame: &mut Frame,
-        size: Size,
-        blocks: &mut Blocks<M::Id>,
-        tree_id: &mut Option<M::Id>,
-    ) {
-        while blocks.top_line > 0 {
-            *tree_id = if let Some(tree_id) = tree_id {
-                store.prev_tree(tree_id).await
-            } else {
-                break;
-            };
-
-            if let Some(tree_id) = tree_id {
-                let tree = store.tree(tree_id).await;
-                blocks.prepend(layout_tree(frame, size, tree));
-            } else {
-                break;
-            }
-        }
-    }
-
-    pub async fn expand_blocks_down<S: MsgStore<M>>(
-        store: &S,
-        frame: &mut Frame,
-        size: Size,
-        blocks: &mut Blocks<M::Id>,
-        tree_id: &mut Option<M::Id>,
-    ) {
-        while blocks.bottom_line < size.height as i32 {
-            *tree_id = if let Some(tree_id) = tree_id {
-                store.next_tree(tree_id).await
-            } else {
-                break;
-            };
-
-            if let Some(tree_id) = tree_id {
-                let tree = store.tree(tree_id).await;
-                blocks.append(layout_tree(frame, size, tree));
-            } else {
-                break;
-            }
-        }
-    }
-
     // TODO Split up based on cursor presence
     pub async fn layout_blocks<S: MsgStore<M>>(
         &mut self,
@@ -162,6 +73,190 @@ impl<M: Msg> TreeView<M> {
             }
 
             blocks
+        }
+    }
+}
+*/
+
+impl<I: Eq> Cursor<I> {
+    fn matches_block(&self, block: &Block<I>) -> bool {
+        match self {
+            Self::Bottom => matches!(&block.body, BlockBody::Marker(MarkerBlock::Bottom)),
+            Self::Msg(id) => matches!(&block.body, BlockBody::Msg(msg) if msg.id == *id),
+            Self::Compose(lc) | Self::Placeholder(lc) => match &lc.after {
+                Some(bid) => {
+                    matches!(&block.body, BlockBody::Marker(MarkerBlock::After(aid)) if aid == bid)
+                }
+                None => matches!(&block.body, BlockBody::Marker(MarkerBlock::Bottom)),
+            },
+        }
+    }
+}
+
+impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
+    async fn cursor_path(&self, cursor: &Cursor<M::Id>) -> Path<M::Id> {
+        match cursor {
+            Cursor::Bottom => match self.store.last_tree().await {
+                Some(id) => Path::new(vec![id]),
+                None => Path::new(vec![M::last_possible_id()]),
+            },
+            Cursor::Msg(id) => self.store.path(id).await,
+            Cursor::Compose(lc) | Cursor::Placeholder(lc) => match &lc.after {
+                None => Path::new(vec![M::last_possible_id()]),
+                Some(id) => {
+                    let mut path = self.store.path(id).await;
+                    path.push(M::last_possible_id());
+                    path
+                }
+            },
+        }
+    }
+
+    fn cursor_tree_id<'a>(
+        cursor: &Cursor<M::Id>,
+        cursor_path: &'a Path<M::Id>,
+    ) -> Option<&'a M::Id> {
+        match cursor {
+            Cursor::Bottom => None,
+            Cursor::Msg(id) => Some(cursor_path.first()),
+            Cursor::Compose(lc) | Cursor::Placeholder(lc) => match &lc.after {
+                None => None,
+                Some(id) => Some(cursor_path.first()),
+            },
+        }
+    }
+
+    fn cursor_line(
+        last_blocks: &Blocks<M::Id>,
+        cursor: &Cursor<M::Id>,
+        cursor_path: &Path<M::Id>,
+        last_cursor_path: &Path<M::Id>,
+        size: Size,
+    ) -> i32 {
+        if let Some(block) = last_blocks.find(|b| cursor.matches_block(b)) {
+            block.line
+        } else if last_cursor_path < cursor_path {
+            // Not using size.height - 1 because markers like
+            // MarkerBlock::Bottom in the line below the last visible line are
+            // still relevant to us.
+            size.height.into()
+        } else {
+            0
+        }
+    }
+
+    fn msg_to_block(frame: &mut Frame, indent: usize, msg: &M) -> Block<M::Id> {
+        let size = frame.size();
+
+        let nick = msg.nick();
+        let content = msg.content();
+
+        let content_width = size.width as i32 - util::after_nick(frame, indent, &nick.text());
+        if content_width < util::MIN_CONTENT_WIDTH as i32 {
+            Block::placeholder(Some(msg.time()), indent, msg.id())
+        } else {
+            let content_width = content_width as usize;
+            let breaks = frame.wrap(&content.text(), content_width);
+            let lines = content.split_at_indices(&breaks);
+            Block::msg(msg.time(), indent, msg.id(), nick, lines)
+        }
+    }
+
+    fn layout_subtree(
+        frame: &mut Frame,
+        tree: &Tree<M>,
+        indent: usize,
+        id: &M::Id,
+        result: &mut Blocks<M::Id>,
+    ) {
+        let block = if let Some(msg) = tree.msg(id) {
+            Self::msg_to_block(frame, indent, msg)
+        } else {
+            Block::placeholder(None, indent, id.clone())
+        };
+        result.push_back(block);
+
+        if let Some(children) = tree.children(id) {
+            for child in children {
+                Self::layout_subtree(frame, tree, indent + 1, child, result);
+            }
+        }
+
+        result.push_back(Block::after(indent, id.clone()))
+    }
+
+    fn layout_tree(frame: &mut Frame, tree: Tree<M>) -> Blocks<M::Id> {
+        let mut blocks = Blocks::new();
+        Self::layout_subtree(frame, &tree, 0, tree.root(), &mut blocks);
+        blocks
+    }
+
+    /// Create a [`Blocks`] of the current cursor's immediate surroundings.
+    pub async fn layout_cursor_surroundings(&self, frame: &mut Frame) -> Blocks<M::Id> {
+        let size = frame.size();
+
+        let cursor_path = self.cursor_path(&self.cursor).await;
+        let last_cursor_path = self.cursor_path(&self.last_cursor).await;
+        let tree_id = Self::cursor_tree_id(&self.cursor, &cursor_path);
+        let cursor_line = Self::cursor_line(
+            &self.last_blocks,
+            &self.cursor,
+            &cursor_path,
+            &last_cursor_path,
+            size,
+        );
+
+        if let Some(tree_id) = tree_id {
+            let tree = self.store.tree(tree_id).await;
+            let mut blocks = Self::layout_tree(frame, tree);
+            blocks.recalculate_offsets(|b| {
+                if self.cursor.matches_block(b) {
+                    Some(cursor_line)
+                } else {
+                    None
+                }
+            });
+            blocks
+        } else {
+            let mut blocks = Blocks::new_below(cursor_line);
+            blocks.push_front(Block::bottom());
+            blocks
+        }
+    }
+
+    pub async fn expand_blocks_up(&self, frame: &mut Frame, blocks: &mut Blocks<M::Id>) {
+        while blocks.top_line > 0 {
+            let tree_id = if let Some((root_top, _)) = &blocks.roots {
+                self.store.prev_tree(root_top).await
+            } else {
+                self.store.last_tree().await
+            };
+
+            if let Some(tree_id) = tree_id {
+                let tree = self.store.tree(&tree_id).await;
+                blocks.prepend(Self::layout_tree(frame, tree));
+            } else {
+                break;
+            }
+        }
+    }
+
+    pub async fn expand_blocks_down(&self, frame: &mut Frame, blocks: &mut Blocks<M::Id>) {
+        while blocks.bottom_line < frame.size().height as i32 {
+            let tree_id = if let Some((_, root_bot)) = &blocks.roots {
+                self.store.next_tree(root_bot).await
+            } else {
+                // We assume that a Blocks without roots is at the bottom of the
+                // room's history. Therefore, there are no more messages below.
+                break;
+            };
+
+            if let Some(tree_id) = tree_id {
+                let tree = self.store.tree(&tree_id).await;
+                blocks.append(Self::layout_tree(frame, tree));
+            } else {
+                break;
+            }
         }
     }
 }

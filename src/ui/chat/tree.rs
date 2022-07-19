@@ -1,9 +1,9 @@
 // mod action;
 mod blocks;
 // mod cursor;
-// mod layout;
+mod layout;
 // mod render;
-// mod util;
+mod util;
 
 use std::sync::Arc;
 
@@ -13,6 +13,8 @@ use toss::frame::{Frame, Size};
 
 use crate::store::{Msg, MsgStore};
 use crate::ui::widgets::Widget;
+
+use self::blocks::Blocks;
 
 ///////////
 // State //
@@ -45,7 +47,7 @@ enum Cursor<I> {
 
 struct InnerTreeViewState<M: Msg, S: MsgStore<M>> {
     store: S,
-    last_blocks: (), // TODO
+    last_blocks: Blocks<M::Id>,
     last_cursor: Cursor<M::Id>,
     cursor: Cursor<M::Id>,
     editor: (), // TODO
@@ -55,7 +57,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     fn new(store: S) -> Self {
         Self {
             store,
-            last_blocks: (),
+            last_blocks: Blocks::new(),
             last_cursor: Cursor::Bottom,
             cursor: Cursor::Bottom,
             editor: (),

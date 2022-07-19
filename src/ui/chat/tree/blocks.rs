@@ -2,6 +2,7 @@
 
 use std::collections::VecDeque;
 
+use chrono::{DateTime, Utc};
 use toss::styled::Styled;
 
 use crate::macros::some_or_return;
@@ -42,6 +43,7 @@ pub enum BlockBody<I> {
 
 pub struct Block<I> {
     pub line: i32,
+    pub time: Option<DateTime<Utc>>,
     pub indent: usize,
     pub body: BlockBody<I>,
 }
@@ -50,6 +52,7 @@ impl<I> Block<I> {
     pub fn bottom() -> Self {
         Self {
             line: 0,
+            time: None,
             indent: 0,
             body: BlockBody::Marker(MarkerBlock::Bottom),
         }
@@ -58,14 +61,22 @@ impl<I> Block<I> {
     pub fn after(indent: usize, id: I) -> Self {
         Self {
             line: 0,
+            time: None,
             indent,
             body: BlockBody::Marker(MarkerBlock::After(id)),
         }
     }
 
-    pub fn msg(indent: usize, id: I, nick: Styled, lines: Vec<Styled>) -> Self {
+    pub fn msg(
+        time: DateTime<Utc>,
+        indent: usize,
+        id: I,
+        nick: Styled,
+        lines: Vec<Styled>,
+    ) -> Self {
         Self {
             line: 0,
+            time: Some(time),
             indent,
             body: BlockBody::Msg(MsgBlock {
                 id,
@@ -74,9 +85,10 @@ impl<I> Block<I> {
         }
     }
 
-    pub fn placeholder(indent: usize, id: I) -> Self {
+    pub fn placeholder(time: Option<DateTime<Utc>>, indent: usize, id: I) -> Self {
         Self {
             line: 0,
+            time,
             indent,
             body: BlockBody::Msg(MsgBlock {
                 id,

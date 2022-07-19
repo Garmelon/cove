@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::Hash;
+use std::vec;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -31,6 +32,10 @@ impl<I> Path<I> {
         &self.0
     }
 
+    pub fn push(&mut self, segment: I) {
+        self.0.push(segment)
+    }
+
     pub fn first(&self) -> &I {
         self.0.first().expect("path is not empty")
     }
@@ -45,6 +50,15 @@ impl<I> Path<I> {
 
     pub fn last_mut(&mut self) -> &mut I {
         self.0.last_mut().expect("path is not empty")
+    }
+}
+
+impl<I> IntoIterator for Path<I> {
+    type Item = I;
+    type IntoIter = vec::IntoIter<I>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }
 
