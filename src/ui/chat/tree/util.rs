@@ -2,6 +2,7 @@
 
 use crossterm::style::{ContentStyle, Stylize};
 use toss::frame::Frame;
+use toss::styled::Styled;
 
 pub const TIME_FORMAT: &str = "%F %R ";
 pub const TIME_EMPTY: &str = "                 ";
@@ -38,6 +39,6 @@ pub fn after_indent(indent: usize) -> i32 {
     (TIME_WIDTH + indent * INDENT_WIDTH) as i32
 }
 
-pub fn after_nick(frame: &mut Frame, indent: usize, nick: &str) -> i32 {
-    after_indent(indent) + 1 + frame.width(nick) as i32 + 2
+pub fn after_nick(frame: &mut Frame, indent: usize, nick: &Styled) -> i32 {
+    after_indent(indent) + 1 + frame.width_styled(nick) as i32 + 2
 }

@@ -1,95 +1,107 @@
 //! Rendering blocks to a [`Frame`].
 
 use chrono::{DateTime, Utc};
-use toss::frame::{Frame, Pos, Size};
+use toss::frame::{Frame, Pos};
 use toss::styled::Styled;
 
-use crate::store::Msg;
+use crate::store::{Msg, MsgStore};
 
-use super::blocks::{Block, BlockBody, Blocks};
-use super::util::{
-    self, style_indent, style_indent_inverted, style_placeholder, style_time, style_time_inverted,
-    INDENT, PLACEHOLDER, TIME_EMPTY, TIME_FORMAT,
-};
-use super::TreeView;
+use super::blocks::{Block, BlockBody, MsgBlock, MsgContent};
+use super::{util, InnerTreeViewState};
 
-fn render_time(frame: &mut Frame, x: i32, y: i32, cursor: bool, time: Option<DateTime<Utc>>) {
-    let pos = Pos::new(x, y);
+impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
+    fn render_time(frame: &mut Frame, line: i32, time: Option<DateTime<Utc>>, is_cursor: bool) {
+        let pos = Pos::new(0, line);
+        let style = if is_cursor {
+            util::style_time_inverted()
+        } else {
+            util::style_time()
+        };
 
-    let style = if cursor {
-        style_time_inverted()
-    } else {
-        style_time()
-    };
-
-    if let Some(time) = time {
-        let time = format!("{}", time.format(TIME_FORMAT));
-        frame.write(pos, (&time, style));
-    } else {
-        frame.write(pos, (TIME_EMPTY, style));
-    }
-}
-
-fn render_indent(frame: &mut Frame, x: i32, y: i32, cursor: bool, indent: usize) {
-    let style = if cursor {
-        style_indent_inverted()
-    } else {
-        style_indent()
-    };
-
-    let mut styled = Styled::default();
-    for _ in 0..indent {
-        styled = styled.then((INDENT, style));
+        if let Some(time) = time {
+            let time = format!("{}", time.format(util::TIME_FORMAT));
+            frame.write(pos, (&time, style));
+        } else {
+            frame.write(pos, (util::TIME_EMPTY, style));
+        }
     }
 
-    frame.write(Pos::new(x + util::after_indent(0), y), styled);
-}
+    fn render_indent(frame: &mut Frame, line: i32, indent: usize, is_cursor: bool) {
+        let pos = Pos::new(util::after_indent(0), line);
+        let style = if is_cursor {
+            util::style_indent_inverted()
+        } else {
+            util::style_indent()
+        };
 
-fn render_nick(frame: &mut Frame, x: i32, y: i32, indent: usize, nick: Styled) {
-    let nick_pos = Pos::new(x + util::after_indent(indent), y);
-    let styled = Styled::new("[").and_then(nick).then("]");
-    frame.write(nick_pos, styled);
-}
+        let mut styled = Styled::default();
+        for _ in 0..indent {
+            styled = styled.then((util::INDENT, style));
+        }
 
-fn render_block<M: Msg>(frame: &mut Frame, pos: Pos, size: Size, block: Block<M::Id>) {
-    match block.body {
-        BlockBody::Msg(msg) => {
-            let after_nick = util::after_nick(frame, block.indent, &msg.nick.text());
+        frame.write(pos, styled);
+    }
 
-            for (i, line) in msg.lines.into_iter().enumerate() {
-                let y = pos.y + block.line + i as i32;
-                if y < pos.y || y >= pos.y + size.height as i32 {
-                    continue;
+    fn render_nick(frame: &mut Frame, line: i32, indent: usize, nick: Styled) {
+        let nick_pos = Pos::new(util::after_indent(indent), line);
+        let styled = Styled::new("[").and_then(nick).then("]");
+        frame.write(nick_pos, styled);
+    }
+
+    fn draw_msg_block(
+        frame: &mut Frame,
+        line: i32,
+        time: Option<DateTime<Utc>>,
+        indent: usize,
+        msg: &MsgBlock<M::Id>,
+        is_cursor: bool,
+    ) {
+        match &msg.content {
+            MsgContent::Msg { nick, lines } => {
+                let height: i32 = frame.size().height.into();
+                let after_nick = util::after_nick(frame, indent, nick);
+
+                for (i, text) in lines.iter().enumerate() {
+                    let line = line + i as i32;
+                    if line < 0 || line >= height {
+                        continue;
+                    }
+
+                    if i == 0 {
+                        Self::render_indent(frame, line, indent, is_cursor);
+                        Self::render_time(frame, line, time, is_cursor);
+                        Self::render_nick(frame, line, indent, nick.clone());
+                    } else {
+                        Self::render_indent(frame, line, indent + 1, false);
+                        Self::render_indent(frame, line, indent, is_cursor);
+                        Self::render_time(frame, line, None, is_cursor);
+                    }
+
+                    frame.write(Pos::new(after_nick, line), text.clone());
                 }
-
-                if i == 0 {
-                    render_indent(frame, pos.x, y, block.cursor, block.indent);
-                    render_time(frame, pos.x, y, block.cursor, block.time);
-                    render_nick(frame, pos.x, y, block.indent, msg.nick.clone());
-                } else {
-                    render_indent(frame, pos.x, y, false, block.indent + 1);
-                    render_indent(frame, pos.x, y, block.cursor, block.indent);
-                    render_time(frame, pos.x, y, block.cursor, None);
-                }
-
-                let line_pos = Pos::new(pos.x + after_nick, y);
-                frame.write(line_pos, line);
+            }
+            MsgContent::Placeholder => {
+                Self::render_time(frame, line, time, is_cursor);
+                Self::render_indent(frame, line, indent, is_cursor);
+                let pos = Pos::new(util::after_indent(indent), line);
+                frame.write(pos, (util::PLACEHOLDER, util::style_placeholder()));
             }
         }
-        BlockBody::Placeholder => {
-            let y = pos.y + block.line;
-            render_time(frame, pos.x, y, block.cursor, block.time);
-            render_indent(frame, pos.x, y, block.cursor, block.indent);
-            let pos = Pos::new(pos.x + util::after_indent(block.indent), y);
-            frame.write(pos, (PLACEHOLDER, style_placeholder()));
+    }
+
+    fn draw_block(frame: &mut Frame, block: &Block<M::Id>, is_cursor: bool) {
+        match &block.body {
+            BlockBody::Marker(_) => {}
+            BlockBody::Msg(msg) => {
+                Self::draw_msg_block(frame, block.line, block.time, block.indent, msg, is_cursor)
+            }
+            BlockBody::Compose(_) => {}
         }
     }
-}
 
-impl<M: Msg> TreeView<M> {
-    pub fn render_blocks(frame: &mut Frame, pos: Pos, size: Size, layout: Blocks<M::Id>) {
-        for block in layout.blocks {
-            render_block::<M>(frame, pos, size, block);
+    pub fn draw_blocks(&self, frame: &mut Frame) {
+        for block in self.last_blocks.iter() {
+            Self::draw_block(frame, block, self.cursor.matches_block(block));
         }
     }
 }

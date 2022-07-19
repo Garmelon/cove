@@ -2,7 +2,7 @@
 mod blocks;
 // mod cursor;
 mod layout;
-// mod render;
+mod render;
 mod util;
 
 use std::sync::Arc;
@@ -14,7 +14,7 @@ use toss::frame::{Frame, Size};
 use crate::store::{Msg, MsgStore};
 use crate::ui::widgets::Widget;
 
-use self::blocks::Blocks;
+use self::blocks::{Block, BlockBody, Blocks, MarkerBlock};
 
 ///////////
 // State //
@@ -45,6 +45,21 @@ enum Cursor<I> {
     /// Will be replaced by a [`Cursor::Msg`] as soon as the server replies to
     /// the send command with the sent message.
     Placeholder(LastChild<I>),
+}
+
+impl<I: Eq> Cursor<I> {
+    fn matches_block(&self, block: &Block<I>) -> bool {
+        match self {
+            Self::Bottom => matches!(&block.body, BlockBody::Marker(MarkerBlock::Bottom)),
+            Self::Msg(id) => matches!(&block.body, BlockBody::Msg(msg) if msg.id == *id),
+            Self::Compose(lc) | Self::Placeholder(lc) => match &lc.after {
+                Some(bid) => {
+                    matches!(&block.body, BlockBody::Marker(MarkerBlock::After(aid)) if aid == bid)
+                }
+                None => matches!(&block.body, BlockBody::Marker(MarkerBlock::Bottom)),
+            },
+        }
+    }
 }
 
 struct InnerTreeViewState<M: Msg, S: MsgStore<M>> {
@@ -104,7 +119,6 @@ where
     async fn render(self: Box<Self>, frame: &mut Frame) {
         let mut guard = self.0.lock().await;
         guard.relayout(frame).await;
-        // Draw layout to screen
-        todo!()
+        guard.draw_blocks(frame);
     }
 }

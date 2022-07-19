@@ -7,21 +7,6 @@ use crate::store::{Msg, MsgStore, Path, Tree};
 use super::blocks::{Block, BlockBody, Blocks, MarkerBlock, MsgBlock};
 use super::{util, Cursor, InnerTreeViewState};
 
-impl<I: Eq> Cursor<I> {
-    fn matches_block(&self, block: &Block<I>) -> bool {
-        match self {
-            Self::Bottom => matches!(&block.body, BlockBody::Marker(MarkerBlock::Bottom)),
-            Self::Msg(id) => matches!(&block.body, BlockBody::Msg(msg) if msg.id == *id),
-            Self::Compose(lc) | Self::Placeholder(lc) => match &lc.after {
-                Some(bid) => {
-                    matches!(&block.body, BlockBody::Marker(MarkerBlock::After(aid)) if aid == bid)
-                }
-                None => matches!(&block.body, BlockBody::Marker(MarkerBlock::Bottom)),
-            },
-        }
-    }
-}
-
 impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     async fn cursor_path(&self, cursor: &Cursor<M::Id>) -> Path<M::Id> {
         match cursor {
@@ -47,10 +32,10 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     ) -> Option<&'a M::Id> {
         match cursor {
             Cursor::Bottom => None,
-            Cursor::Msg(id) => Some(cursor_path.first()),
+            Cursor::Msg(_) => Some(cursor_path.first()),
             Cursor::Compose(lc) | Cursor::Placeholder(lc) => match &lc.after {
                 None => None,
-                Some(id) => Some(cursor_path.first()),
+                Some(_) => Some(cursor_path.first()),
             },
         }
     }
@@ -80,7 +65,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         let nick = msg.nick();
         let content = msg.content();
 
-        let content_width = size.width as i32 - util::after_nick(frame, indent, &nick.text());
+        let content_width = size.width as i32 - util::after_nick(frame, indent, &nick);
         if content_width < util::MIN_CONTENT_WIDTH as i32 {
             Block::placeholder(Some(msg.time()), indent, msg.id())
         } else {
