@@ -70,6 +70,10 @@ impl Msg for EuphMsg {
     fn content(&self) -> Styled {
         self.content.trim().into()
     }
+
+    fn last_possible_id() -> Self::Id {
+        Snowflake::MAX
+    }
 }
 
 impl From<EuphRequest> for Request {

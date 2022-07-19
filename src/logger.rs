@@ -49,6 +49,10 @@ impl Msg for LogMsg {
     fn content(&self) -> Styled {
         Styled::new(&self.content)
     }
+
+    fn last_possible_id() -> Self::Id {
+        Self::Id::MAX
+    }
 }
 
 #[derive(Debug, Clone)]

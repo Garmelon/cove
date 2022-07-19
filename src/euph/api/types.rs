@@ -284,6 +284,11 @@ pub struct SessionView {
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Snowflake(pub u64);
 
+impl Snowflake {
+    pub const MIN: Self = Snowflake(u64::MIN);
+    pub const MAX: Self = Snowflake(u64::MAX);
+}
+
 impl Serialize for Snowflake {
     fn serialize<S: ser::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         // Convert u64 to base36 string

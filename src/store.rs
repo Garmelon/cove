@@ -14,6 +14,8 @@ pub trait Msg {
     fn time(&self) -> DateTime<Utc>;
     fn nick(&self) -> Styled;
     fn content(&self) -> Styled;
+
+    fn last_possible_id() -> Self::Id;
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
