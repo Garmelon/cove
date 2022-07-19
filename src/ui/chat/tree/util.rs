@@ -42,15 +42,3 @@ pub fn after_indent(indent: usize) -> i32 {
 pub fn after_nick(frame: &mut Frame, indent: usize, nick: &str) -> i32 {
     after_indent(indent) + 1 + frame.width(nick) as i32 + 2
 }
-
-pub fn proportion_to_line(height: u16, proportion: f32) -> i32 {
-    ((height - 1) as f32 * proportion).round() as i32
-}
-
-pub fn line_to_proportion(height: u16, line: i32) -> f32 {
-    if height > 1 {
-        line as f32 / (height - 1) as f32
-    } else {
-        0.0
-    }
-}
