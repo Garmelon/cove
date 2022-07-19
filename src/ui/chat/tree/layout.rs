@@ -102,6 +102,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     fn layout_tree(frame: &mut Frame, tree: Tree<M>) -> Blocks<M::Id> {
         let mut blocks = Blocks::new();
         Self::layout_subtree(frame, &tree, 0, tree.root(), &mut blocks);
+        blocks.roots = Some((tree.root().clone(), tree.root().clone()));
         blocks
     }
 
