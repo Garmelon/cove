@@ -16,7 +16,7 @@ pub fn style_time_inverted() -> ContentStyle {
 }
 
 pub const INDENT: &str = "│ ";
-pub const INDENT_WIDTH: usize = 2;
+pub const INDENT_WIDTH: usize = INDENT.len();
 
 pub fn style_indent() -> ContentStyle {
     ContentStyle::default().dark_grey()
@@ -32,8 +32,7 @@ pub fn style_placeholder() -> ContentStyle {
     ContentStyle::default().dark_grey()
 }
 
-// Something like this should fit: [+, 1234 more]
-pub const MIN_CONTENT_WIDTH: usize = 14;
+pub const MIN_CONTENT_WIDTH: usize = "[+, 1234 more]".len();
 
 pub fn after_indent(indent: usize) -> i32 {
     (TIME_WIDTH + indent * INDENT_WIDTH) as i32
