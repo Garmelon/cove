@@ -17,9 +17,8 @@ pub enum MsgContent {
 }
 
 pub struct MsgBlock<I> {
-    id: I,
-    cursor: bool,
-    content: MsgContent,
+    pub id: I,
+    pub content: MsgContent,
 }
 
 impl<I> MsgBlock<I> {
@@ -42,12 +41,50 @@ pub enum BlockBody<I> {
 }
 
 pub struct Block<I> {
-    line: i32,
-    indent: usize,
-    body: BlockBody<I>,
+    pub line: i32,
+    pub indent: usize,
+    pub body: BlockBody<I>,
 }
 
 impl<I> Block<I> {
+    pub fn bottom() -> Self {
+        Self {
+            line: 0,
+            indent: 0,
+            body: BlockBody::Marker(MarkerBlock::Bottom),
+        }
+    }
+
+    pub fn after(indent: usize, id: I) -> Self {
+        Self {
+            line: 0,
+            indent,
+            body: BlockBody::Marker(MarkerBlock::After(id)),
+        }
+    }
+
+    pub fn msg(indent: usize, id: I, nick: Styled, lines: Vec<Styled>) -> Self {
+        Self {
+            line: 0,
+            indent,
+            body: BlockBody::Msg(MsgBlock {
+                id,
+                content: MsgContent::Msg { nick, lines },
+            }),
+        }
+    }
+
+    pub fn placeholder(indent: usize, id: I) -> Self {
+        Self {
+            line: 0,
+            indent,
+            body: BlockBody::Msg(MsgBlock {
+                id,
+                content: MsgContent::Placeholder,
+            }),
+        }
+    }
+
     pub fn height(&self) -> i32 {
         match &self.body {
             BlockBody::Marker(m) => 0,
