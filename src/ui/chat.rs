@@ -126,7 +126,7 @@ pub enum Chat<M: Msg, S: MsgStore<M>> {
 impl<M, S> Widget for Chat<M, S>
 where
     M: Msg,
-    M::Id: Send,
+    M::Id: Send + Sync,
     S: MsgStore<M> + Send + Sync,
 {
     fn size(&self, frame: &mut Frame, max_width: Option<u16>, max_height: Option<u16>) -> Size {

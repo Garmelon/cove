@@ -1,22 +1,25 @@
 //! Intermediate representation of chat history as blocks of things.
 
-use std::collections::VecDeque;
+use std::collections::{vec_deque, VecDeque};
 
 use chrono::{DateTime, Utc};
 use toss::styled::Styled;
 
 use crate::macros::some_or_return;
 
+#[derive(Debug, Clone, Copy)]
 pub enum MarkerBlock<I> {
-    After(I),
+    After(I), // TODO Is this marker necessary?
     Bottom,
 }
 
+#[derive(Debug, Clone)]
 pub enum MsgContent {
     Msg { nick: Styled, lines: Vec<Styled> },
     Placeholder,
 }
 
+#[derive(Debug, Clone)]
 pub struct MsgBlock<I> {
     pub id: I,
     pub content: MsgContent,
@@ -31,16 +34,19 @@ impl<I> MsgBlock<I> {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct ComposeBlock {
     // TODO Editor widget
 }
 
+#[derive(Debug, Clone)]
 pub enum BlockBody<I> {
     Marker(MarkerBlock<I>),
     Msg(MsgBlock<I>),
     Compose(ComposeBlock),
 }
 
+#[derive(Debug, Clone)]
 pub struct Block<I> {
     pub line: i32,
     pub time: Option<DateTime<Utc>>,
@@ -121,6 +127,7 @@ impl<I> Block<I> {
 /// equation simplifies to
 ///
 /// `bottom_line = top_line - 1`
+#[derive(Debug, Clone)]
 pub struct Blocks<I> {
     pub blocks: VecDeque<Block<I>>,
     /// The top line of the first block. Useful for prepending blocks,
@@ -155,6 +162,10 @@ impl<I> Blocks<I> {
         F: Fn(&Block<I>) -> bool,
     {
         self.blocks.iter().find(|b| f(b))
+    }
+
+    pub fn iter(&self) -> vec_deque::Iter<Block<I>> {
+        self.blocks.iter()
     }
 
     pub fn update<F>(&mut self, f: F)

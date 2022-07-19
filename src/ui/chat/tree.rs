@@ -22,11 +22,13 @@ use self::blocks::Blocks;
 
 /// Position of a cursor that is displayed as the last child of its parent
 /// message, or last thread if it has no parent.
+#[derive(Debug, Clone, Copy)]
 struct LastChild<I> {
     coming_from: Option<I>,
     after: Option<I>,
 }
 
+#[derive(Debug, Clone, Copy)]
 enum Cursor<I> {
     /// No cursor visible because it is at the bottom of the chat history.
     ///
@@ -50,6 +52,10 @@ struct InnerTreeViewState<M: Msg, S: MsgStore<M>> {
     last_blocks: Blocks<M::Id>,
     last_cursor: Cursor<M::Id>,
     cursor: Cursor<M::Id>,
+    /// Set to true if the chat should be scrolled such that the cursor is fully
+    /// visible (if possible). If set to false, then the cursor itself is moved
+    /// to a different message such that it remains visible.
+    make_cursor_visible: bool,
     editor: (), // TODO
 }
 
@@ -60,6 +66,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             last_blocks: Blocks::new(),
             last_cursor: Cursor::Bottom,
             cursor: Cursor::Bottom,
+            make_cursor_visible: false,
             editor: (),
         }
     }
@@ -87,7 +94,7 @@ pub struct TreeView<M: Msg, S: MsgStore<M>>(Arc<Mutex<InnerTreeViewState<M, S>>>
 impl<M, S> Widget for TreeView<M, S>
 where
     M: Msg,
-    M::Id: Send,
+    M::Id: Send + Sync,
     S: MsgStore<M> + Send + Sync,
 {
     fn size(&self, _frame: &mut Frame, _max_width: Option<u16>, _max_height: Option<u16>) -> Size {
@@ -95,16 +102,8 @@ where
     }
 
     async fn render(self: Box<Self>, frame: &mut Frame) {
-        // Determine current cursor position
-        //   If cursor in last blocks, use that
-        //   If cursor below last cursor, use last line
-        //   Otherwise, use first line
-        // Layout starting from cursor tree
-        // Make cursor visible
-        //   If cursor was moved last, scroll so it is fully visible
-        //   Otherwise, move cursor so it is barely visible
-        // Clamp scrolling and fill screen again
-        // Update last layout and last cursor position
+        let mut guard = self.0.lock().await;
+        guard.relayout(frame).await;
         // Draw layout to screen
         todo!()
     }
