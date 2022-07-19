@@ -80,26 +80,24 @@ pub struct Blocks<I> {
     /// The bottom line of the last block. Useful for appending blocks,
     /// especially to empty [`Blocks`]s.
     pub bottom_line: i32,
+    /// The root of the first and last tree, if any. Useful for figuring out
+    /// which blocks to prepend or append.
+    pub roots: Option<(I, I)>,
 }
 
 impl<I> Blocks<I> {
-    pub fn new(initial: Block<I>) -> Self {
-        let top_line = initial.line;
-        let bottom_line = top_line + initial.height() - 1;
-        let mut blocks = VecDeque::new();
-        blocks.push_back(initial);
-        Self {
-            blocks,
-            top_line,
-            bottom_line,
-        }
+    pub fn new() -> Self {
+        Self::new_below(0)
     }
 
-    pub fn new_empty() -> Self {
+    /// Create a new [`Blocks`] such that prepending a single line will result
+    /// in `top_line = bottom_line = line`.
+    pub fn new_below(line: i32) -> Self {
         Self {
             blocks: VecDeque::new(),
-            top_line: 0,
-            bottom_line: -1,
+            top_line: line + 1,
+            bottom_line: line,
+            roots: None,
         }
     }
 
@@ -108,6 +106,15 @@ impl<I> Blocks<I> {
         F: Fn(&Block<I>) -> bool,
     {
         self.blocks.iter().find(|b| f(b))
+    }
+
+    pub fn update<F>(&mut self, f: F)
+    where
+        F: Fn(&mut Block<I>),
+    {
+        for block in &mut self.blocks {
+            f(block);
+        }
     }
 
     fn find_index_and_line<F>(&self, f: F) -> Option<(usize, i32)>
@@ -154,9 +161,28 @@ impl<I> Blocks<I> {
         self.blocks.push_back(block);
     }
 
+    pub fn offset(&mut self, delta: i32) {
+        self.top_line += delta;
+        self.bottom_line += delta;
+        for block in &mut self.blocks {
+            block.line += delta;
+        }
+    }
+}
+
+impl<I: Ord> Blocks<I> {
     pub fn prepend(&mut self, mut layout: Self) {
         while let Some(block) = layout.blocks.pop_back() {
             self.push_front(block);
+        }
+
+        if let Some((l_root_top, l_root_bot)) = layout.roots {
+            if let Some((root_top, root_bot)) = &mut self.roots {
+                assert!(l_root_bot < *root_top);
+                *root_top = l_root_top;
+            } else {
+                self.roots = Some((l_root_top, l_root_bot));
+            }
         }
     }
 
@@ -164,13 +190,14 @@ impl<I> Blocks<I> {
         while let Some(block) = layout.blocks.pop_front() {
             self.push_back(block);
         }
-    }
 
-    pub fn offset(&mut self, delta: i32) {
-        self.top_line += delta;
-        self.bottom_line += delta;
-        for block in &mut self.blocks {
-            block.line += delta;
+        if let Some((l_root_top, l_root_bot)) = layout.roots {
+            if let Some((root_top, root_bot)) = &mut self.roots {
+                assert!(l_root_top > *root_bot);
+                *root_bot = l_root_bot;
+            } else {
+                self.roots = Some((l_root_top, l_root_bot));
+            }
         }
     }
 }
