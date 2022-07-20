@@ -1,5 +1,6 @@
 pub mod background;
 pub mod empty;
+pub mod join;
 pub mod list;
 pub mod rules;
 pub mod text;
