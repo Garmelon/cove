@@ -1,4 +1,4 @@
-// mod action;
+mod action;
 mod blocks;
 mod cursor;
 mod layout;
@@ -9,8 +9,10 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use crossterm::event::{KeyCode, KeyEvent};
+use parking_lot::FairMutex;
 use tokio::sync::Mutex;
 use toss::frame::{Frame, Size};
+use toss::terminal::Terminal;
 
 use crate::store::{Msg, MsgStore};
 use crate::ui::widgets::Widget;
@@ -55,6 +57,22 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             _ => {}
         }
     }
+
+    async fn handle_messaging(
+        &self,
+        terminal: &mut Terminal,
+        crossterm_lock: &Arc<FairMutex<()>>,
+        event: KeyEvent,
+    ) -> Option<(Option<M::Id>, String)> {
+        match event.code {
+            KeyCode::Char('r') => self.reply_normal(terminal, crossterm_lock).await,
+            KeyCode::Char('R') => self.reply_alternate(terminal, crossterm_lock).await,
+            KeyCode::Char('t') | KeyCode::Char('T') => {
+                Self::create_new_thread(terminal, crossterm_lock)
+            }
+            _ => None,
+        }
+    }
 }
 
 pub struct TreeViewState<M: Msg, S: MsgStore<M>>(Arc<Mutex<InnerTreeViewState<M, S>>>);
@@ -70,6 +88,19 @@ impl<M: Msg, S: MsgStore<M>> TreeViewState<M, S> {
 
     pub async fn handle_navigation(&mut self, event: KeyEvent) {
         self.0.lock().await.handle_navigation(event).await;
+    }
+
+    pub async fn handle_messaging(
+        &self,
+        terminal: &mut Terminal,
+        crossterm_lock: &Arc<FairMutex<()>>,
+        event: KeyEvent,
+    ) -> Option<(Option<M::Id>, String)> {
+        self.0
+            .lock()
+            .await
+            .handle_messaging(terminal, crossterm_lock, event)
+            .await
     }
 }
 

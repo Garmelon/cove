@@ -1,8 +1,12 @@
 mod tree;
 
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use crossterm::event::KeyEvent;
+use parking_lot::FairMutex;
 use toss::frame::{Frame, Size};
+use toss::terminal::Terminal;
 
 use crate::store::{Msg, MsgStore};
 
@@ -55,26 +59,20 @@ impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
         }
     }
 
-    // pub async fn handle_messaging(
-    //     &mut self,
-    //     terminal: &mut Terminal,
-    //     crossterm_lock: &Arc<FairMutex<()>>,
-    //     event: KeyEvent,
-    // ) -> Option<(Option<M::Id>, String)> {
-    //     match self.mode {
-    //         Mode::Tree => {
-    //             self.tree
-    //                 .handle_messaging(
-    //                     &mut self.store,
-    //                     &mut self.cursor,
-    //                     terminal,
-    //                     crossterm_lock,
-    //                     event,
-    //                 )
-    //                 .await
-    //         }
-    //     }
-    // }
+    pub async fn handle_messaging(
+        &mut self,
+        terminal: &mut Terminal,
+        crossterm_lock: &Arc<FairMutex<()>>,
+        event: KeyEvent,
+    ) -> Option<(Option<M::Id>, String)> {
+        match self.mode {
+            Mode::Tree => {
+                self.tree
+                    .handle_messaging(terminal, crossterm_lock, event)
+                    .await
+            }
+        }
+    }
 }
 
 ////////////

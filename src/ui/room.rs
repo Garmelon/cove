@@ -304,13 +304,13 @@ impl EuphRoom {
                     }
                 }
 
-                // if let Some((parent, content)) = self
-                //     .chat
-                //     .handle_messaging(terminal, crossterm_lock, event)
-                //     .await
-                // {
-                //     let _ = room.send(parent, content);
-                // }
+                let potential_message = self
+                    .chat
+                    .handle_messaging(terminal, crossterm_lock, event)
+                    .await;
+                if let Some((parent, content)) = potential_message {
+                    let _ = room.send(parent, content);
+                }
             }
         }
     }
