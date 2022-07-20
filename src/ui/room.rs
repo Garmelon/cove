@@ -26,8 +26,6 @@ pub struct EuphRoom {
     ui_event_tx: mpsc::UnboundedSender<UiEvent>,
     room: Option<euph::Room>,
     chat: ChatState<EuphMsg, EuphVault>,
-
-    nick_list_width: u16,
     nick_list: ListState<String>,
 }
 
@@ -37,7 +35,6 @@ impl EuphRoom {
             ui_event_tx,
             room: None,
             chat: ChatState::new(vault),
-            nick_list_width: 24,
             nick_list: ListState::new(),
         }
     }
@@ -105,7 +102,6 @@ impl EuphRoom {
             ]))
             .expanding(true),
             Segment::new(VRule),
-            // TODO Fix nick list width
             Segment::new(self.nick_list_widget(joined)),
         ])
         .into()
