@@ -17,6 +17,7 @@ use super::chat::ChatState;
 use super::widgets::background::Background;
 use super::widgets::empty::Empty;
 use super::widgets::list::{List, ListState};
+use super::widgets::rules::{HRule, VRule};
 use super::widgets::text::Text;
 use super::widgets::Widget;
 use super::{util, UiEvent};
@@ -104,7 +105,10 @@ impl EuphRoom {
         Box::new(self.chat.widget()).render(frame).await;
         frame.pop();
         self.render_status(frame, status_pos, status);
-        Self::render_hsplit(frame, hsplit);
+
+        frame.push(Pos::new(0, hsplit), Size::new(size.width, 1));
+        Box::new(HRule).render(frame).await;
+        frame.pop();
     }
 
     async fn render_with_nick_list(
@@ -132,10 +136,18 @@ impl EuphRoom {
         frame.push(chat_pos, chat_size);
         Box::new(self.chat.widget()).render(frame).await;
         frame.pop();
+
         self.render_status(frame, status_pos, status);
         self.render_nick_list(frame, nick_list_pos, nick_list_size, joined)
             .await;
-        Self::render_vsplit_hsplit(frame, vsplit, hsplit);
+
+        frame.push(Pos::new(0, hsplit), Size::new(vsplit as u16, 1));
+        Box::new(HRule).render(frame).await;
+        frame.pop();
+
+        frame.push(Pos::new(vsplit, 0), Size::new(1, size.height));
+        Box::new(VRule).render(frame).await;
+        frame.pop();
     }
 
     fn render_status(&self, frame: &mut Frame, pos: Pos, status: &Option<Option<Status>>) {
@@ -269,23 +281,6 @@ impl EuphRoom {
         frame.push(pos, size);
         Box::new(list).render(frame).await;
         frame.pop();
-    }
-
-    fn render_hsplit(frame: &mut Frame, hsplit: i32) {
-        for x in 0..frame.size().width as i32 {
-            frame.write(Pos::new(x, hsplit), "─");
-        }
-    }
-
-    fn render_vsplit_hsplit(frame: &mut Frame, vsplit: i32, hsplit: i32) {
-        for x in 0..vsplit {
-            frame.write(Pos::new(x, hsplit), "─");
-        }
-
-        for y in 0..frame.size().height as i32 {
-            let symbol = if y == hsplit { "┤" } else { "│" };
-            frame.write(Pos::new(vsplit, y), symbol);
-        }
     }
 
     pub async fn handle_key_event(
