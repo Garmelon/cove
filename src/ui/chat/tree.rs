@@ -8,6 +8,7 @@ mod util;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use crossterm::event::{KeyCode, KeyEvent};
 use tokio::sync::Mutex;
 use toss::frame::{Frame, Size};
 
@@ -44,6 +45,16 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             editor: (),
         }
     }
+
+    async fn handle_navigation(&mut self, event: KeyEvent) {
+        match event.code {
+            KeyCode::Up | KeyCode::Char('k') => self.move_cursor_up().await,
+            KeyCode::Down | KeyCode::Char('j') => self.move_cursor_down().await,
+            KeyCode::Char('g') => self.move_cursor_to_top().await,
+            KeyCode::Char('G') => self.move_cursor_to_bottom().await,
+            _ => {}
+        }
+    }
 }
 
 pub struct TreeViewState<M: Msg, S: MsgStore<M>>(Arc<Mutex<InnerTreeViewState<M, S>>>);
@@ -55,6 +66,10 @@ impl<M: Msg, S: MsgStore<M>> TreeViewState<M, S> {
 
     pub fn widget(&self) -> TreeView<M, S> {
         TreeView(self.0.clone())
+    }
+
+    pub async fn handle_navigation(&mut self, event: KeyEvent) {
+        self.0.lock().await.handle_navigation(event).await;
     }
 }
 

@@ -1,6 +1,7 @@
 mod tree;
 
 use async_trait::async_trait;
+use crossterm::event::KeyEvent;
 use toss::frame::{Frame, Size};
 
 use crate::store::{Msg, MsgStore};
@@ -47,23 +48,12 @@ impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
             Mode::Tree => Chat::Tree(self.tree.widget()),
         }
     }
-}
 
-impl<M: Msg, S: MsgStore<M>> Chat<M, S> {
-    // pub async fn handle_navigation(
-    //     &mut self,
-    //     terminal: &mut Terminal,
-    //     size: Size,
-    //     event: KeyEvent,
-    // ) {
-    //     match self.mode {
-    //         Mode::Tree => {
-    //             self.tree
-    //                 .handle_navigation(&mut self.store, &mut self.cursor, terminal, size, event)
-    //                 .await
-    //         }
-    //     }
-    // }
+    pub async fn handle_navigation(&mut self, event: KeyEvent) {
+        match self.mode {
+            Mode::Tree => self.tree.handle_navigation(event).await,
+        }
+    }
 
     // pub async fn handle_messaging(
     //     &mut self,
@@ -81,16 +71,6 @@ impl<M: Msg, S: MsgStore<M>> Chat<M, S> {
     //                     crossterm_lock,
     //                     event,
     //                 )
-    //                 .await
-    //         }
-    //     }
-    // }
-
-    // pub async fn render(&mut self, frame: &mut Frame, pos: Pos, size: Size) {
-    //     match self.mode {
-    //         Mode::Tree => {
-    //             self.tree
-    //                 .render(&mut self.store, &self.cursor, frame, pos, size)
     //                 .await
     //         }
     //     }
