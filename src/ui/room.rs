@@ -5,7 +5,6 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crossterm::style::{Color, ContentStyle, Stylize};
 use parking_lot::FairMutex;
 use tokio::sync::mpsc;
-use toss::frame::{Frame, Pos, Size};
 use toss::styled::Styled;
 use toss::terminal::Terminal;
 
@@ -16,10 +15,11 @@ use crate::vault::{EuphMsg, EuphVault};
 use super::chat::ChatState;
 use super::widgets::background::Background;
 use super::widgets::empty::Empty;
+use super::widgets::join::{HJoin, Segment, VJoin};
 use super::widgets::list::{List, ListState};
 use super::widgets::rules::{HRule, VRule};
 use super::widgets::text::Text;
-use super::widgets::Widget;
+use super::widgets::BoxedWidget;
 use super::{util, UiEvent};
 
 pub struct EuphRoom {
@@ -75,82 +75,43 @@ impl EuphRoom {
         }
     }
 
-    pub async fn render(&mut self, frame: &mut Frame) {
+    pub async fn widget(&self) -> BoxedWidget {
         let status = self.status().await;
         match &status {
-            Some(Some(Status::Joined(joined))) => {
-                self.render_with_nick_list(frame, &status, joined).await
-            }
-            _ => self.render_without_nick_list(frame, &status).await,
+            Some(Some(Status::Joined(joined))) => self.widget_with_nick_list(&status, joined),
+            _ => self.widget_without_nick_list(&status),
         }
     }
 
-    async fn render_without_nick_list(
-        &mut self,
-        frame: &mut Frame,
-        status: &Option<Option<Status>>,
-    ) {
-        let size = frame.size();
-
-        // Position of horizontal line between status and chat
-        let hsplit = 1_i32;
-
-        let status_pos = Pos::new(0, 0);
-        // let status_size = Size::new(size.width, 1);
-
-        let chat_pos = Pos::new(0, hsplit + 1);
-        let chat_size = Size::new(size.width, size.height.saturating_sub(hsplit as u16 + 1));
-
-        frame.push(chat_pos, chat_size);
-        Box::new(self.chat.widget()).render(frame).await;
-        frame.pop();
-        self.render_status(frame, status_pos, status);
-
-        frame.push(Pos::new(0, hsplit), Size::new(size.width, 1));
-        Box::new(HRule).render(frame).await;
-        frame.pop();
+    fn widget_without_nick_list(&self, status: &Option<Option<Status>>) -> BoxedWidget {
+        VJoin::new(vec![
+            Segment::new(self.status_widget(status)),
+            Segment::new(HRule),
+            Segment::new(self.chat.widget()).expanding(true),
+        ])
+        .into()
     }
 
-    async fn render_with_nick_list(
-        &mut self,
-        frame: &mut Frame,
+    fn widget_with_nick_list(
+        &self,
         status: &Option<Option<Status>>,
         joined: &Joined,
-    ) {
-        let size = frame.size();
-
-        // Position of vertical line between main part and nick list
-        let vsplit = size.width.saturating_sub(self.nick_list_width + 1) as i32;
-        // Position of horizontal line between status and chat
-        let hsplit = 1_i32;
-
-        let status_pos = Pos::new(0, 0);
-        // let status_size = Size::new(vsplit as u16, 1);
-
-        let chat_pos = Pos::new(0, hsplit + 1);
-        let chat_size = Size::new(vsplit as u16, size.height.saturating_sub(hsplit as u16 + 1));
-
-        let nick_list_pos = Pos::new(vsplit + 1, 0);
-        let nick_list_size = Size::new(self.nick_list_width, size.height);
-
-        frame.push(chat_pos, chat_size);
-        Box::new(self.chat.widget()).render(frame).await;
-        frame.pop();
-
-        self.render_status(frame, status_pos, status);
-        self.render_nick_list(frame, nick_list_pos, nick_list_size, joined)
-            .await;
-
-        frame.push(Pos::new(0, hsplit), Size::new(vsplit as u16, 1));
-        Box::new(HRule).render(frame).await;
-        frame.pop();
-
-        frame.push(Pos::new(vsplit, 0), Size::new(1, size.height));
-        Box::new(VRule).render(frame).await;
-        frame.pop();
+    ) -> BoxedWidget {
+        HJoin::new(vec![
+            Segment::new(VJoin::new(vec![
+                Segment::new(self.status_widget(status)),
+                Segment::new(HRule),
+                Segment::new(self.chat.widget()).expanding(true),
+            ]))
+            .expanding(true),
+            Segment::new(VRule),
+            // TODO Fix nick list width
+            Segment::new(self.nick_list_widget(joined)),
+        ])
+        .into()
     }
 
-    fn render_status(&self, frame: &mut Frame, pos: Pos, status: &Option<Option<Status>>) {
+    fn status_widget(&self, status: &Option<Option<Status>>) -> BoxedWidget {
         let room = self.chat.store().room();
         let room_style = ContentStyle::default().bold().blue();
         let mut info = Styled::new((format!("&{room}"), room_style));
@@ -169,10 +130,14 @@ impl EuphRoom {
                 }
             }
         };
-        frame.write(pos, info);
+        Text::new(info).into()
     }
 
-    fn render_row(list: &mut List<String>, session: &SessionView, own_session: &SessionView) {
+    fn render_nick_list_row(
+        list: &mut List<String>,
+        session: &SessionView,
+        own_session: &SessionView,
+    ) {
         let id = session.session_id.clone();
 
         let (name, style, style_inv) = if session.name.is_empty() {
@@ -214,7 +179,7 @@ impl EuphRoom {
         );
     }
 
-    fn render_section(
+    fn render_nick_list_section(
         list: &mut List<String>,
         name: &str,
         sessions: &[&SessionView],
@@ -234,11 +199,11 @@ impl EuphRoom {
         list.add_unsel(Text::new(row));
 
         for session in sessions {
-            Self::render_row(list, session, own_session);
+            Self::render_nick_list_row(list, session, own_session);
         }
     }
 
-    fn render_rows(list: &mut List<String>, joined: &Joined) {
+    fn render_nick_list_rows(list: &mut List<String>, joined: &Joined) {
         let mut people = vec![];
         let mut bots = vec![];
         let mut lurkers = vec![];
@@ -262,25 +227,16 @@ impl EuphRoom {
         lurkers.sort_unstable_by_key(|s| &s.session_id);
         nurkers.sort_unstable_by_key(|s| &s.session_id);
 
-        Self::render_section(list, "People", &people, &joined.session);
-        Self::render_section(list, "Bots", &bots, &joined.session);
-        Self::render_section(list, "Lurkers", &lurkers, &joined.session);
-        Self::render_section(list, "Nurkers", &nurkers, &joined.session);
+        Self::render_nick_list_section(list, "People", &people, &joined.session);
+        Self::render_nick_list_section(list, "Bots", &bots, &joined.session);
+        Self::render_nick_list_section(list, "Lurkers", &lurkers, &joined.session);
+        Self::render_nick_list_section(list, "Nurkers", &nurkers, &joined.session);
     }
 
-    async fn render_nick_list(&mut self, frame: &mut Frame, pos: Pos, size: Size, joined: &Joined) {
-        // Clear area in case there's overdraw from the chat or status
-        for y in pos.y..(pos.y + size.height as i32) {
-            for x in pos.x..(pos.x + size.width as i32) {
-                frame.write(Pos::new(x, y), " ");
-            }
-        }
-
+    fn nick_list_widget(&self, joined: &Joined) -> BoxedWidget {
         let mut list = self.nick_list.list();
-        Self::render_rows(&mut list, joined);
-        frame.push(pos, size);
-        Box::new(list).render(frame).await;
-        frame.pop();
+        Self::render_nick_list_rows(&mut list, joined);
+        list.into()
     }
 
     pub async fn handle_key_event(

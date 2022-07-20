@@ -72,7 +72,7 @@ impl Rooms {
             let actual_room = self.euph_rooms.entry(room.clone()).or_insert_with(|| {
                 EuphRoom::new(self.vault.euph(room.clone()), self.ui_event_tx.clone())
             });
-            actual_room.render(frame).await;
+            actual_room.widget().await.render(frame).await;
         } else {
             self.render_rooms(frame).await;
         }
