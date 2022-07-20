@@ -5,7 +5,8 @@ use toss::frame::{Frame, Size};
 use crate::store::{Msg, MsgStore, Path, Tree};
 
 use super::blocks::{Block, BlockBody, Blocks, MsgBlock};
-use super::{util, Cursor, InnerTreeViewState};
+use super::cursor::Cursor;
+use super::{util, InnerTreeViewState};
 
 impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     async fn cursor_path(&self, cursor: &Cursor<M::Id>) -> Path<M::Id> {

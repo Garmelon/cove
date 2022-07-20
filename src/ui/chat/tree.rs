@@ -1,6 +1,6 @@
 // mod action;
 mod blocks;
-// mod cursor;
+mod cursor;
 mod layout;
 mod render;
 mod util;
@@ -14,53 +14,12 @@ use toss::frame::{Frame, Size};
 use crate::store::{Msg, MsgStore};
 use crate::ui::widgets::Widget;
 
-use self::blocks::{Block, BlockBody, Blocks, MarkerBlock};
+use self::blocks::Blocks;
+use self::cursor::Cursor;
 
 ///////////
 // State //
 ///////////
-
-/// Position of a cursor that is displayed as the last child of its parent
-/// message, or last thread if it has no parent.
-#[derive(Debug, Clone, Copy)]
-struct LastChild<I> {
-    coming_from: Option<I>,
-    after: Option<I>,
-}
-
-#[derive(Debug, Clone, Copy)]
-enum Cursor<I> {
-    /// No cursor visible because it is at the bottom of the chat history.
-    ///
-    /// See also [`Anchor::Bottom`].
-    Bottom,
-    /// The cursor points to a message.
-    Msg(I),
-    /// The cursor has turned into an editor because we're composing a new
-    /// message.
-    Compose(LastChild<I>),
-    /// A placeholder message is being displayed for a message that was just
-    /// sent by the user.
-    ///
-    /// Will be replaced by a [`Cursor::Msg`] as soon as the server replies to
-    /// the send command with the sent message.
-    Placeholder(LastChild<I>),
-}
-
-impl<I: Eq> Cursor<I> {
-    fn matches_block(&self, block: &Block<I>) -> bool {
-        match self {
-            Self::Bottom => matches!(&block.body, BlockBody::Marker(MarkerBlock::Bottom)),
-            Self::Msg(id) => matches!(&block.body, BlockBody::Msg(msg) if msg.id == *id),
-            Self::Compose(lc) | Self::Placeholder(lc) => match &lc.after {
-                Some(bid) => {
-                    matches!(&block.body, BlockBody::Marker(MarkerBlock::After(aid)) if aid == bid)
-                }
-                None => matches!(&block.body, BlockBody::Marker(MarkerBlock::Bottom)),
-            },
-        }
-    }
-}
 
 struct InnerTreeViewState<M: Msg, S: MsgStore<M>> {
     store: S,

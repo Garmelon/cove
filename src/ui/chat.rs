@@ -19,23 +19,6 @@ pub enum Mode {
     // Flat,
 }
 
-pub struct Cursor<I> {
-    id: I,
-    /// Where on the screen the cursor is visible (`0.0` = first line, `1.0` =
-    /// last line).
-    proportion: f32,
-}
-
-impl<I> Cursor<I> {
-    /// Create a new cursor with arbitrary proportion.
-    pub fn new(id: I) -> Self {
-        Self {
-            id,
-            proportion: 0.0,
-        }
-    }
-}
-
 pub struct ChatState<M: Msg, S: MsgStore<M>> {
     store: S,
     mode: Mode,
