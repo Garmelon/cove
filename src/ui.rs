@@ -139,11 +139,11 @@ impl Ui {
                 Some(event) => event,
                 None => return Ok(()),
             };
-            terminal.autoresize()?;
             loop {
                 // Render in-between events so the next event is handled in an
                 // up-to-date state. The results of these intermediate renders
                 // will be thrown away before the final render.
+                terminal.autoresize()?;
                 self.widget().await.render(terminal.frame()).await;
 
                 let result = match event {
@@ -167,6 +167,7 @@ impl Ui {
             }
 
             // 3. Render and present final state
+            terminal.autoresize()?;
             terminal.frame().reset();
             self.widget().await.render(terminal.frame()).await;
             terminal.present()?;
