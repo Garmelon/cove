@@ -48,7 +48,11 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         last_cursor_path: &Path<M::Id>,
         size: Size,
     ) -> i32 {
-        if let Some(block) = last_blocks.find(|b| cursor.matches_block(b)) {
+        if matches!(cursor, Cursor::Bottom) {
+            // Ensures that a Cursor::Bottom is always at the bottom of the
+            // screen. Will be scroll-clamped to the bottom later.
+            0
+        } else if let Some(block) = last_blocks.find(|b| cursor.matches_block(b)) {
             block.line
         } else if last_cursor_path < cursor_path {
             // If the cursor is bottom, the bottom marker needs to be located at
