@@ -6,7 +6,6 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crossterm::style::{ContentStyle, Stylize};
 use parking_lot::FairMutex;
 use tokio::sync::mpsc;
-use toss::frame::Frame;
 use toss::styled::Styled;
 use toss::terminal::Terminal;
 
@@ -18,7 +17,7 @@ use super::room::EuphRoom;
 use super::widgets::background::Background;
 use super::widgets::list::{List, ListState};
 use super::widgets::text::Text;
-use super::widgets::Widget;
+use super::widgets::BoxedWidget;
 use super::{util, UiEvent};
 
 pub struct Rooms {
@@ -67,14 +66,14 @@ impl Rooms {
         rooms
     }
 
-    pub async fn render(&mut self, frame: &mut Frame) {
+    pub async fn widget(&mut self) -> BoxedWidget {
         if let Some(room) = &self.focus {
             let actual_room = self.euph_rooms.entry(room.clone()).or_insert_with(|| {
                 EuphRoom::new(self.vault.euph(room.clone()), self.ui_event_tx.clone())
             });
-            actual_room.widget().await.render(frame).await;
+            actual_room.widget().await
         } else {
-            self.render_rooms(frame).await;
+            self.rooms_widget().await
         }
     }
 
@@ -148,11 +147,11 @@ impl Rooms {
         }
     }
 
-    async fn render_rooms(&mut self, frame: &mut Frame) {
+    async fn rooms_widget(&mut self) -> BoxedWidget {
         let rooms = self.stabilize_rooms().await;
         let mut list = self.list.list().focus(true);
         self.render_rows(&mut list, rooms).await;
-        Box::new(list).render(frame).await;
+        list.into()
     }
 
     pub async fn handle_key_event(

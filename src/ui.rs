@@ -14,7 +14,6 @@ use parking_lot::FairMutex;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::task;
-use toss::frame::Frame;
 use toss::terminal::Terminal;
 
 use crate::logger::{LogMsg, Logger};
@@ -22,7 +21,7 @@ use crate::vault::Vault;
 
 use self::chat::ChatState;
 use self::rooms::Rooms;
-use self::widgets::Widget;
+use self::widgets::BoxedWidget;
 
 #[derive(Debug)]
 pub enum UiEvent {
@@ -121,26 +120,32 @@ impl Ui {
         mut event_rx: UnboundedReceiver<UiEvent>,
         crossterm_lock: Arc<FairMutex<()>>,
     ) -> anyhow::Result<()> {
-        loop {
-            // 1. Render current state
-            terminal.autoresize()?;
-            self.render(terminal.frame()).await?;
-            terminal.present()?;
+        // Initial render so we don't show a blank screen until the first event
+        terminal.autoresize()?;
+        terminal.frame().reset();
+        self.widget().await.render(terminal.frame()).await;
+        terminal.present()?;
 
-            // 2. Measure widths if required
+        loop {
+            // 1. Measure grapheme widths if required
             if terminal.measuring_required() {
                 let _guard = crossterm_lock.lock();
                 terminal.measure_widths()?;
                 self.event_tx.send(UiEvent::Redraw)?;
             }
 
-            // 3. Handle events (in batches)
+            // 2. Handle events (in batches)
             let mut event = match event_rx.recv().await {
                 Some(event) => event,
                 None => return Ok(()),
             };
             terminal.autoresize()?;
             loop {
+                // Render in-between events so the next event is handled in an
+                // up-to-date state. The results of these intermediate renders
+                // will be thrown away before the final render.
+                self.widget().await.render(terminal.frame()).await;
+
                 let result = match event {
                     UiEvent::Redraw => EventHandleResult::Continue,
                     UiEvent::Term(Event::Key(event)) => {
@@ -160,15 +165,19 @@ impl Ui {
                     Err(TryRecvError::Disconnected) => return Ok(()),
                 };
             }
+
+            // 3. Render and present final state
+            terminal.frame().reset();
+            self.widget().await.render(terminal.frame()).await;
+            terminal.present()?;
         }
     }
 
-    async fn render(&mut self, frame: &mut Frame) -> anyhow::Result<()> {
+    async fn widget(&mut self) -> BoxedWidget {
         match self.mode {
-            Mode::Main => self.rooms.render(frame).await,
-            Mode::Log => Box::new(self.log_chat.widget()).render(frame).await,
+            Mode::Main => self.rooms.widget().await,
+            Mode::Log => self.log_chat.widget().into(),
         }
-        Ok(())
     }
 
     async fn handle_key_event(
