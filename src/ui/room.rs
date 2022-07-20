@@ -291,7 +291,6 @@ impl EuphRoom {
     pub async fn handle_key_event(
         &mut self,
         terminal: &mut Terminal,
-        size: Size,
         crossterm_lock: &Arc<FairMutex<()>>,
         event: KeyEvent,
     ) {

@@ -14,13 +14,13 @@ use parking_lot::FairMutex;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::task;
-use toss::frame::{Frame, Pos, Size};
+use toss::frame::Frame;
 use toss::terminal::Terminal;
 
 use crate::logger::{LogMsg, Logger};
 use crate::vault::Vault;
 
-use self::chat::{Chat, ChatState};
+use self::chat::ChatState;
 use self::rooms::Rooms;
 use self::widgets::Widget;
 
@@ -141,11 +141,10 @@ impl Ui {
             };
             terminal.autoresize()?;
             loop {
-                let size = terminal.frame().size();
                 let result = match event {
                     UiEvent::Redraw => EventHandleResult::Continue,
                     UiEvent::Term(Event::Key(event)) => {
-                        self.handle_key_event(event, terminal, size, &crossterm_lock)
+                        self.handle_key_event(event, terminal, &crossterm_lock)
                             .await
                     }
                     UiEvent::Term(Event::Mouse(event)) => self.handle_mouse_event(event).await?,
@@ -176,7 +175,6 @@ impl Ui {
         &mut self,
         event: KeyEvent,
         terminal: &mut Terminal,
-        size: Size,
         crossterm_lock: &Arc<FairMutex<()>>,
     ) -> EventHandleResult {
         // Always exit when shift+q or ctrl+c are pressed
@@ -196,7 +194,7 @@ impl Ui {
         match self.mode {
             Mode::Main => {
                 self.rooms
-                    .handle_key_event(terminal, size, crossterm_lock, event)
+                    .handle_key_event(terminal, crossterm_lock, event)
                     .await
             }
             Mode::Log => {

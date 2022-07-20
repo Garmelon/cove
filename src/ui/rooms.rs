@@ -6,7 +6,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crossterm::style::{ContentStyle, Stylize};
 use parking_lot::FairMutex;
 use tokio::sync::mpsc;
-use toss::frame::{Frame, Size};
+use toss::frame::Frame;
 use toss::styled::Styled;
 use toss::terminal::Terminal;
 
@@ -158,7 +158,6 @@ impl Rooms {
     pub async fn handle_key_event(
         &mut self,
         terminal: &mut Terminal,
-        size: Size,
         crossterm_lock: &Arc<FairMutex<()>>,
         event: KeyEvent,
     ) {
@@ -170,7 +169,7 @@ impl Rooms {
                     EuphRoom::new(self.vault.euph(room.clone()), self.ui_event_tx.clone())
                 });
                 actual_room
-                    .handle_key_event(terminal, size, crossterm_lock, event)
+                    .handle_key_event(terminal, crossterm_lock, event)
                     .await;
             }
         } else {
