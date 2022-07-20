@@ -4,7 +4,7 @@ use toss::frame::{Frame, Size};
 
 use crate::store::{Msg, MsgStore, Path, Tree};
 
-use super::blocks::{Block, BlockBody, Blocks, MarkerBlock, MsgBlock};
+use super::blocks::{Block, BlockBody, Blocks, MsgBlock};
 use super::{util, Cursor, InnerTreeViewState};
 
 impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
@@ -144,18 +144,18 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             return;
         }
 
-        if let Some(block) = blocks.find(|b| cursor.matches_block(b)) {
-            let min_line = 0;
-            let max_line = size.height as i32 - block.height();
-            if block.line < min_line {
-                blocks.offset(min_line - block.line);
-            } else if block.line > max_line {
-                blocks.offset(max_line - block.line);
-            }
-        } else {
+        let block = blocks
+            .find(|b| cursor.matches_block(b))
             // This should never happen since we always start rendering the
             // blocks from the cursor.
-            panic!("no cursor found");
+            .expect("no cursor found");
+
+        let min_line = 0;
+        let max_line = size.height as i32 - block.height();
+        if block.line < min_line {
+            blocks.offset(min_line - block.line);
+        } else if block.line > max_line {
+            blocks.offset(max_line - block.line);
         }
     }
 
@@ -178,34 +178,34 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             return;
         }
 
-        if let Some(block) = blocks.find(|b| cursor.matches_block(b)) {
-            let min_line = 1 - block.height();
-            let max_line = size.height as i32 - 1;
-
-            let new_cursor = if block.line < min_line {
-                // Move cursor to first possible visible block
-                blocks
-                    .iter()
-                    .filter(|b| b.line >= min_line)
-                    .find_map(Self::as_msg_cursor)
-            } else if block.line > max_line {
-                // Move cursor to last possible visible block
-                blocks
-                    .iter()
-                    .rev()
-                    .filter(|b| b.line <= max_line)
-                    .find_map(Self::as_msg_cursor)
-            } else {
-                None
-            };
-
-            if let Some(new_cursor) = new_cursor {
-                *cursor = new_cursor;
-            }
-        } else {
+        let block = blocks
+            .find(|b| cursor.matches_block(b))
             // This should never happen since we always start rendering the
             // blocks from the cursor.
-            panic!("no cursor found");
+            .expect("no cursor found");
+
+        let min_line = 1 - block.height();
+        let max_line = size.height as i32 - 1;
+
+        let new_cursor = if block.line < min_line {
+            // Move cursor to first possible visible block
+            blocks
+                .iter()
+                .filter(|b| b.line >= min_line)
+                .find_map(Self::as_msg_cursor)
+        } else if block.line > max_line {
+            // Move cursor to last possible visible block
+            blocks
+                .iter()
+                .rev()
+                .filter(|b| b.line <= max_line)
+                .find_map(Self::as_msg_cursor)
+        } else {
+            None
+        };
+
+        if let Some(new_cursor) = new_cursor {
+            *cursor = new_cursor;
         }
     }
 
