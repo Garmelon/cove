@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use parking_lot::Mutex;
 use toss::frame::{Frame, Pos, Size};
 
-use super::Widget;
+use super::{BoxedWidget, Widget};
 
 ///////////
 // State //
@@ -199,12 +199,12 @@ impl<Id: Clone> ListState<Id> {
 
 enum Row<Id> {
     Unselectable {
-        normal: Box<dyn Widget + Send>,
+        normal: BoxedWidget,
     },
     Selectable {
         id: Id,
-        normal: Box<dyn Widget + Send>,
-        selected: Box<dyn Widget + Send>,
+        normal: BoxedWidget,
+        selected: BoxedWidget,
     },
 }
 
@@ -257,21 +257,21 @@ impl<Id> List<Id> {
         self.rows.is_empty()
     }
 
-    pub fn add_unsel<W: 'static + Widget + Send>(&mut self, normal: W) {
+    pub fn add_unsel<W: Into<BoxedWidget>>(&mut self, normal: W) {
         self.rows.push(Row::Unselectable {
-            normal: Box::new(normal),
+            normal: normal.into(),
         });
     }
 
     pub fn add_sel<W1, W2>(&mut self, id: Id, normal: W1, selected: W2)
     where
-        W1: 'static + Widget + Send,
-        W2: 'static + Widget + Send,
+        W1: Into<BoxedWidget>,
+        W2: Into<BoxedWidget>,
     {
         self.rows.push(Row::Selectable {
             id,
-            normal: Box::new(normal),
-            selected: Box::new(selected),
+            normal: normal.into(),
+            selected: selected.into(),
         });
     }
 }

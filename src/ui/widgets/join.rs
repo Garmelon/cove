@@ -1,17 +1,17 @@
 use async_trait::async_trait;
 use toss::frame::{Frame, Pos, Size};
 
-use super::Widget;
+use super::{BoxedWidget, Widget};
 
 pub struct Segment {
-    widget: Box<dyn Widget + Send>,
+    widget: BoxedWidget,
     expanding: bool,
 }
 
 impl Segment {
-    pub fn new<W: 'static + Widget + Send>(widget: W) -> Self {
+    pub fn new<W: Into<BoxedWidget>>(widget: W) -> Self {
         Self {
-            widget: Box::new(widget),
+            widget: widget.into(),
             expanding: false,
         }
     }

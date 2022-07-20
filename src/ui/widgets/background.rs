@@ -2,17 +2,17 @@ use async_trait::async_trait;
 use crossterm::style::ContentStyle;
 use toss::frame::{Frame, Pos, Size};
 
-use super::Widget;
+use super::{BoxedWidget, Widget};
 
 pub struct Background {
-    inner: Box<dyn Widget + Send>,
+    inner: BoxedWidget,
     style: ContentStyle,
 }
 
 impl Background {
-    pub fn new<W: 'static + Widget + Send>(inner: W, style: ContentStyle) -> Self {
+    pub fn new<W: Into<BoxedWidget>>(inner: W, style: ContentStyle) -> Self {
         Self {
-            inner: Box::new(inner),
+            inner: inner.into(),
             style,
         }
     }

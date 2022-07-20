@@ -14,3 +14,11 @@ pub trait Widget {
 
     async fn render(self: Box<Self>, frame: &mut Frame);
 }
+
+pub type BoxedWidget = Box<dyn Widget + Send>;
+
+impl<W: 'static + Widget + Send> From<W> for BoxedWidget {
+    fn from(widget: W) -> Self {
+        Box::new(widget)
+    }
+}
