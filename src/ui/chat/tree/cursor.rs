@@ -171,6 +171,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             }
             _ => {}
         }
+        self.make_cursor_visible = true;
     }
 
     pub async fn move_cursor_down(&mut self) {
@@ -181,16 +182,20 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                 self.cursor = Cursor::Bottom;
             }
         }
+        self.make_cursor_visible = true;
     }
 
     pub async fn move_cursor_to_top(&mut self) {
         if let Some(tree_id) = self.store.first_tree().await {
             self.cursor = Cursor::Msg(tree_id);
+            self.make_cursor_visible = true;
         }
     }
 
     pub async fn move_cursor_to_bottom(&mut self) {
         self.cursor = Cursor::Bottom;
+        // Not really necessary; only here for consistency with other methods
+        self.make_cursor_visible = true;
     }
 }
 
