@@ -241,7 +241,7 @@ impl<I: Ord> Blocks<I> {
         }
 
         if let Some((l_root_top, l_root_bot)) = layout.roots {
-            if let Some((root_top, root_bot)) = &mut self.roots {
+            if let Some((root_top, _)) = &mut self.roots {
                 assert!(l_root_bot < *root_top);
                 *root_top = l_root_top;
             } else {
@@ -256,7 +256,7 @@ impl<I: Ord> Blocks<I> {
         }
 
         if let Some((l_root_top, l_root_bot)) = layout.roots {
-            if let Some((root_top, root_bot)) = &mut self.roots {
+            if let Some((_, root_bot)) = &mut self.roots {
                 assert!(l_root_top > *root_bot);
                 *root_bot = l_root_bot;
             } else {

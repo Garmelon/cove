@@ -285,7 +285,6 @@ pub struct SessionView {
 pub struct Snowflake(pub u64);
 
 impl Snowflake {
-    pub const MIN: Self = Snowflake(u64::MIN);
     pub const MAX: Self = Snowflake(u64::MAX);
 }
 
