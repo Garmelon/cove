@@ -3,6 +3,7 @@ pub mod border;
 pub mod empty;
 pub mod join;
 pub mod list;
+pub mod padding;
 pub mod rules;
 pub mod text;
 
