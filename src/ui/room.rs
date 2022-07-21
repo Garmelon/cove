@@ -14,10 +14,11 @@ use crate::vault::{EuphMsg, EuphVault};
 
 use super::chat::ChatState;
 use super::widgets::background::Background;
+use super::widgets::border::Border;
 use super::widgets::empty::Empty;
 use super::widgets::join::{HJoin, Segment, VJoin};
 use super::widgets::list::{List, ListState};
-use super::widgets::rules::{HRule, VRule};
+use super::widgets::padding::Padding;
 use super::widgets::text::Text;
 use super::widgets::BoxedWidget;
 use super::{util, UiEvent};
@@ -82,8 +83,9 @@ impl EuphRoom {
 
     fn widget_without_nick_list(&self, status: &Option<Option<Status>>) -> BoxedWidget {
         VJoin::new(vec![
-            Segment::new(self.status_widget(status)),
-            Segment::new(HRule),
+            Segment::new(Border::new(
+                Padding::new(self.status_widget(status)).left(1).right(1),
+            )),
             Segment::new(self.chat.widget()).expanding(true),
         ])
         .into()
@@ -96,13 +98,15 @@ impl EuphRoom {
     ) -> BoxedWidget {
         HJoin::new(vec![
             Segment::new(VJoin::new(vec![
-                Segment::new(self.status_widget(status)),
-                Segment::new(HRule),
+                Segment::new(Border::new(
+                    Padding::new(self.status_widget(status)).left(1).right(1),
+                )),
                 Segment::new(self.chat.widget()).expanding(true),
             ]))
             .expanding(true),
-            Segment::new(VRule),
-            Segment::new(self.nick_list_widget(joined)),
+            Segment::new(Border::new(
+                Padding::new(self.nick_list_widget(joined)).left(1).right(1),
+            )),
         ])
         .into()
     }
