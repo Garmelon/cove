@@ -197,7 +197,10 @@ impl Rooms {
                 }
                 KeyCode::Char('d') => {
                     if let Some(name) = self.list.cursor() {
-                        self.euph_rooms.remove(&name);
+                        let room = self.euph_rooms.entry(name.clone()).or_insert_with(|| {
+                            EuphRoom::new(self.vault.euph(name.clone()), self.ui_event_tx.clone())
+                        });
+                        room.disconnect();
                     }
                 }
                 KeyCode::Char('D') => {
