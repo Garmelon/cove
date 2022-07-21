@@ -5,6 +5,7 @@
 pub mod background;
 pub mod border;
 pub mod empty;
+pub mod float;
 pub mod join;
 pub mod layer;
 pub mod list;
