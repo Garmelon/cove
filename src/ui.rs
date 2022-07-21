@@ -6,7 +6,7 @@ mod util;
 mod widgets;
 
 use std::sync::{Arc, Weak};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent};
 use log::debug;
@@ -22,6 +22,9 @@ use crate::vault::Vault;
 use self::chat::ChatState;
 use self::rooms::Rooms;
 use self::widgets::BoxedWidget;
+
+/// Time to spend batch processing events before redrawing the screen.
+const EVENT_PROCESSING_TIME: Duration = Duration::from_millis(1000 / 15); // 15 fps
 
 #[derive(Debug)]
 pub enum UiEvent {
@@ -139,6 +142,7 @@ impl Ui {
                 Some(event) => event,
                 None => return Ok(()),
             };
+            let end_time = Instant::now() + EVENT_PROCESSING_TIME;
             loop {
                 // Render in-between events so the next event is handled in an
                 // up-to-date state. The results of these intermediate renders
@@ -158,6 +162,9 @@ impl Ui {
                 match result {
                     EventHandleResult::Continue => {}
                     EventHandleResult::Stop => return Ok(()),
+                }
+                if Instant::now() >= end_time {
+                    break;
                 }
                 event = match event_rx.try_recv() {
                     Ok(event) => event,
