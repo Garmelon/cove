@@ -1,3 +1,7 @@
+// Since the widget module is effectively a library and will probably be moved
+// to toss later, warnings about unused functions are mostly inaccurate.
+#![allow(dead_code)]
+
 pub mod background;
 pub mod border;
 pub mod empty;
