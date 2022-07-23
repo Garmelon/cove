@@ -28,6 +28,8 @@ enum Command {
     Run,
     /// Export logs for a single room as a plain text file.
     Export { room: String, file: PathBuf },
+    /// Compact and clean up vault.
+    Gc,
 }
 
 impl Default for Command {
@@ -54,6 +56,11 @@ async fn main() -> anyhow::Result<()> {
     match args.command.unwrap_or_default() {
         Command::Run => run(&vault).await?,
         Command::Export { room, file } => export::export(&vault, room, &file).await?,
+        Command::Gc => {
+            println!("Cleaning up and compacting vault");
+            println!("This may take a while...");
+            vault.gc().await;
+        }
     }
 
     vault.close().await;

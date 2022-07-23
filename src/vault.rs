@@ -13,6 +13,7 @@ pub use self::euph::{EuphMsg, EuphVault};
 
 enum Request {
     Close(oneshot::Sender<()>),
+    Gc(oneshot::Sender<()>),
     Euph(EuphRequest),
 }
 
@@ -25,6 +26,12 @@ impl Vault {
     pub async fn close(&self) {
         let (tx, rx) = oneshot::channel();
         let _ = self.tx.send(Request::Close(tx));
+        let _ = rx.await;
+    }
+
+    pub async fn gc(&self) {
+        let (tx, rx) = oneshot::channel();
+        let _ = self.tx.send(Request::Gc(tx));
         let _ = rx.await;
     }
 
@@ -47,6 +54,9 @@ fn run(mut conn: Connection, mut rx: mpsc::UnboundedReceiver<Request>) {
                 drop(conn);
                 drop(tx);
                 break;
+            }
+            Request::Gc(tx) => {
+                let _ = conn.execute_batch("ANALYZE; VACUUM;");
             }
             Request::Euph(r) => r.perform(&mut conn),
         }
