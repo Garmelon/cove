@@ -15,16 +15,27 @@ use crate::vault::{EuphMsg, EuphVault};
 use super::chat::ChatState;
 use super::widgets::background::Background;
 use super::widgets::border::Border;
+use super::widgets::editor::EditorState;
 use super::widgets::empty::Empty;
+use super::widgets::float::Float;
 use super::widgets::join::{HJoin, Segment, VJoin};
+use super::widgets::layer::Layer;
 use super::widgets::list::{List, ListState};
 use super::widgets::padding::Padding;
 use super::widgets::text::Text;
 use super::widgets::BoxedWidget;
-use super::{util, UiEvent};
+use super::UiEvent;
+
+enum State {
+    Normal,
+    ChooseNick(EditorState),
+}
 
 pub struct EuphRoom {
     ui_event_tx: mpsc::UnboundedSender<UiEvent>,
+
+    state: State,
+
     room: Option<euph::Room>,
     chat: ChatState<EuphMsg, EuphVault>,
     nick_list: ListState<String>,
@@ -34,6 +45,7 @@ impl EuphRoom {
     pub fn new(vault: EuphVault, ui_event_tx: mpsc::UnboundedSender<UiEvent>) -> Self {
         Self {
             ui_event_tx,
+            state: State::Normal,
             room: None,
             chat: ChatState::new(vault),
             nick_list: ListState::new(),
@@ -75,9 +87,29 @@ impl EuphRoom {
 
     pub async fn widget(&self) -> BoxedWidget {
         let status = self.status().await;
-        match &status {
+        let chat = match &status {
             Some(Some(Status::Joined(joined))) => self.widget_with_nick_list(&status, joined),
             _ => self.widget_without_nick_list(&status),
+        };
+        match &self.state {
+            State::Normal => chat,
+            State::ChooseNick(ed) => Layer::new(vec![
+                chat,
+                Float::new(Border::new(
+                    Padding::new(VJoin::new(vec![
+                        Segment::new(Text::new("Choose nick ")),
+                        Segment::new(
+                            ed.widget()
+                                .highlight(|s| Styled::new((s, euph::nick_style(s)))),
+                        ),
+                    ]))
+                    .left(1),
+                ))
+                .horizontal(0.5)
+                .vertical(0.5)
+                .into(),
+            ])
+            .into(),
         }
     }
 
@@ -245,24 +277,43 @@ impl EuphRoom {
         crossterm_lock: &Arc<FairMutex<()>>,
         event: KeyEvent,
     ) {
-        self.chat.handle_navigation(event).await;
+        match &self.state {
+            State::Normal => {
+                self.chat.handle_navigation(event).await;
 
-        if let Some(room) = &self.room {
-            if let Ok(Some(Status::Joined(_))) = room.status().await {
-                if let KeyCode::Char('n' | 'N') = event.code {
-                    if let Some(new_nick) = util::prompt(terminal, crossterm_lock) {
-                        let _ = room.nick(new_nick);
+                if let Some(room) = &self.room {
+                    if let Ok(Some(Status::Joined(joined))) = room.status().await {
+                        if let KeyCode::Char('n' | 'N') = event.code {
+                            self.state = State::ChooseNick(EditorState::with_initial_text(
+                                joined.session.name.clone(),
+                            ));
+                        }
+
+                        let potential_message = self
+                            .chat
+                            .handle_messaging(terminal, crossterm_lock, event)
+                            .await;
+                        if let Some((parent, content)) = potential_message {
+                            let _ = room.send(parent, content);
+                        }
                     }
                 }
-
-                let potential_message = self
-                    .chat
-                    .handle_messaging(terminal, crossterm_lock, event)
-                    .await;
-                if let Some((parent, content)) = potential_message {
-                    let _ = room.send(parent, content);
-                }
             }
+            State::ChooseNick(ed) => match event.code {
+                KeyCode::Esc => self.state = State::Normal,
+                KeyCode::Enter => {
+                    if let Some(room) = &self.room {
+                        let _ = room.nick(ed.text());
+                    }
+                    self.state = State::Normal;
+                }
+                KeyCode::Backspace => ed.backspace(),
+                KeyCode::Left => ed.move_cursor_left(),
+                KeyCode::Right => ed.move_cursor_right(),
+                KeyCode::Delete => ed.delete(),
+                KeyCode::Char(ch) => ed.insert_char(ch),
+                _ => {}
+            },
         }
     }
 }

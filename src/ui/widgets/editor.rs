@@ -28,9 +28,9 @@ struct InnerEditorState {
 }
 
 impl InnerEditorState {
-    fn new() -> Self {
+    fn new(text: String) -> Self {
         Self {
-            text: String::new(),
+            text,
             idx: 0,
             last_width: 0,
         }
@@ -179,7 +179,11 @@ pub struct EditorState(Arc<Mutex<InnerEditorState>>);
 
 impl EditorState {
     pub fn new() -> Self {
-        Self(Arc::new(Mutex::new(InnerEditorState::new())))
+        Self(Arc::new(Mutex::new(InnerEditorState::new(String::new()))))
+    }
+
+    pub fn with_initial_text(text: String) -> Self {
+        Self(Arc::new(Mutex::new(InnerEditorState::new(text))))
     }
 
     pub fn widget(&self) -> Editor {
