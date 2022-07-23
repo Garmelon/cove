@@ -48,14 +48,15 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         }
     }
 
-    async fn handle_navigation(&mut self, event: KeyEvent) {
+    async fn handle_navigation(&mut self, event: KeyEvent) -> bool {
         match event.code {
             KeyCode::Up | KeyCode::Char('k') => self.move_cursor_up().await,
             KeyCode::Down | KeyCode::Char('j') => self.move_cursor_down().await,
             KeyCode::Char('g') => self.move_cursor_to_top().await,
             KeyCode::Char('G') => self.move_cursor_to_bottom().await,
-            _ => {}
+            _ => return false,
         }
+        true
     }
 
     async fn handle_messaging(
@@ -86,8 +87,8 @@ impl<M: Msg, S: MsgStore<M>> TreeViewState<M, S> {
         TreeView(self.0.clone())
     }
 
-    pub async fn handle_navigation(&mut self, event: KeyEvent) {
-        self.0.lock().await.handle_navigation(event).await;
+    pub async fn handle_navigation(&mut self, event: KeyEvent) -> bool {
+        self.0.lock().await.handle_navigation(event).await
     }
 
     pub async fn handle_messaging(

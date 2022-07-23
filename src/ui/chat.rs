@@ -53,7 +53,7 @@ impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
         }
     }
 
-    pub async fn handle_navigation(&mut self, event: KeyEvent) {
+    pub async fn handle_navigation(&mut self, event: KeyEvent) -> bool {
         match self.mode {
             Mode::Tree => self.tree.handle_navigation(event).await,
         }

@@ -237,11 +237,18 @@ impl Rooms {
                 }
                 _ => {}
             },
-            State::ShowRoom(_) if event.code == KeyCode::Esc => self.state = State::ShowList,
             State::ShowRoom(name) => {
-                self.get_or_insert_room(name.clone())
+                if self
+                    .get_or_insert_room(name.clone())
                     .handle_key_event(terminal, crossterm_lock, event)
                     .await
+                {
+                    return;
+                }
+
+                if event.code == KeyCode::Esc {
+                    self.state = State::ShowList;
+                }
             }
             State::Connect(ed) => match event.code {
                 KeyCode::Esc => self.state = State::ShowList,

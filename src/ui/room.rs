@@ -276,10 +276,12 @@ impl EuphRoom {
         terminal: &mut Terminal,
         crossterm_lock: &Arc<FairMutex<()>>,
         event: KeyEvent,
-    ) {
+    ) -> bool {
         match &self.state {
             State::Normal => {
-                self.chat.handle_navigation(event).await;
+                if self.chat.handle_navigation(event).await {
+                    return true;
+                }
 
                 if let Some(room) = &self.room {
                     if let Ok(Some(Status::Joined(joined))) = room.status().await {
@@ -287,6 +289,7 @@ impl EuphRoom {
                             self.state = State::ChooseNick(EditorState::with_initial_text(
                                 joined.session.name.clone(),
                             ));
+                            return true;
                         }
 
                         let potential_message = self
@@ -295,25 +298,31 @@ impl EuphRoom {
                             .await;
                         if let Some((parent, content)) = potential_message {
                             let _ = room.send(parent, content);
+                            return true;
                         }
                     }
                 }
+
+                false
             }
-            State::ChooseNick(ed) => match event.code {
-                KeyCode::Esc => self.state = State::Normal,
-                KeyCode::Enter => {
-                    if let Some(room) = &self.room {
-                        let _ = room.nick(ed.text());
+            State::ChooseNick(ed) => {
+                match event.code {
+                    KeyCode::Esc => self.state = State::Normal,
+                    KeyCode::Enter => {
+                        if let Some(room) = &self.room {
+                            let _ = room.nick(ed.text());
+                        }
+                        self.state = State::Normal;
                     }
-                    self.state = State::Normal;
+                    KeyCode::Backspace => ed.backspace(),
+                    KeyCode::Left => ed.move_cursor_left(),
+                    KeyCode::Right => ed.move_cursor_right(),
+                    KeyCode::Delete => ed.delete(),
+                    KeyCode::Char(ch) => ed.insert_char(ch),
+                    _ => return false,
                 }
-                KeyCode::Backspace => ed.backspace(),
-                KeyCode::Left => ed.move_cursor_left(),
-                KeyCode::Right => ed.move_cursor_right(),
-                KeyCode::Delete => ed.delete(),
-                KeyCode::Char(ch) => ed.insert_char(ch),
-                _ => {}
-            },
+                true
+            }
         }
     }
 }
