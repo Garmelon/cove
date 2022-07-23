@@ -23,6 +23,11 @@ impl Segment {
 }
 
 fn expand(amounts: &mut [(u16, bool)], total: u16) {
+    let any_expanding = amounts.iter().any(|(_, expanding)| *expanding);
+    if !any_expanding {
+        return;
+    }
+
     // Weirdly, rustc needs this type annotation while rust-analyzer manages to
     // derive the correct type in an inlay hint.
     let actual: u16 = amounts.iter().map(|(a, _)| *a).sum();
