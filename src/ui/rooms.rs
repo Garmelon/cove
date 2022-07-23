@@ -149,7 +149,7 @@ impl Rooms {
 
     async fn rooms_widget(&mut self) -> BoxedWidget {
         let rooms = self.stabilize_rooms().await;
-        let mut list = self.list.list().focus(true);
+        let mut list = self.list.widget().focus(true);
         self.render_rows(&mut list, rooms).await;
         list.into()
     }

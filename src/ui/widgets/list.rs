@@ -152,7 +152,7 @@ impl<Id> ListState<Id> {
         Self(Arc::new(Mutex::new(InnerListState::new())))
     }
 
-    pub fn list(&self) -> List<Id> {
+    pub fn widget(&self) -> List<Id> {
         List::new(self.0.clone())
     }
 

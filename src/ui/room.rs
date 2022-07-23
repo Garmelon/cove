@@ -234,7 +234,7 @@ impl EuphRoom {
     }
 
     fn nick_list_widget(&self, joined: &Joined) -> BoxedWidget {
-        let mut list = self.nick_list.list();
+        let mut list = self.nick_list.widget();
         Self::render_nick_list_rows(&mut list, joined);
         list.into()
     }
