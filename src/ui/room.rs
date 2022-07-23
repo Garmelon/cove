@@ -84,7 +84,7 @@ impl EuphRoom {
     fn widget_without_nick_list(&self, status: &Option<Option<Status>>) -> BoxedWidget {
         VJoin::new(vec![
             Segment::new(Border::new(
-                Padding::new(self.status_widget(status)).left(1).right(1),
+                Padding::new(self.status_widget(status)).horizontal(1),
             )),
             Segment::new(self.chat.widget()).expanding(true),
         ])
@@ -99,13 +99,13 @@ impl EuphRoom {
         HJoin::new(vec![
             Segment::new(VJoin::new(vec![
                 Segment::new(Border::new(
-                    Padding::new(self.status_widget(status)).left(1).right(1),
+                    Padding::new(self.status_widget(status)).horizontal(1),
                 )),
                 Segment::new(self.chat.widget()).expanding(true),
             ]))
             .expanding(true),
             Segment::new(Border::new(
-                Padding::new(self.nick_list_widget(joined)).left(1).right(1),
+                Padding::new(self.nick_list_widget(joined)).horizontal(1),
             )),
         ])
         .into()

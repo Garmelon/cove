@@ -32,6 +32,10 @@ impl Padding {
         self
     }
 
+    pub fn horizontal(self, amount: u16) -> Self {
+        self.left(amount).right(amount)
+    }
+
     pub fn top(mut self, amount: u16) -> Self {
         self.top = amount;
         self
@@ -40,6 +44,14 @@ impl Padding {
     pub fn bottom(mut self, amount: u16) -> Self {
         self.bottom = amount;
         self
+    }
+
+    pub fn vertical(self, amount: u16) -> Self {
+        self.top(amount).bottom(amount)
+    }
+
+    pub fn all(self, amount: u16) -> Self {
+        self.horizontal(amount).vertical(amount)
     }
 }
 
