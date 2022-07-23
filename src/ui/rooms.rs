@@ -246,18 +246,17 @@ impl Rooms {
             State::Connect(ed) => match event.code {
                 KeyCode::Esc => self.state = State::ShowList,
                 KeyCode::Enter => {
-                    let text = ed.text();
-                    let name = text.trim();
+                    let name = ed.text();
                     if !name.is_empty() {
-                        self.get_or_insert_room(name.to_string()).connect();
-                        self.state = State::ShowRoom(name.to_string());
+                        self.get_or_insert_room(name.clone()).connect();
+                        self.state = State::ShowRoom(name);
                     }
                 }
                 KeyCode::Backspace => ed.backspace(),
                 KeyCode::Left => ed.move_cursor_left(),
                 KeyCode::Right => ed.move_cursor_right(),
                 KeyCode::Delete => ed.delete(),
-                KeyCode::Char(ch) => ed.insert_char(ch),
+                KeyCode::Char(ch) if ch.is_ascii_alphanumeric() || ch == '_' => ed.insert_char(ch),
                 _ => {}
             },
         }
