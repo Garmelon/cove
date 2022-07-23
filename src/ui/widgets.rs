@@ -4,6 +4,7 @@
 
 pub mod background;
 pub mod border;
+pub mod editor;
 pub mod empty;
 pub mod float;
 pub mod join;

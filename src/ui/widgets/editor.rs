@@ -1,25 +1,38 @@
 use std::iter;
-use std::ops::Range;
+use std::sync::Arc;
 
-use crossterm::style::ContentStyle;
-use toss::frame::{Frame, Pos};
+use async_trait::async_trait;
+use parking_lot::Mutex;
+use toss::frame::{Frame, Pos, Size};
 use toss::styled::Styled;
 use unicode_segmentation::UnicodeSegmentation;
 
-pub struct Editor {
+use super::Widget;
+
+///////////
+// State //
+///////////
+
+struct InnerEditorState {
     text: String,
 
     /// Index of the cursor in the text.
     ///
     /// Must point to a valid grapheme boundary.
     idx: usize,
+
+    /// Width of the text when the editor was last rendered.
+    ///
+    /// Does not include additional column for cursor.
+    last_width: usize,
 }
 
-impl Editor {
-    pub fn new() -> Self {
+impl InnerEditorState {
+    fn new() -> Self {
         Self {
             text: String::new(),
             idx: 0,
+            last_width: 0,
         }
     }
 
@@ -55,14 +68,14 @@ impl Editor {
 
     /// Insert a character at the current cursor position and move the cursor
     /// accordingly.
-    pub fn insert_char(&mut self, ch: char) {
+    fn insert_char(&mut self, ch: char) {
         self.text.insert(self.idx, ch);
         self.idx += 1;
         self.move_cursor_to_grapheme_boundary();
     }
 
     /// Delete the grapheme before the cursor position.
-    pub fn backspace(&mut self) {
+    fn backspace(&mut self) {
         let boundaries = self.grapheme_boundaries();
         for (start, end) in boundaries.iter().zip(boundaries.iter().skip(1)) {
             if *end == self.idx {
@@ -74,7 +87,7 @@ impl Editor {
     }
 
     /// Delete the grapheme after the cursor position.
-    pub fn delete(&mut self) {
+    fn delete(&mut self) {
         let boundaries = self.grapheme_boundaries();
         for (start, end) in boundaries.iter().zip(boundaries.iter().skip(1)) {
             if *start == self.idx {
@@ -84,7 +97,7 @@ impl Editor {
         }
     }
 
-    pub fn move_cursor_left(&mut self) {
+    fn move_cursor_left(&mut self) {
         let boundaries = self.grapheme_boundaries();
         for (start, end) in boundaries.iter().zip(boundaries.iter().skip(1)) {
             if *end == self.idx {
@@ -94,7 +107,7 @@ impl Editor {
         }
     }
 
-    pub fn move_cursor_right(&mut self) {
+    fn move_cursor_right(&mut self) {
         let boundaries = self.grapheme_boundaries();
         for (start, end) in boundaries.iter().zip(boundaries.iter().skip(1)) {
             if *start == self.idx {
@@ -104,6 +117,7 @@ impl Editor {
         }
     }
 
+    /*
     fn wrap(&self, frame: &mut Frame, width: usize) -> Vec<Range<usize>> {
         let mut rows = vec![];
         let mut start = 0;
@@ -157,5 +171,121 @@ impl Editor {
 
     pub fn render(&self, frame: &mut Frame, pos: Pos, width: usize) {
         self.render_highlighted(frame, pos, width, |s| Styled::new(s));
+    }
+    */
+}
+
+pub struct EditorState(Arc<Mutex<InnerEditorState>>);
+
+impl EditorState {
+    pub fn new() -> Self {
+        Self(Arc::new(Mutex::new(InnerEditorState::new())))
+    }
+
+    pub fn widget(&self) -> Editor {
+        let guard = self.0.lock();
+        let text = Styled::new(guard.text.clone());
+        let idx = guard.idx;
+        Editor {
+            state: self.0.clone(),
+            text,
+            idx,
+        }
+    }
+
+    fn insert_char(&self, ch: char) {
+        self.0.lock().insert_char(ch);
+    }
+
+    /// Delete the grapheme before the cursor position.
+    fn backspace(&self) {
+        self.0.lock().backspace();
+    }
+
+    /// Delete the grapheme after the cursor position.
+    fn delete(&self) {
+        self.0.lock().delete();
+    }
+
+    // TODO Un-mut
+    fn move_cursor_left(&mut self) {
+        self.0.lock().move_cursor_left();
+    }
+
+    fn move_cursor_right(&self) {
+        self.0.lock().move_cursor_right();
+    }
+}
+
+////////////
+// Widget //
+////////////
+
+pub struct Editor {
+    state: Arc<Mutex<InnerEditorState>>,
+    text: Styled,
+    idx: usize,
+}
+
+impl Editor {
+    pub fn highlight<F>(mut self, f: F) -> Self
+    where
+        F: FnOnce(&str) -> Styled,
+    {
+        let text = self.text.text();
+        let new_text = f(&text);
+        assert_eq!(text, new_text.text());
+        self.text = new_text;
+        self
+    }
+
+    fn wrapped_cursor(cursor_idx: usize, break_indices: &[usize]) -> (usize, usize) {
+        let mut row = 0;
+        let mut line_idx = cursor_idx;
+
+        for break_idx in break_indices {
+            if cursor_idx < *break_idx {
+                break;
+            } else {
+                row += 1;
+                line_idx = cursor_idx - break_idx;
+            }
+        }
+
+        (row, line_idx)
+    }
+}
+
+#[async_trait]
+impl Widget for Editor {
+    fn size(&self, frame: &mut Frame, max_width: Option<u16>, _max_height: Option<u16>) -> Size {
+        let max_width = max_width.map(|w| w as usize).unwrap_or(usize::MAX).max(1);
+        let max_text_width = max_width - 1;
+        let indices = frame.wrap(&self.text.text(), max_text_width);
+        let lines = self.text.clone().split_at_indices(&indices);
+
+        let min_width = lines
+            .iter()
+            .map(|l| frame.width_styled(l))
+            .max()
+            .unwrap_or(0)
+            + 1;
+        let min_height = lines.len();
+        Size::new(min_width as u16, min_height as u16)
+    }
+
+    async fn render(self: Box<Self>, frame: &mut Frame) {
+        let width = frame.size().width.max(1);
+        let text_width = (width - 1) as usize;
+        let indices = frame.wrap(&self.text.text(), text_width);
+        let lines = self.text.split_at_indices(&indices);
+
+        let (cursor_row, cursor_line_idx) = Self::wrapped_cursor(self.idx, &indices);
+        let cursor_col = frame.width(lines[cursor_row].text().split_at(cursor_line_idx).0);
+        frame.set_cursor(Some(Pos::new(cursor_row as i32, cursor_col as i32)));
+
+        for (i, line) in lines.into_iter().enumerate() {
+            frame.write(Pos::new(0, i as i32), line);
+        }
     }
 }
