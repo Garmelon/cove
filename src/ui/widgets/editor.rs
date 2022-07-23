@@ -30,9 +30,9 @@ struct InnerEditorState {
 impl InnerEditorState {
     fn new(text: String) -> Self {
         Self {
-            text,
-            idx: 0,
+            idx: text.len(),
             last_width: 0,
+            text,
         }
     }
 
