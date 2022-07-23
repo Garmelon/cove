@@ -193,26 +193,29 @@ impl EditorState {
         }
     }
 
-    fn insert_char(&self, ch: char) {
+    pub fn text(&self) -> String {
+        self.0.lock().text.clone()
+    }
+
+    pub fn insert_char(&self, ch: char) {
         self.0.lock().insert_char(ch);
     }
 
     /// Delete the grapheme before the cursor position.
-    fn backspace(&self) {
+    pub fn backspace(&self) {
         self.0.lock().backspace();
     }
 
     /// Delete the grapheme after the cursor position.
-    fn delete(&self) {
+    pub fn delete(&self) {
         self.0.lock().delete();
     }
 
-    // TODO Un-mut
-    fn move_cursor_left(&mut self) {
+    pub fn move_cursor_left(&self) {
         self.0.lock().move_cursor_left();
     }
 
-    fn move_cursor_right(&self) {
+    pub fn move_cursor_right(&self) {
         self.0.lock().move_cursor_right();
     }
 }

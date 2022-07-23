@@ -15,20 +15,29 @@ use crate::vault::Vault;
 
 use super::room::EuphRoom;
 use super::widgets::background::Background;
+use super::widgets::border::Border;
+use super::widgets::editor::EditorState;
+use super::widgets::float::Float;
+use super::widgets::join::{HJoin, Segment, VJoin};
+use super::widgets::layer::Layer;
 use super::widgets::list::{List, ListState};
 use super::widgets::text::Text;
 use super::widgets::BoxedWidget;
-use super::{util, UiEvent};
+use super::UiEvent;
+
+enum State {
+    ShowList,
+    ShowRoom(String),
+    Connect(EditorState),
+}
 
 pub struct Rooms {
     vault: Vault,
     ui_event_tx: mpsc::UnboundedSender<UiEvent>,
 
+    state: State,
+
     list: ListState<String>,
-
-    /// If set, a single room is displayed in full instead of the room list.
-    focus: Option<String>,
-
     euph_rooms: HashMap<String, EuphRoom>,
 }
 
@@ -37,8 +46,8 @@ impl Rooms {
         Self {
             vault,
             ui_event_tx,
+            state: State::ShowList,
             list: ListState::new(),
-            focus: None,
             euph_rooms: HashMap::new(),
         }
     }
@@ -48,16 +57,23 @@ impl Rooms {
     /// These kinds of rooms are either
     /// - failed connection attempts, or
     /// - rooms that were deleted from the db.
-    async fn stabilize_rooms(&mut self) -> Vec<String> {
-        let mut rooms = self.vault.euph_rooms().await;
-        let rooms_set = rooms.iter().map(|n| n as &str).collect::<HashSet<_>>();
+    async fn stabilize_rooms(&mut self) {
+        let rooms_set = self
+            .vault
+            .euph_rooms()
+            .await
+            .into_iter()
+            .collect::<HashSet<_>>();
         self.euph_rooms
-            .retain(|n, r| !r.stopped() || rooms_set.contains(n as &str));
+            .retain(|n, r| !r.stopped() || rooms_set.contains(n));
 
         for room in self.euph_rooms.values_mut() {
             room.retain();
         }
+    }
 
+    async fn room_names(&self) -> Vec<String> {
+        let mut rooms = self.vault.euph_rooms().await;
         for room in self.euph_rooms.keys() {
             rooms.push(room.clone());
         }
@@ -66,14 +82,38 @@ impl Rooms {
         rooms
     }
 
+    fn get_or_insert_room(&mut self, name: String) -> &mut EuphRoom {
+        self.euph_rooms
+            .entry(name.clone())
+            .or_insert_with(|| EuphRoom::new(self.vault.euph(name), self.ui_event_tx.clone()))
+    }
+
     pub async fn widget(&mut self) -> BoxedWidget {
-        if let Some(room) = &self.focus {
-            let actual_room = self.euph_rooms.entry(room.clone()).or_insert_with(|| {
-                EuphRoom::new(self.vault.euph(room.clone()), self.ui_event_tx.clone())
-            });
-            actual_room.widget().await
-        } else {
-            self.rooms_widget().await
+        match &self.state {
+            State::ShowRoom(_) => {}
+            _ => self.stabilize_rooms().await,
+        }
+
+        match &self.state {
+            State::ShowList => self.rooms_widget().await,
+            State::ShowRoom(name) => self.get_or_insert_room(name.clone()).widget().await,
+            State::Connect(ed) => {
+                let room_style = ContentStyle::default().bold().blue();
+                Layer::new(vec![
+                    self.rooms_widget().await,
+                    Float::new(Border::new(VJoin::new(vec![
+                        Segment::new(Text::new("Connect to ")),
+                        Segment::new(HJoin::new(vec![
+                            Segment::new(Text::new(("&", room_style))),
+                            Segment::new(ed.widget().highlight(|s| Styled::new((s, room_style)))),
+                        ])),
+                    ])))
+                    .horizontal(0.5)
+                    .vertical(0.5)
+                    .into(),
+                ])
+                .into()
+            }
         }
     }
 
@@ -147,8 +187,8 @@ impl Rooms {
         }
     }
 
-    async fn rooms_widget(&mut self) -> BoxedWidget {
-        let rooms = self.stabilize_rooms().await;
+    async fn rooms_widget(&self) -> BoxedWidget {
+        let rooms = self.room_names().await;
         let mut list = self.list.widget().focus(true);
         self.render_rows(&mut list, rooms).await;
         list.into()
@@ -160,57 +200,60 @@ impl Rooms {
         crossterm_lock: &Arc<FairMutex<()>>,
         event: KeyEvent,
     ) {
-        if let Some(room) = &self.focus {
-            if event.code == KeyCode::Enter {
-                self.focus = None;
-            } else {
-                let actual_room = self.euph_rooms.entry(room.clone()).or_insert_with(|| {
-                    EuphRoom::new(self.vault.euph(room.clone()), self.ui_event_tx.clone())
-                });
-                actual_room
-                    .handle_key_event(terminal, crossterm_lock, event)
-                    .await;
-            }
-        } else {
-            match event.code {
-                KeyCode::Enter => self.focus = self.list.cursor(),
+        match &self.state {
+            State::ShowList => match event.code {
+                KeyCode::Enter => {
+                    if let Some(name) = self.list.cursor() {
+                        self.state = State::ShowRoom(name);
+                    }
+                }
                 KeyCode::Char('j') | KeyCode::Down => self.list.move_cursor_down(),
                 KeyCode::Char('k') | KeyCode::Up => self.list.move_cursor_up(),
                 KeyCode::Char('J') => self.list.scroll_down(), // TODO Replace by Ctrl+E and mouse scroll
                 KeyCode::Char('K') => self.list.scroll_up(), // TODO Replace by Ctrl+Y and mouse scroll
                 KeyCode::Char('c') => {
                     if let Some(name) = self.list.cursor() {
-                        let room = self.euph_rooms.entry(name.clone()).or_insert_with(|| {
-                            EuphRoom::new(self.vault.euph(name.clone()), self.ui_event_tx.clone())
-                        });
-                        room.connect();
+                        self.get_or_insert_room(name).connect();
                     }
                 }
-                KeyCode::Char('C') => {
-                    if let Some(name) = util::prompt(terminal, crossterm_lock) {
-                        let name = name.trim().to_string();
-                        let room = self.euph_rooms.entry(name.clone()).or_insert_with(|| {
-                            EuphRoom::new(self.vault.euph(name), self.ui_event_tx.clone())
-                        });
-                        room.connect();
-                    }
-                }
+                KeyCode::Char('C') => self.state = State::Connect(EditorState::new()),
                 KeyCode::Char('d') => {
                     if let Some(name) = self.list.cursor() {
-                        let room = self.euph_rooms.entry(name.clone()).or_insert_with(|| {
-                            EuphRoom::new(self.vault.euph(name.clone()), self.ui_event_tx.clone())
-                        });
-                        room.disconnect();
+                        self.get_or_insert_room(name).disconnect();
                     }
                 }
                 KeyCode::Char('D') => {
+                    // TODO Check whether user wanted this via popup
                     if let Some(name) = self.list.cursor() {
                         self.euph_rooms.remove(&name);
                         self.vault.euph(name.clone()).delete();
                     }
                 }
                 _ => {}
+            },
+            State::ShowRoom(_) if event.code == KeyCode::Esc => self.state = State::ShowList,
+            State::ShowRoom(name) => {
+                self.get_or_insert_room(name.clone())
+                    .handle_key_event(terminal, crossterm_lock, event)
+                    .await
             }
+            State::Connect(ed) => match event.code {
+                KeyCode::Esc => self.state = State::ShowList,
+                KeyCode::Enter => {
+                    let text = ed.text();
+                    let name = text.trim();
+                    if !name.is_empty() {
+                        self.get_or_insert_room(name.to_string()).connect();
+                        self.state = State::ShowRoom(name.to_string());
+                    }
+                }
+                KeyCode::Backspace => ed.backspace(),
+                KeyCode::Left => ed.move_cursor_left(),
+                KeyCode::Right => ed.move_cursor_right(),
+                KeyCode::Delete => ed.delete(),
+                KeyCode::Char(ch) => ed.insert_char(ch),
+                _ => {}
+            },
         }
     }
 }
