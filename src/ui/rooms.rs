@@ -21,6 +21,7 @@ use super::widgets::float::Float;
 use super::widgets::join::{HJoin, Segment, VJoin};
 use super::widgets::layer::Layer;
 use super::widgets::list::{List, ListState};
+use super::widgets::padding::Padding;
 use super::widgets::text::Text;
 use super::widgets::BoxedWidget;
 use super::UiEvent;
@@ -101,13 +102,18 @@ impl Rooms {
                 let room_style = ContentStyle::default().bold().blue();
                 Layer::new(vec![
                     self.rooms_widget().await,
-                    Float::new(Border::new(VJoin::new(vec![
-                        Segment::new(Text::new("Connect to ")),
-                        Segment::new(HJoin::new(vec![
-                            Segment::new(Text::new(("&", room_style))),
-                            Segment::new(ed.widget().highlight(|s| Styled::new((s, room_style)))),
-                        ])),
-                    ])))
+                    Float::new(Border::new(
+                        Padding::new(VJoin::new(vec![
+                            Segment::new(Text::new("Connect to ")),
+                            Segment::new(HJoin::new(vec![
+                                Segment::new(Text::new(("&", room_style))),
+                                Segment::new(
+                                    ed.widget().highlight(|s| Styled::new((s, room_style))),
+                                ),
+                            ])),
+                        ]))
+                        .left(1),
+                    ))
                     .horizontal(0.5)
                     .vertical(0.5)
                     .into(),
