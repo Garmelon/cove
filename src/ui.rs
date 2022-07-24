@@ -214,8 +214,7 @@ impl Ui {
                     .await
             }
             Mode::Log => {
-                // TODO Uncomment
-                // self.log_chat.handle_navigation(terminal, size, event).await
+                self.log_chat.handle_navigation(event).await;
             }
         }
 
