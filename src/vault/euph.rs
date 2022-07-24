@@ -95,7 +95,7 @@ impl Vault {
         rx.await.unwrap()
     }
 
-    pub async fn set_euph_cookies(&self, cookies: CookieJar) {
+    pub fn set_euph_cookies(&self, cookies: CookieJar) {
         let request = EuphRequest::SetCookies { cookies };
         let _ = self.tx.send(request.into());
     }

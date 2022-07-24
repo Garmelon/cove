@@ -66,7 +66,7 @@ async fn main() -> anyhow::Result<()> {
         }
         Command::ClearCookies => {
             println!("Clearing cookies");
-            vault.set_euph_cookies(CookieJar::new()).await;
+            vault.set_euph_cookies(CookieJar::new());
         }
     }
 

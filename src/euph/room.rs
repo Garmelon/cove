@@ -106,7 +106,7 @@ impl State {
         cookies.join("; ")
     }
 
-    async fn update_cookies(vault: &Vault, response: &Response) {
+    fn update_cookies(vault: &Vault, response: &Response) {
         let mut cookie_jar = CookieJar::new();
 
         for (name, value) in response.headers() {
@@ -117,7 +117,7 @@ impl State {
             }
         }
 
-        vault.set_euph_cookies(cookie_jar).await;
+        vault.set_euph_cookies(cookie_jar);
     }
 
     async fn connect(vault: &EuphVault, name: &str) -> anyhow::Result<Option<(ConnTx, ConnRx)>> {
@@ -129,7 +129,7 @@ impl State {
 
         match tokio_tungstenite::connect_async(request).await {
             Ok((ws, response)) => {
-                Self::update_cookies(vault.vault(), &response).await;
+                Self::update_cookies(vault.vault(), &response);
                 Ok(Some(conn::wrap(ws)))
             }
             Err(tungstenite::Error::Http(resp)) if resp.status().is_client_error() => {
