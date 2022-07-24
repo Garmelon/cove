@@ -88,7 +88,7 @@ impl Vault {
     pub async fn euph_rooms(&self) -> Vec<String> {
         // TODO vault::Error
         let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::Rooms { result: tx };
+        let request = EuphRequest::GetRooms { result: tx };
         let _ = self.tx.send(request.into());
         rx.await.unwrap()
     }
@@ -139,7 +139,7 @@ impl EuphVault {
     pub async fn last_span(&self) -> Option<(Option<Snowflake>, Option<Snowflake>)> {
         // TODO vault::Error
         let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::LastSpan {
+        let request = EuphRequest::GetLastSpan {
             room: self.room.clone(),
             result: tx,
         };
@@ -153,7 +153,7 @@ impl MsgStore<EuphMsg> for EuphVault {
     async fn path(&self, id: &Snowflake) -> Path<Snowflake> {
         // TODO vault::Error
         let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::Path {
+        let request = EuphRequest::GetPath {
             room: self.room.clone(),
             id: *id,
             result: tx,
@@ -165,7 +165,7 @@ impl MsgStore<EuphMsg> for EuphVault {
     async fn tree(&self, root: &Snowflake) -> Tree<EuphMsg> {
         // TODO vault::Error
         let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::Tree {
+        let request = EuphRequest::GetTree {
             room: self.room.clone(),
             root: *root,
             result: tx,
@@ -174,10 +174,10 @@ impl MsgStore<EuphMsg> for EuphVault {
         rx.await.unwrap()
     }
 
-    async fn prev_tree(&self, root: &Snowflake) -> Option<Snowflake> {
+    async fn prev_tree_id(&self, root: &Snowflake) -> Option<Snowflake> {
         // TODO vault::Error
         let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::PrevTree {
+        let request = EuphRequest::GetPrevTreeId {
             room: self.room.clone(),
             root: *root,
             result: tx,
@@ -186,10 +186,10 @@ impl MsgStore<EuphMsg> for EuphVault {
         rx.await.unwrap()
     }
 
-    async fn next_tree(&self, root: &Snowflake) -> Option<Snowflake> {
+    async fn next_tree_id(&self, root: &Snowflake) -> Option<Snowflake> {
         // TODO vault::Error
         let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::NextTree {
+        let request = EuphRequest::GetNextTreeId {
             room: self.room.clone(),
             root: *root,
             result: tx,
@@ -198,10 +198,10 @@ impl MsgStore<EuphMsg> for EuphVault {
         rx.await.unwrap()
     }
 
-    async fn first_tree(&self) -> Option<Snowflake> {
+    async fn first_tree_id(&self) -> Option<Snowflake> {
         // TODO vault::Error
         let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::FirstTree {
+        let request = EuphRequest::GetFirstTreeId {
             room: self.room.clone(),
             result: tx,
         };
@@ -209,10 +209,10 @@ impl MsgStore<EuphMsg> for EuphVault {
         rx.await.unwrap()
     }
 
-    async fn last_tree(&self) -> Option<Snowflake> {
+    async fn last_tree_id(&self) -> Option<Snowflake> {
         // TODO vault::Error
         let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::LastTree {
+        let request = EuphRequest::GetLastTreeId {
             room: self.room.clone(),
             result: tx,
         };
@@ -222,7 +222,10 @@ impl MsgStore<EuphMsg> for EuphVault {
 }
 
 pub(super) enum EuphRequest {
-    Rooms {
+    ///////////
+    // Rooms //
+    ///////////
+    GetRooms {
         result: oneshot::Sender<Vec<String>>,
     },
     Join {
@@ -232,6 +235,10 @@ pub(super) enum EuphRequest {
     Delete {
         room: String,
     },
+
+    //////////////
+    // Messages //
+    //////////////
     AddMsg {
         room: String,
         msg: Message,
@@ -242,35 +249,35 @@ pub(super) enum EuphRequest {
         msgs: Vec<Message>,
         next_msg: Option<Snowflake>,
     },
-    LastSpan {
+    GetLastSpan {
         room: String,
         result: oneshot::Sender<Option<(Option<Snowflake>, Option<Snowflake>)>>,
     },
-    Path {
+    GetPath {
         room: String,
         id: Snowflake,
         result: oneshot::Sender<Path<Snowflake>>,
     },
-    Tree {
+    GetTree {
         room: String,
         root: Snowflake,
         result: oneshot::Sender<Tree<EuphMsg>>,
     },
-    PrevTree {
+    GetPrevTreeId {
         room: String,
         root: Snowflake,
         result: oneshot::Sender<Option<Snowflake>>,
     },
-    NextTree {
+    GetNextTreeId {
         room: String,
         root: Snowflake,
         result: oneshot::Sender<Option<Snowflake>>,
     },
-    FirstTree {
+    GetFirstTreeId {
         room: String,
         result: oneshot::Sender<Option<Snowflake>>,
     },
-    LastTree {
+    GetLastTreeId {
         room: String,
         result: oneshot::Sender<Option<Snowflake>>,
     },
@@ -279,7 +286,7 @@ pub(super) enum EuphRequest {
 impl EuphRequest {
     pub(super) fn perform(self, conn: &mut Connection) {
         let result = match self {
-            EuphRequest::Rooms { result } => Self::rooms(conn, result),
+            EuphRequest::GetRooms { result } => Self::get_rooms(conn, result),
             EuphRequest::Join { room, time } => Self::join(conn, room, time),
             EuphRequest::Delete { room } => Self::delete(conn, room),
             EuphRequest::AddMsg {
@@ -292,17 +299,21 @@ impl EuphRequest {
                 msgs,
                 next_msg,
             } => Self::add_msgs(conn, room, msgs, next_msg),
-            EuphRequest::LastSpan { room, result } => Self::last_span(conn, room, result),
-            EuphRequest::Path { room, id, result } => Self::path(conn, room, id, result),
-            EuphRequest::Tree { room, root, result } => Self::tree(conn, room, root, result),
-            EuphRequest::PrevTree { room, root, result } => {
-                Self::prev_tree(conn, room, root, result)
+            EuphRequest::GetLastSpan { room, result } => Self::get_last_span(conn, room, result),
+            EuphRequest::GetPath { room, id, result } => Self::get_path(conn, room, id, result),
+            EuphRequest::GetTree { room, root, result } => Self::get_tree(conn, room, root, result),
+            EuphRequest::GetPrevTreeId { room, root, result } => {
+                Self::get_prev_tree_id(conn, room, root, result)
             }
-            EuphRequest::NextTree { room, root, result } => {
-                Self::next_tree(conn, room, root, result)
+            EuphRequest::GetNextTreeId { room, root, result } => {
+                Self::get_next_tree_id(conn, room, root, result)
             }
-            EuphRequest::FirstTree { room, result } => Self::first_tree(conn, room, result),
-            EuphRequest::LastTree { room, result } => Self::last_tree(conn, room, result),
+            EuphRequest::GetFirstTreeId { room, result } => {
+                Self::get_first_tree_id(conn, room, result)
+            }
+            EuphRequest::GetLastTreeId { room, result } => {
+                Self::get_last_tree_id(conn, room, result)
+            }
         };
         if let Err(e) = result {
             // If an error occurs here, the rest of the UI will likely panic and
@@ -313,7 +324,10 @@ impl EuphRequest {
         }
     }
 
-    fn rooms(conn: &mut Connection, result: oneshot::Sender<Vec<String>>) -> rusqlite::Result<()> {
+    fn get_rooms(
+        conn: &mut Connection,
+        result: oneshot::Sender<Vec<String>>,
+    ) -> rusqlite::Result<()> {
         let rooms = conn
             .prepare(
                 "
@@ -533,7 +547,7 @@ impl EuphRequest {
         Ok(())
     }
 
-    fn last_span(
+    fn get_last_span(
         conn: &Connection,
         room: String,
         result: oneshot::Sender<Option<(Option<Snowflake>, Option<Snowflake>)>>,
@@ -554,7 +568,7 @@ impl EuphRequest {
         Ok(())
     }
 
-    fn path(
+    fn get_path(
         conn: &Connection,
         room: String,
         id: Snowflake,
@@ -584,7 +598,7 @@ impl EuphRequest {
         Ok(())
     }
 
-    fn tree(
+    fn get_tree(
         conn: &Connection,
         room: String,
         root: Snowflake,
@@ -624,7 +638,7 @@ impl EuphRequest {
         Ok(())
     }
 
-    fn prev_tree(
+    fn get_prev_tree_id(
         conn: &Connection,
         room: String,
         root: Snowflake,
@@ -647,7 +661,7 @@ impl EuphRequest {
         Ok(())
     }
 
-    fn next_tree(
+    fn get_next_tree_id(
         conn: &Connection,
         room: String,
         root: Snowflake,
@@ -670,7 +684,7 @@ impl EuphRequest {
         Ok(())
     }
 
-    fn first_tree(
+    fn get_first_tree_id(
         conn: &Connection,
         room: String,
         result: oneshot::Sender<Option<Snowflake>>,
@@ -691,7 +705,7 @@ impl EuphRequest {
         Ok(())
     }
 
-    fn last_tree(
+    fn get_last_tree_id(
         conn: &Connection,
         room: String,
         result: oneshot::Sender<Option<Snowflake>>,

@@ -11,7 +11,7 @@ use super::{util, InnerTreeViewState};
 impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     async fn cursor_path(&self, cursor: &Cursor<M::Id>) -> Path<M::Id> {
         match cursor {
-            Cursor::Bottom => match self.store.last_tree().await {
+            Cursor::Bottom => match self.store.last_tree_id().await {
                 Some(id) => Path::new(vec![id]),
                 None => Path::new(vec![M::last_possible_id()]),
             },
@@ -217,9 +217,9 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     async fn expand_blocks_up(&self, frame: &mut Frame, blocks: &mut Blocks<M::Id>) {
         while blocks.top_line > 0 {
             let tree_id = if let Some((root_top, _)) = &blocks.roots {
-                self.store.prev_tree(root_top).await
+                self.store.prev_tree_id(root_top).await
             } else {
-                self.store.last_tree().await
+                self.store.last_tree_id().await
             };
 
             if let Some(tree_id) = tree_id {
@@ -234,7 +234,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     async fn expand_blocks_down(&self, frame: &mut Frame, blocks: &mut Blocks<M::Id>) {
         while blocks.bottom_line < frame.size().height as i32 {
             let tree_id = if let Some((_, root_bot)) = &blocks.roots {
-                self.store.next_tree(root_bot).await
+                self.store.next_tree_id(root_bot).await
             } else {
                 // We assume that a Blocks without roots is at the bottom of the
                 // room's history. Therefore, there are no more messages below.

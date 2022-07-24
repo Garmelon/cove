@@ -77,21 +77,21 @@ impl MsgStore<LogMsg> for Logger {
         Tree::new(*root, msgs)
     }
 
-    async fn prev_tree(&self, tree: &usize) -> Option<usize> {
+    async fn prev_tree_id(&self, tree: &usize) -> Option<usize> {
         tree.checked_sub(1)
     }
 
-    async fn next_tree(&self, tree: &usize) -> Option<usize> {
+    async fn next_tree_id(&self, tree: &usize) -> Option<usize> {
         let len = self.messages.lock().len();
         tree.checked_add(1).filter(|t| *t < len)
     }
 
-    async fn first_tree(&self) -> Option<usize> {
+    async fn first_tree_id(&self) -> Option<usize> {
         let empty = self.messages.lock().is_empty();
         Some(0).filter(|_| !empty)
     }
 
-    async fn last_tree(&self) -> Option<usize> {
+    async fn last_tree_id(&self) -> Option<usize> {
         self.messages.lock().len().checked_sub(1)
     }
 }

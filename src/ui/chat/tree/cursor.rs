@@ -85,7 +85,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         } else if tree.parent(id).is_none() {
             // We're at the root of our tree, so we need to move to the root of
             // the previous tree.
-            if let Some(prev_tree_id) = store.prev_tree(tree.root()).await {
+            if let Some(prev_tree_id) = store.prev_tree_id(tree.root()).await {
                 *tree = store.tree(&prev_tree_id).await;
                 *id = prev_tree_id;
                 true
@@ -107,7 +107,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         } else if tree.parent(id).is_none() {
             // We're at the root of our tree, so we need to move to the root of
             // the next tree.
-            if let Some(next_tree_id) = store.next_tree(tree.root()).await {
+            if let Some(next_tree_id) = store.next_tree_id(tree.root()).await {
                 *tree = store.tree(&next_tree_id).await;
                 *id = next_tree_id;
                 true
@@ -157,7 +157,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     pub async fn move_cursor_up(&mut self) {
         match &mut self.cursor {
             Cursor::Bottom => {
-                if let Some(last_tree_id) = self.store.last_tree().await {
+                if let Some(last_tree_id) = self.store.last_tree_id().await {
                     let tree = self.store.tree(&last_tree_id).await;
                     let mut id = last_tree_id;
                     while Self::find_last_child(&tree, &mut id) {}
@@ -186,8 +186,8 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     }
 
     pub async fn move_cursor_to_top(&mut self) {
-        if let Some(tree_id) = self.store.first_tree().await {
-            self.cursor = Cursor::Msg(tree_id);
+        if let Some(first_tree_id) = self.store.first_tree_id().await {
+            self.cursor = Cursor::Msg(first_tree_id);
             self.make_cursor_visible = true;
         }
     }
