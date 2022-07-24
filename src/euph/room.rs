@@ -121,7 +121,7 @@ impl State {
     }
 
     async fn connect(vault: &EuphVault, name: &str) -> anyhow::Result<Option<(ConnTx, ConnRx)>> {
-        let uri = format!("wss://euphoria.io/room/{name}/ws");
+        let uri = format!("wss://euphoria.io/room/{name}/ws?h=1");
         let mut request = uri.into_client_request().expect("valid request");
         let cookies = Self::get_cookies(vault.vault()).await;
         let cookies = HeaderValue::from_str(&cookies).expect("valid cookies");
