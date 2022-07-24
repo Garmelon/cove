@@ -102,7 +102,7 @@ impl Rooms {
                 let room_style = ContentStyle::default().bold().blue();
                 Layer::new(vec![
                     self.rooms_widget().await,
-                    Float::new(Border::new(
+                    Float::new(Border::new(Background::new(
                         Padding::new(VJoin::new(vec![
                             Segment::new(Text::new("Connect to ")),
                             Segment::new(HJoin::new(vec![
@@ -113,7 +113,7 @@ impl Rooms {
                             ])),
                         ]))
                         .left(1),
-                    ))
+                    )))
                     .horizontal(0.5)
                     .vertical(0.5)
                     .into(),
@@ -188,7 +188,7 @@ impl Rooms {
             list.add_sel(
                 room,
                 Text::new(normal),
-                Background::new(Text::new(selected), bg_sel_style),
+                Background::new(Text::new(selected)).style(bg_sel_style),
             );
         }
     }

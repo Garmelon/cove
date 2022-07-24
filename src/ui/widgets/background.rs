@@ -10,11 +10,16 @@ pub struct Background {
 }
 
 impl Background {
-    pub fn new<W: Into<BoxedWidget>>(inner: W, style: ContentStyle) -> Self {
+    pub fn new<W: Into<BoxedWidget>>(inner: W) -> Self {
         Self {
             inner: inner.into(),
-            style,
+            style: ContentStyle::default(),
         }
+    }
+
+    pub fn style(mut self, style: ContentStyle) -> Self {
+        self.style = style;
+        self
     }
 }
 

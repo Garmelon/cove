@@ -95,7 +95,7 @@ impl EuphRoom {
             State::Normal => chat,
             State::ChooseNick(ed) => Layer::new(vec![
                 chat,
-                Float::new(Border::new(
+                Float::new(Border::new(Background::new(
                     Padding::new(VJoin::new(vec![
                         Segment::new(Text::new("Choose nick ")),
                         Segment::new(
@@ -104,7 +104,7 @@ impl EuphRoom {
                         ),
                     ]))
                     .left(1),
-                ))
+                )))
                 .horizontal(0.5)
                 .vertical(0.5)
                 .into(),
@@ -207,7 +207,7 @@ impl EuphRoom {
         list.add_sel(
             id,
             Text::new(normal),
-            Background::new(Text::new(selected), style_inv),
+            Background::new(Text::new(selected)).style(style_inv),
         );
     }
 
