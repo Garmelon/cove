@@ -14,6 +14,7 @@ mod vault;
 use std::path::PathBuf;
 
 use clap::Parser;
+use cookie::CookieJar;
 use directories::ProjectDirs;
 use log::info;
 use toss::terminal::Terminal;
@@ -30,6 +31,8 @@ enum Command {
     Export { room: String, file: PathBuf },
     /// Compact and clean up vault.
     Gc,
+    /// Clear euphoria session cookies.
+    ClearCookies,
 }
 
 impl Default for Command {
@@ -60,6 +63,10 @@ async fn main() -> anyhow::Result<()> {
             println!("Cleaning up and compacting vault");
             println!("This may take a while...");
             vault.gc().await;
+        }
+        Command::ClearCookies => {
+            println!("Clearing cookies");
+            vault.set_euph_cookies(CookieJar::new()).await;
         }
     }
 
