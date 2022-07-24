@@ -1,17 +1,23 @@
 use std::convert::Infallible;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::bail;
+use cookie::{Cookie, CookieJar};
 use log::{error, info, warn};
 use parking_lot::Mutex;
 use time::OffsetDateTime;
 use tokio::sync::{mpsc, oneshot};
 use tokio::{select, task};
 use tokio_tungstenite::tungstenite;
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use tokio_tungstenite::tungstenite::handshake::client::Response;
+use tokio_tungstenite::tungstenite::http::{header, HeaderValue};
 
+use crate::macros::ok_or_return;
 use crate::ui::UiEvent;
-use crate::vault::EuphVault;
+use crate::vault::{EuphVault, Vault};
 
 use super::api::{Data, Log, Nick, Send, Snowflake};
 use super::conn::{self, ConnRx, ConnTx, Status};
@@ -53,10 +59,11 @@ impl State {
         event_tx: mpsc::UnboundedSender<Event>,
         mut event_rx: mpsc::UnboundedReceiver<Event>,
     ) {
+        let vault = self.vault.clone();
         let name = self.name.clone();
         let result = select! {
             _ = canary => Ok(()),
-            _ = Self::reconnect(&name, &event_tx) => Ok(()),
+            _ = Self::reconnect(&vault, &name, &event_tx) => Ok(()),
             _ = Self::regularly_request_logs(&event_tx) => Ok(()),
             e = self.handle_events(&mut event_rx) => e,
         };
@@ -66,10 +73,14 @@ impl State {
         }
     }
 
-    async fn reconnect(name: &str, event_tx: &mpsc::UnboundedSender<Event>) -> anyhow::Result<()> {
+    async fn reconnect(
+        vault: &EuphVault,
+        name: &str,
+        event_tx: &mpsc::UnboundedSender<Event>,
+    ) -> anyhow::Result<()> {
         loop {
             info!("e&{}: connecting", name);
-            if let Some((conn_tx, mut conn_rx)) = Self::connect(name).await? {
+            if let Some((conn_tx, mut conn_rx)) = Self::connect(vault, name).await? {
                 info!("e&{}: connected", name);
                 event_tx.send(Event::Connected(conn_tx))?;
 
@@ -86,11 +97,41 @@ impl State {
         }
     }
 
-    async fn connect(name: &str) -> anyhow::Result<Option<(ConnTx, ConnRx)>> {
-        // TODO Cookies
-        let url = format!("wss://euphoria.io/room/{name}/ws");
-        match tokio_tungstenite::connect_async(&url).await {
-            Ok((ws, _)) => Ok(Some(conn::wrap(ws))),
+    async fn get_cookies(vault: &Vault) -> String {
+        let cookie_jar = vault.euph_cookies().await;
+        let cookies = cookie_jar
+            .iter()
+            .map(|c| format!("{}", c.stripped()))
+            .collect::<Vec<_>>();
+        cookies.join("; ")
+    }
+
+    async fn update_cookies(vault: &Vault, response: &Response) {
+        let mut cookie_jar = CookieJar::new();
+
+        for (name, value) in response.headers() {
+            if name == header::SET_COOKIE {
+                let value_str = ok_or_return!(value.to_str());
+                let cookie = ok_or_return!(Cookie::from_str(value_str));
+                cookie_jar.add(cookie);
+            }
+        }
+
+        vault.set_euph_cookies(cookie_jar).await;
+    }
+
+    async fn connect(vault: &EuphVault, name: &str) -> anyhow::Result<Option<(ConnTx, ConnRx)>> {
+        let uri = format!("wss://euphoria.io/room/{name}/ws");
+        let mut request = uri.into_client_request().expect("valid request");
+        let cookies = Self::get_cookies(vault.vault()).await;
+        let cookies = HeaderValue::from_str(&cookies).expect("valid cookies");
+        request.headers_mut().append(header::COOKIE, cookies);
+
+        match tokio_tungstenite::connect_async(request).await {
+            Ok((ws, response)) => {
+                Self::update_cookies(vault.vault(), &response).await;
+                Ok(Some(conn::wrap(ws)))
+            }
             Err(tungstenite::Error::Http(resp)) if resp.status().is_client_error() => {
                 bail!("room {name} doesn't exist");
             }
