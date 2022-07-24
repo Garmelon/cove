@@ -92,6 +92,10 @@ impl Joining {
 
     fn joined(&self) -> Option<Joined> {
         if let (Some(hello), Some(snapshot)) = (&self.hello, &self.snapshot) {
+            let mut session = hello.session.clone();
+            if let Some(nick) = &snapshot.nick {
+                session.name = nick.clone();
+            }
             let listing = snapshot
                 .listing
                 .iter()
@@ -99,7 +103,7 @@ impl Joining {
                 .map(|s| (s.id.clone(), s))
                 .collect::<HashMap<_, _>>();
             Some(Joined {
-                session: hello.session.clone(),
+                session,
                 account: hello.account.clone(),
                 listing,
             })
