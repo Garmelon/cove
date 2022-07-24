@@ -4,7 +4,7 @@ use std::hash::Hash;
 use std::vec;
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 use toss::styled::Styled;
 
 pub trait Msg {
@@ -12,7 +12,7 @@ pub trait Msg {
     fn id(&self) -> Self::Id;
     fn parent(&self) -> Option<Self::Id>;
 
-    fn time(&self) -> DateTime<Utc>;
+    fn time(&self) -> OffsetDateTime;
     fn nick(&self) -> Styled;
     fn content(&self) -> Styled;
 

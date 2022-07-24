@@ -2,10 +2,10 @@ use std::sync::Arc;
 use std::vec;
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
 use crossterm::style::{ContentStyle, Stylize};
 use log::{Level, Log};
 use parking_lot::Mutex;
+use time::OffsetDateTime;
 use tokio::sync::mpsc;
 use toss::styled::Styled;
 
@@ -14,7 +14,7 @@ use crate::store::{Msg, MsgStore, Path, Tree};
 #[derive(Debug, Clone)]
 pub struct LogMsg {
     id: usize,
-    time: DateTime<Utc>,
+    time: OffsetDateTime,
     level: Level,
     content: String,
 }
@@ -30,7 +30,7 @@ impl Msg for LogMsg {
         None
     }
 
-    fn time(&self) -> DateTime<Utc> {
+    fn time(&self) -> OffsetDateTime {
         self.time
     }
 
@@ -109,7 +109,7 @@ impl Log for Logger {
         let mut guard = self.messages.lock();
         let msg = LogMsg {
             id: guard.len(),
-            time: Utc::now(),
+            time: OffsetDateTime::now_utc(),
             level: record.level(),
             content: format!("<{}> {}", record.target(), record.args()),
         };

@@ -1,9 +1,9 @@
 use std::mem;
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
 use rusqlite::types::{FromSql, FromSqlError, ToSqlOutput, Value, ValueRef};
 use rusqlite::{named_params, params, Connection, OptionalExtension, ToSql, Transaction};
+use time::OffsetDateTime;
 use tokio::sync::{mpsc, oneshot};
 use toss::styled::Styled;
 
@@ -27,7 +27,7 @@ impl FromSql for Snowflake {
 
 impl ToSql for Time {
     fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-        let timestamp = self.0.timestamp();
+        let timestamp = self.0.unix_timestamp();
         Ok(ToSqlOutput::Owned(Value::Integer(timestamp)))
     }
 }
@@ -35,7 +35,9 @@ impl ToSql for Time {
 impl FromSql for Time {
     fn column_result(value: ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
         let timestamp = i64::column_result(value)?;
-        Ok(Self::new(timestamp))
+        Ok(Self(
+            OffsetDateTime::from_unix_timestamp(timestamp).expect("timestamp in range"),
+        ))
     }
 }
 
@@ -59,7 +61,7 @@ impl Msg for EuphMsg {
         self.parent
     }
 
-    fn time(&self) -> DateTime<Utc> {
+    fn time(&self) -> OffsetDateTime {
         self.time.0
     }
 
@@ -103,7 +105,7 @@ impl EuphVault {
         &self.room
     }
 
-    pub fn join(&self, time: DateTime<Utc>) {
+    pub fn join(&self, time: OffsetDateTime) {
         let request = EuphRequest::Join {
             room: self.room.clone(),
             time,
@@ -225,7 +227,7 @@ pub(super) enum EuphRequest {
     },
     Join {
         room: String,
-        time: DateTime<Utc>,
+        time: OffsetDateTime,
     },
     Delete {
         room: String,
@@ -325,7 +327,7 @@ impl EuphRequest {
         Ok(())
     }
 
-    fn join(conn: &mut Connection, room: String, time: DateTime<Utc>) -> rusqlite::Result<()> {
+    fn join(conn: &mut Connection, room: String, time: OffsetDateTime) -> rusqlite::Result<()> {
         conn.execute(
             "
             INSERT INTO euph_rooms (room, first_joined, last_joined)

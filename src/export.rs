@@ -4,13 +4,16 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
+use time::format_description::FormatItem;
+use time::macros::format_description;
 use unicode_width::UnicodeWidthStr;
 
 use crate::euph::api::Snowflake;
 use crate::store::{MsgStore, Tree};
 use crate::vault::{EuphMsg, Vault};
 
-const TIME_FORMAT: &str = "%F %T";
+const TIME_FORMAT: &[FormatItem<'_>] =
+    format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
 const TIME_EMPTY: &str = "                   ";
 
 pub async fn export(vault: &Vault, room: String, file: &Path) -> anyhow::Result<()> {
@@ -67,7 +70,11 @@ fn write_msg(file: &mut BufWriter<File>, indent_string: &str, msg: &EuphMsg) -> 
 
     for (i, line) in msg.content.lines().enumerate() {
         if i == 0 {
-            let time = msg.time.0.format(TIME_FORMAT);
+            let time = msg
+                .time
+                .0
+                .format(TIME_FORMAT)
+                .expect("time can be formatted");
             writeln!(file, "{time} {indent_string}[{nick}] {line}")?;
         } else {
             writeln!(file, "{TIME_EMPTY} {indent_string}| {nick_empty} {line}")?;

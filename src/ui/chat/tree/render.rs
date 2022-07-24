@@ -1,6 +1,6 @@
 //! Rendering blocks to a [`Frame`].
 
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 use toss::frame::{Frame, Pos};
 use toss::styled::Styled;
 
@@ -10,7 +10,7 @@ use super::blocks::{Block, BlockBody, MsgBlock, MsgContent};
 use super::{util, InnerTreeViewState};
 
 impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
-    fn render_time(frame: &mut Frame, line: i32, time: Option<DateTime<Utc>>, is_cursor: bool) {
+    fn render_time(frame: &mut Frame, line: i32, time: Option<OffsetDateTime>, is_cursor: bool) {
         let pos = Pos::new(0, line);
         let style = if is_cursor {
             util::style_time_inverted()
@@ -19,7 +19,9 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         };
 
         if let Some(time) = time {
-            let time = format!("{}", time.format(util::TIME_FORMAT));
+            let time = time
+                .format(util::TIME_FORMAT)
+                .expect("time can be formatted");
             frame.write(pos, (&time, style));
         } else {
             frame.write(pos, (util::TIME_EMPTY, style));
@@ -51,7 +53,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     fn draw_msg_block(
         frame: &mut Frame,
         line: i32,
-        time: Option<DateTime<Utc>>,
+        time: Option<OffsetDateTime>,
         indent: usize,
         msg: &MsgBlock<M::Id>,
         is_cursor: bool,

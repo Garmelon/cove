@@ -3,11 +3,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::bail;
-use chrono::Utc;
 use log::{error, info, warn};
 use parking_lot::Mutex;
+use time::OffsetDateTime;
 use tokio::sync::{mpsc, oneshot};
-use tokio::{select, task, time};
+use tokio::{select, task};
 use tokio_tungstenite::tungstenite;
 
 use crate::ui::UiEvent;
@@ -82,7 +82,7 @@ impl State {
             } else {
                 info!("e&{}: could not connect", name);
             }
-            time::sleep(Duration::from_secs(5)).await; // TODO Make configurable
+            tokio::time::sleep(Duration::from_secs(5)).await; // TODO Make configurable
         }
     }
 
@@ -103,7 +103,7 @@ impl State {
 
     async fn regularly_request_logs(event_tx: &mpsc::UnboundedSender<Event>) {
         loop {
-            time::sleep(Duration::from_secs(2)).await; // TODO Make configurable
+            tokio::time::sleep(Duration::from_secs(2)).await; // TODO Make configurable
             let _ = event_tx.send(Event::RequestLogs);
         }
     }
@@ -171,7 +171,7 @@ impl State {
             }
             Data::SnapshotEvent(d) => {
                 info!("e&{}: successfully joined", self.name);
-                self.vault.join(Utc::now());
+                self.vault.join(OffsetDateTime::now_utc());
                 self.last_msg_id = Some(d.log.last().map(|m| m.id));
                 self.vault.add_messages(d.log, None);
             }

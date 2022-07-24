@@ -1,10 +1,13 @@
 //! Constants and helper functions.
 
 use crossterm::style::{ContentStyle, Stylize};
+use time::format_description::FormatItem;
+use time::macros::format_description;
 use toss::frame::Frame;
 use toss::styled::Styled;
 
-pub const TIME_FORMAT: &str = "%F %R ";
+pub const TIME_FORMAT: &[FormatItem<'_>] =
+    format_description!("[year]-[month]-[day] [hour]:[minute] ");
 pub const TIME_EMPTY: &str = "                 ";
 pub const TIME_WIDTH: usize = TIME_EMPTY.len();
 

@@ -3,7 +3,7 @@
 use std::collections::{vec_deque, VecDeque};
 use std::iter;
 
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 use toss::styled::Styled;
 
 use crate::macros::some_or_return;
@@ -50,7 +50,7 @@ pub enum BlockBody<I> {
 #[derive(Debug, Clone)]
 pub struct Block<I> {
     pub line: i32,
-    pub time: Option<DateTime<Utc>>,
+    pub time: Option<OffsetDateTime>,
     pub indent: usize,
     pub body: BlockBody<I>,
 }
@@ -75,7 +75,7 @@ impl<I> Block<I> {
     }
 
     pub fn msg(
-        time: DateTime<Utc>,
+        time: OffsetDateTime,
         indent: usize,
         id: I,
         nick: Styled,
@@ -92,7 +92,7 @@ impl<I> Block<I> {
         }
     }
 
-    pub fn placeholder(time: Option<DateTime<Utc>>, indent: usize, id: I) -> Self {
+    pub fn placeholder(time: Option<OffsetDateTime>, indent: usize, id: I) -> Self {
         Self {
             line: 0,
             time,

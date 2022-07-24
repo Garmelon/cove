@@ -8,9 +8,9 @@
 
 use std::fmt;
 
-use chrono::{DateTime, TimeZone, Utc};
 use serde::{de, ser, Deserialize, Serialize};
 use serde_json::Value;
+use time::OffsetDateTime;
 
 /// Describes an account and its preferred name.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -331,15 +331,11 @@ impl<'de> Deserialize<'de> for Snowflake {
 /// Time is specified as a signed 64-bit integer, giving the number of seconds
 /// since the Unix Epoch.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Time(#[serde(with = "chrono::serde::ts_seconds")] pub DateTime<Utc>);
+pub struct Time(#[serde(with = "time::serde::timestamp")] pub OffsetDateTime);
 
 impl Time {
-    pub fn new(timestamp: i64) -> Self {
-        Self(Utc.timestamp(timestamp, 0))
-    }
-
     pub fn now() -> Self {
-        Self::new(Utc::now().timestamp())
+        Self(OffsetDateTime::now_utc().replace_millisecond(0).unwrap())
     }
 }
 
