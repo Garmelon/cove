@@ -202,8 +202,8 @@ impl EuphRoom {
             ""
         };
 
-        let normal = Styled::new(owner).then(perms).then((name, style));
-        let selected = Styled::new(owner).then(perms).then((name, style_inv));
+        let normal = Styled::new(owner).then((name, style)).then(perms);
+        let selected = Styled::new(owner).then((name, style_inv)).then(perms);
         list.add_sel(
             id,
             Text::new(normal),
