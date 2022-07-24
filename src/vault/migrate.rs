@@ -16,7 +16,7 @@ pub fn migrate(conn: &mut Connection) -> rusqlite::Result<()> {
     tx.commit()
 }
 
-const MIGRATIONS: [fn(&mut Transaction) -> rusqlite::Result<()>; 1] = [m1];
+const MIGRATIONS: [fn(&mut Transaction) -> rusqlite::Result<()>; 2] = [m1, m2];
 
 fn m1(tx: &mut Transaction) -> rusqlite::Result<()> {
     tx.execute_batch(
@@ -72,6 +72,16 @@ fn m1(tx: &mut Transaction) -> rusqlite::Result<()> {
 
         CREATE INDEX euph_idx_msgs_room_parent_id
         ON euph_msgs (room, parent, id);
+        ",
+    )
+}
+
+fn m2(tx: &mut Transaction) -> rusqlite::Result<()> {
+    tx.execute_batch(
+        "
+        CREATE TABLE euph_cookies (
+            cookie TEXT NOT NULL
+        ) STRICT;
         ",
     )
 }

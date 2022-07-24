@@ -19,7 +19,7 @@ enum Request {
 
 #[derive(Debug, Clone)]
 pub struct Vault {
-    tx: mpsc::UnboundedSender<Request>,
+    pub(self) tx: mpsc::UnboundedSender<Request>,
 }
 
 impl Vault {
@@ -37,7 +37,7 @@ impl Vault {
 
     pub fn euph(&self, room: String) -> EuphVault {
         EuphVault {
-            tx: self.tx.clone(),
+            vault: self.clone(),
             room,
         }
     }

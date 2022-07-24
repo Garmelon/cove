@@ -1,10 +1,12 @@
 use std::mem;
+use std::str::FromStr;
 
 use async_trait::async_trait;
+use cookie::{Cookie, CookieJar};
 use rusqlite::types::{FromSql, FromSqlError, ToSqlOutput, Value, ValueRef};
 use rusqlite::{named_params, params, Connection, OptionalExtension, ToSql, Transaction};
 use time::OffsetDateTime;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::oneshot;
 use toss::styled::Styled;
 
 use crate::euph;
@@ -85,6 +87,19 @@ impl From<EuphRequest> for Request {
 }
 
 impl Vault {
+    pub async fn euph_cookies(&self) -> CookieJar {
+        // TODO vault::Error
+        let (tx, rx) = oneshot::channel();
+        let request = EuphRequest::GetCookies { result: tx };
+        let _ = self.tx.send(request.into());
+        rx.await.unwrap()
+    }
+
+    pub async fn set_euph_cookies(&self, cookies: CookieJar) {
+        let request = EuphRequest::SetCookies { cookies };
+        let _ = self.tx.send(request.into());
+    }
+
     pub async fn euph_rooms(&self) -> Vec<String> {
         // TODO vault::Error
         let (tx, rx) = oneshot::channel();
@@ -96,11 +111,15 @@ impl Vault {
 
 #[derive(Debug, Clone)]
 pub struct EuphVault {
-    pub(super) tx: mpsc::UnboundedSender<Request>,
+    pub(super) vault: Vault,
     pub(super) room: String,
 }
 
 impl EuphVault {
+    pub fn vault(&self) -> &Vault {
+        &self.vault
+    }
+
     pub fn room(&self) -> &str {
         &self.room
     }
@@ -110,12 +129,12 @@ impl EuphVault {
             room: self.room.clone(),
             time,
         };
-        let _ = self.tx.send(request.into());
+        let _ = self.vault.tx.send(request.into());
     }
 
     pub fn delete(self) {
         let request = EuphRequest::Delete { room: self.room };
-        let _ = self.tx.send(request.into());
+        let _ = self.vault.tx.send(request.into());
     }
 
     pub fn add_message(&self, msg: Message, prev_msg: Option<Snowflake>) {
@@ -124,7 +143,7 @@ impl EuphVault {
             msg,
             prev_msg,
         };
-        let _ = self.tx.send(request.into());
+        let _ = self.vault.tx.send(request.into());
     }
 
     pub fn add_messages(&self, msgs: Vec<Message>, next_msg: Option<Snowflake>) {
@@ -133,7 +152,7 @@ impl EuphVault {
             msgs,
             next_msg,
         };
-        let _ = self.tx.send(request.into());
+        let _ = self.vault.tx.send(request.into());
     }
 
     pub async fn last_span(&self) -> Option<(Option<Snowflake>, Option<Snowflake>)> {
@@ -143,7 +162,7 @@ impl EuphVault {
             room: self.room.clone(),
             result: tx,
         };
-        let _ = self.tx.send(request.into());
+        let _ = self.vault.tx.send(request.into());
         rx.await.unwrap()
     }
 }
@@ -158,7 +177,7 @@ impl MsgStore<EuphMsg> for EuphVault {
             id: *id,
             result: tx,
         };
-        let _ = self.tx.send(request.into());
+        let _ = self.vault.tx.send(request.into());
         rx.await.unwrap()
     }
 
@@ -170,7 +189,7 @@ impl MsgStore<EuphMsg> for EuphVault {
             root: *root,
             result: tx,
         };
-        let _ = self.tx.send(request.into());
+        let _ = self.vault.tx.send(request.into());
         rx.await.unwrap()
     }
 
@@ -182,7 +201,7 @@ impl MsgStore<EuphMsg> for EuphVault {
             root: *root,
             result: tx,
         };
-        let _ = self.tx.send(request.into());
+        let _ = self.vault.tx.send(request.into());
         rx.await.unwrap()
     }
 
@@ -194,7 +213,7 @@ impl MsgStore<EuphMsg> for EuphVault {
             root: *root,
             result: tx,
         };
-        let _ = self.tx.send(request.into());
+        let _ = self.vault.tx.send(request.into());
         rx.await.unwrap()
     }
 
@@ -205,7 +224,7 @@ impl MsgStore<EuphMsg> for EuphVault {
             room: self.room.clone(),
             result: tx,
         };
-        let _ = self.tx.send(request.into());
+        let _ = self.vault.tx.send(request.into());
         rx.await.unwrap()
     }
 
@@ -216,12 +235,22 @@ impl MsgStore<EuphMsg> for EuphVault {
             room: self.room.clone(),
             result: tx,
         };
-        let _ = self.tx.send(request.into());
+        let _ = self.vault.tx.send(request.into());
         rx.await.unwrap()
     }
 }
 
 pub(super) enum EuphRequest {
+    /////////////
+    // Cookies //
+    /////////////
+    GetCookies {
+        result: oneshot::Sender<CookieJar>,
+    },
+    SetCookies {
+        cookies: CookieJar,
+    },
+
     ///////////
     // Rooms //
     ///////////
@@ -286,6 +315,8 @@ pub(super) enum EuphRequest {
 impl EuphRequest {
     pub(super) fn perform(self, conn: &mut Connection) {
         let result = match self {
+            EuphRequest::GetCookies { result } => Self::get_cookies(conn, result),
+            EuphRequest::SetCookies { cookies } => Self::set_cookies(conn, cookies),
             EuphRequest::GetRooms { result } => Self::get_rooms(conn, result),
             EuphRequest::Join { room, time } => Self::join(conn, room, time),
             EuphRequest::Delete { room } => Self::delete(conn, room),
@@ -322,6 +353,54 @@ impl EuphRequest {
             // TODO Better vault error handling
             eprintln!("{e}");
         }
+    }
+
+    fn get_cookies(
+        conn: &mut Connection,
+        result: oneshot::Sender<CookieJar>,
+    ) -> rusqlite::Result<()> {
+        let cookies = conn
+            .prepare(
+                "
+                SELECT cookie
+                FROM euph_cookies
+                ",
+            )?
+            .query_map([], |row| {
+                let cookie_str: String = row.get(0)?;
+                Ok(Cookie::from_str(&cookie_str).expect("cookie in db is valid"))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+
+        let mut cookie_jar = CookieJar::new();
+        for cookie in cookies {
+            cookie_jar.add_original(cookie);
+        }
+
+        let _ = result.send(cookie_jar);
+        Ok(())
+    }
+
+    fn set_cookies(conn: &mut Connection, cookies: CookieJar) -> rusqlite::Result<()> {
+        let tx = conn.transaction()?;
+
+        // Since euphoria sets all cookies on every response, we can just delete
+        // all previous cookies.
+        tx.execute_batch("DELETE FROM euph_cookies")?;
+
+        let mut insert_cookie = tx.prepare(
+            "
+            INSERT INTO euph_cookies (cookie)
+            VALUES (?)
+            ",
+        )?;
+        for cookie in cookies.iter() {
+            insert_cookie.execute([format!("{cookie}")])?;
+        }
+        drop(insert_cookie);
+
+        tx.commit()?;
+        Ok(())
     }
 
     fn get_rooms(
