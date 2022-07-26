@@ -193,10 +193,11 @@ impl Ui {
         terminal: &mut Terminal,
         crossterm_lock: &Arc<FairMutex<()>>,
     ) -> EventHandleResult {
-        // Always exit when shift+q or ctrl+c are pressed
-        let shift_q = event.code == KeyCode::Char('Q');
+        // Always exit when ctrl+c is pressed. Previously, shift+q would also
+        // unconditionally quit cove, but that interfered with typing text in
+        // inline editors.
         let ctrl_c = event.modifiers == KeyModifiers::CONTROL && event.code == KeyCode::Char('c');
-        if shift_q || ctrl_c {
+        if ctrl_c {
             return EventHandleResult::Stop;
         }
 
