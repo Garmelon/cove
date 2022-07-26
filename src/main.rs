@@ -43,6 +43,9 @@ impl Default for Command {
 
 #[derive(Debug, clap::Parser)]
 struct Args {
+    /// Path to a directory for cove to store its data in.
+    #[clap(long, short)]
+    data_dir: Option<PathBuf>,
     #[clap(subcommand)]
     command: Option<Command>,
 }
@@ -51,10 +54,16 @@ struct Args {
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
-    let dirs = ProjectDirs::from("de", "plugh", "cove").expect("unable to determine directories");
-    println!("Data dir: {}", dirs.data_dir().to_string_lossy());
+    let data_dir = if let Some(data_dir) = args.data_dir {
+        data_dir
+    } else {
+        let dirs =
+            ProjectDirs::from("de", "plugh", "cove").expect("unable to determine directories");
+        dirs.data_dir().to_path_buf()
+    };
+    println!("Data dir: {}", data_dir.to_string_lossy());
 
-    let vault = vault::launch(&dirs.data_dir().join("vault.db"))?;
+    let vault = vault::launch(&data_dir.join("vault.db"))?;
 
     match args.command.unwrap_or_default() {
         Command::Run => run(&vault).await?,
