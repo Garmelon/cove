@@ -46,6 +46,10 @@ struct Args {
     /// Path to a directory for cove to store its data in.
     #[clap(long, short)]
     data_dir: Option<PathBuf>,
+    /// Measure the width of characters as displayed by the terminal emulator
+    /// instead of guessing the width.
+    #[clap(long, short, action)]
+    measure_widths: bool,
     #[clap(subcommand)]
     command: Option<Command>,
 }
@@ -66,7 +70,7 @@ async fn main() -> anyhow::Result<()> {
     let vault = vault::launch(&data_dir.join("vault.db"))?;
 
     match args.command.unwrap_or_default() {
-        Command::Run => run(&vault).await?,
+        Command::Run => run(&vault, args.measure_widths).await?,
         Command::Export { room, file } => export::export(&vault, room, &file).await?,
         Command::Gc => {
             println!("Cleaning up and compacting vault");
@@ -85,7 +89,7 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn run(vault: &Vault) -> anyhow::Result<()> {
+async fn run(vault: &Vault, measure_widths: bool) -> anyhow::Result<()> {
     let (logger, logger_rx) = Logger::init(log::Level::Debug);
     info!(
         "Welcome to {} {}",
@@ -94,7 +98,7 @@ async fn run(vault: &Vault) -> anyhow::Result<()> {
     );
 
     let mut terminal = Terminal::new()?;
-    // terminal.set_measuring(true);
+    terminal.set_measuring(measure_widths);
     Ui::run(&mut terminal, vault.clone(), logger, logger_rx).await?;
     drop(terminal); // So the vault can print again
 
