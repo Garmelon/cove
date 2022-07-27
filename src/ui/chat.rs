@@ -1,3 +1,4 @@
+mod blocks;
 mod tree;
 
 use std::sync::Arc;
