@@ -261,6 +261,13 @@ impl Editor {
 
         (row, line_idx)
     }
+
+    pub fn cursor_row(&self, frame: &mut Frame) -> usize {
+        let width: usize = frame.size().width.into();
+        let indices = frame.wrap(&self.text.text(), width);
+        let (row, _) = Self::wrapped_cursor(self.idx, &indices);
+        row
+    }
 }
 
 #[async_trait]
