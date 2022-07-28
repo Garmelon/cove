@@ -1,4 +1,5 @@
-use std::collections::{vec_deque, VecDeque};
+use std::collections::VecDeque;
+use std::ops::Range;
 
 use toss::frame::Frame;
 
@@ -9,6 +10,12 @@ pub struct Block<I> {
     id: I,
     top_line: i32,
     height: i32,
+    /// The lines of the block that should be made visible if the block is
+    /// focused on. By default, the focus encompasses the entire block.
+    ///
+    /// If not all of these lines can be made visible, the top of the range
+    /// should be preferred over the bottom.
+    focus: Range<i32>,
     widget: BoxedWidget,
 }
 
@@ -18,12 +25,19 @@ impl<I> Block<I> {
         // here but rustc knows it's a `BoxedWidget`.
         let widget = widget.into();
         let size = widget.size(frame, Some(width), None);
+        let height = size.height.into();
         Self {
             id,
             top_line: 0,
-            height: size.height.into(),
+            height,
+            focus: 0..height,
             widget,
         }
+    }
+
+    pub fn focus(mut self, focus: Range<i32>) -> Self {
+        self.focus = focus;
+        self
     }
 }
 
