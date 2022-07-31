@@ -5,6 +5,7 @@ use super::{BoxedWidget, Widget};
 
 pub struct Padding {
     inner: BoxedWidget,
+    stretch: bool,
     left: u16,
     right: u16,
     top: u16,
@@ -15,11 +16,19 @@ impl Padding {
     pub fn new<W: Into<BoxedWidget>>(inner: W) -> Self {
         Self {
             inner: inner.into(),
+            stretch: false,
             left: 0,
             right: 0,
             top: 0,
             bottom: 0,
         }
+    }
+
+    /// Whether the inner widget should be stretched to fill the additional
+    /// space.
+    pub fn stretch(mut self, active: bool) -> Self {
+        self.stretch = active;
+        self
     }
 
     pub fn left(mut self, amount: u16) -> Self {
@@ -73,10 +82,14 @@ impl Widget for Padding {
         let size = frame.size();
 
         let inner_pos = Pos::new(self.left.into(), self.top.into());
-        let inner_size = Size::new(
-            size.width.saturating_sub(self.left + self.right),
-            size.height.saturating_sub(self.top + self.bottom),
-        );
+        let inner_size = if self.stretch {
+            size
+        } else {
+            Size::new(
+                size.width.saturating_sub(self.left + self.right),
+                size.height.saturating_sub(self.top + self.bottom),
+            )
+        };
 
         frame.push(inner_pos, inner_size);
         self.inner.render(frame).await;

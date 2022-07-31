@@ -1,6 +1,5 @@
 mod cursor;
 mod layout;
-mod time;
 mod tree_blocks;
 mod widgets;
 
