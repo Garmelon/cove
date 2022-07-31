@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{vec_deque, VecDeque};
 use std::ops::Range;
 
 use toss::frame::Frame;
@@ -64,6 +64,10 @@ impl<I> Blocks<I> {
             top_line: line + 1,
             bottom_line: line,
         }
+    }
+
+    pub fn iter(&self) -> vec_deque::Iter<Block<I>> {
+        self.blocks.iter()
     }
 
     pub fn offset(&mut self, delta: i32) {

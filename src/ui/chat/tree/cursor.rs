@@ -224,17 +224,8 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         self.make_cursor_visible = true;
     }
 
-    pub async fn scroll_up(&mut self, amount: i32) {
+    pub fn scroll_up(&mut self, amount: i32) {
         self.scroll += amount;
-
-        if let Cursor::Bottom = self.cursor {
-            // Move cursor to bottommost message, if it exists
-            if let Some(mut id) = self.store.last_tree_id().await {
-                let tree = self.store.tree(&id).await;
-                while Self::find_last_child(&tree, &mut id) {}
-                self.cursor = Cursor::Msg(id);
-            }
-        }
     }
 
     pub fn scroll_down(&mut self, amount: i32) {

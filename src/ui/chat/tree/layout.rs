@@ -308,6 +308,70 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         }
     }
 
+    /// Try to obtain a [`Cursor::Msg`] pointing to the block.
+    fn msg_id(block: &Block<BlockId<M::Id>>) -> Option<M::Id> {
+        match &block.id {
+            BlockId::Msg(id) => Some(id.clone()),
+            _ => None,
+        }
+    }
+
+    fn visible(block: &Block<BlockId<M::Id>>, height: i32) -> bool {
+        (1 - block.height..height).contains(&block.top_line)
+    }
+
+    fn move_cursor_so_it_is_visible(
+        &mut self,
+        frame: &mut Frame,
+        blocks: &TreeBlocks<M::Id>,
+    ) -> Option<M::Id> {
+        if !matches!(self.cursor, Cursor::Bottom | Cursor::Msg(_)) {
+            // In all other cases, there is no need to make the cursor visible
+            // since scrolling behaves differently enough.
+            return None;
+        }
+
+        let height = frame.size().height as i32;
+
+        let new_cursor = if matches!(self.cursor, Cursor::Bottom) {
+            blocks
+                .blocks()
+                .iter()
+                .rev()
+                .filter(|b| Self::visible(b, height))
+                .find_map(Self::msg_id)
+        } else {
+            let block = blocks
+                .blocks()
+                .find(&BlockId::from_cursor(&self.cursor))
+                .expect("no cursor found");
+
+            if Self::visible(block, height) {
+                return None;
+            } else if block.top_line < 0 {
+                blocks
+                    .blocks()
+                    .iter()
+                    .filter(|b| Self::visible(b, height))
+                    .find_map(Self::msg_id)
+            } else {
+                blocks
+                    .blocks()
+                    .iter()
+                    .rev()
+                    .filter(|b| Self::visible(b, height))
+                    .find_map(Self::msg_id)
+            }
+        };
+
+        if let Some(id) = new_cursor {
+            self.cursor = Cursor::Msg(id.clone());
+            Some(id)
+        } else {
+            None
+        }
+    }
+
     pub async fn relayout(&mut self, frame: &mut Frame) -> TreeBlocks<M::Id> {
         // The basic idea is this:
         //
@@ -350,9 +414,22 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             self.fill_screen_and_clamp_scrolling(frame, &mut blocks)
                 .await;
         } else {
-            // self.move_cursor_so_it_is_visible(&mut blocks); // TODO
-            self.fill_screen_and_clamp_scrolling(frame, &mut blocks)
-                .await;
+            let new_cursor_msg_id = self.move_cursor_so_it_is_visible(frame, &blocks);
+            if let Some(cursor_msg_id) = new_cursor_msg_id {
+                // Moving the cursor invalidates our current blocks, so we sadly
+                // have to either perform an expensive operation or redraw the
+                // entire thing. I'm choosing the latter for now.
+
+                self.last_cursor = self.cursor.clone();
+                self.last_cursor_line = self.cursor_line(&blocks);
+                self.make_cursor_visible = false;
+                self.scroll = 0;
+
+                let last_cursor_path = self.store.path(&cursor_msg_id).await;
+                blocks = self.layout_last_cursor_seed(frame, &last_cursor_path).await;
+                self.fill_screen_and_clamp_scrolling(frame, &mut blocks)
+                    .await;
+            }
         }
 
         self.last_cursor = self.cursor.clone();

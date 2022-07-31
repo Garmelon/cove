@@ -60,9 +60,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             KeyCode::Char('j') | KeyCode::Down => self.move_cursor_down().await,
             KeyCode::Char('g') | KeyCode::Home => self.move_cursor_to_top().await,
             KeyCode::Char('G') | KeyCode::End => self.move_cursor_to_bottom().await,
-            KeyCode::Char('y') if event.modifiers == KeyModifiers::CONTROL => {
-                self.scroll_up(1).await
-            }
+            KeyCode::Char('y') if event.modifiers == KeyModifiers::CONTROL => self.scroll_up(1),
             KeyCode::Char('e') if event.modifiers == KeyModifiers::CONTROL => self.scroll_down(1),
             _ => return false,
         }
