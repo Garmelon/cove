@@ -1,6 +1,8 @@
 mod indent;
 mod time;
 
+use crossterm::style::{ContentStyle, Stylize};
+
 use crate::store::Msg;
 use crate::ui::widgets::join::{HJoin, Segment};
 use crate::ui::widgets::padding::Padding;
@@ -8,6 +10,12 @@ use crate::ui::widgets::text::Text;
 use crate::ui::widgets::BoxedWidget;
 
 use self::indent::Indent;
+
+pub const PLACEHOLDER: &str = "[...]";
+
+pub fn style_placeholder() -> ContentStyle {
+    ContentStyle::default().dark_grey()
+}
 
 pub fn msg<M: Msg>(highlighted: bool, indent: usize, msg: &M) -> BoxedWidget {
     HJoin::new(vec![
@@ -33,7 +41,7 @@ pub fn msg_placeholder(highlighted: bool, indent: usize) -> BoxedWidget {
                 .right(1),
         ),
         Segment::new(Indent::new(indent, highlighted)),
-        Segment::new(Text::new("[...]")),
+        Segment::new(Text::new((PLACEHOLDER, style_placeholder()))),
     ])
     .into()
 }
