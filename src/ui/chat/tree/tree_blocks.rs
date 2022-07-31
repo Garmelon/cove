@@ -39,15 +39,6 @@ impl<I> TreeBlocks<I> {
         }
     }
 
-    /// See [`Blocks::new_below`].
-    pub fn new_below(line: i32, top_root: Root<I>, bottom_root: Root<I>) -> Self {
-        Self {
-            blocks: Blocks::new_below(line),
-            top_root,
-            bottom_root,
-        }
-    }
-
     pub fn blocks(&self) -> &Blocks<BlockId<I>> {
         &self.blocks
     }
@@ -64,16 +55,8 @@ impl<I> TreeBlocks<I> {
         &self.top_root
     }
 
-    pub fn top_root_mut(&mut self) -> &mut Root<I> {
-        &mut self.top_root
-    }
-
     pub fn bottom_root(&self) -> &Root<I> {
         &self.bottom_root
-    }
-
-    pub fn bottom_root_mut(&mut self) -> &mut Root<I> {
-        &mut self.bottom_root
     }
 
     pub fn prepend(&mut self, other: Self) {

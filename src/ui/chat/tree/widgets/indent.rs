@@ -28,7 +28,7 @@ impl Indent {
 
 #[async_trait]
 impl Widget for Indent {
-    fn size(&self, frame: &mut Frame, max_width: Option<u16>, max_height: Option<u16>) -> Size {
+    fn size(&self, _frame: &mut Frame, _max_width: Option<u16>, _max_height: Option<u16>) -> Size {
         Size::new((INDENT_WIDTH * self.level) as u16, 0)
     }
 
