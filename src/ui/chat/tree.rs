@@ -1,62 +1,56 @@
-mod action;
-mod blocks;
-mod cursor;
-mod layout;
-mod render;
-mod util;
-
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::KeyEvent;
 use parking_lot::FairMutex;
 use tokio::sync::Mutex;
 use toss::frame::{Frame, Size};
 use toss::terminal::Terminal;
 
 use crate::store::{Msg, MsgStore};
+use crate::ui::widgets::editor::EditorState;
 use crate::ui::widgets::Widget;
-
-use self::blocks::Blocks;
-use self::cursor::Cursor;
 
 ///////////
 // State //
 ///////////
 
+pub enum Cursor<I> {
+    Bottom,
+    Msg(I),
+    Editor(Option<I>),
+    Pseudo(Option<I>),
+}
+
 struct InnerTreeViewState<M: Msg, S: MsgStore<M>> {
     store: S,
-    last_blocks: Blocks<M::Id>,
+
     last_cursor: Cursor<M::Id>,
+    last_cursor_line: i32,
+
     cursor: Cursor<M::Id>,
     /// Set to true if the chat should be scrolled such that the cursor is fully
     /// visible (if possible). If set to false, then the cursor itself is moved
     /// to a different message such that it remains visible.
     make_cursor_visible: bool,
-    editor: (), // TODO
+
+    editor: EditorState,
 }
 
 impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     fn new(store: S) -> Self {
         Self {
             store,
-            last_blocks: Blocks::new(),
             last_cursor: Cursor::Bottom,
+            last_cursor_line: 0,
             cursor: Cursor::Bottom,
             make_cursor_visible: false,
-            editor: (),
+            editor: EditorState::new(),
         }
     }
 
     async fn handle_navigation(&mut self, event: KeyEvent) -> bool {
-        match event.code {
-            KeyCode::Up | KeyCode::Char('k') => self.move_cursor_up().await,
-            KeyCode::Down | KeyCode::Char('j') => self.move_cursor_down().await,
-            KeyCode::Char('g') => self.move_cursor_to_top().await,
-            KeyCode::Char('G') => self.move_cursor_to_bottom().await,
-            _ => return false,
-        }
-        true
+        false
     }
 
     async fn handle_messaging(
@@ -65,14 +59,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         crossterm_lock: &Arc<FairMutex<()>>,
         event: KeyEvent,
     ) -> Option<(Option<M::Id>, String)> {
-        match event.code {
-            KeyCode::Char('r') => self.reply_normal(terminal, crossterm_lock).await,
-            KeyCode::Char('R') => self.reply_alternate(terminal, crossterm_lock).await,
-            KeyCode::Char('t') | KeyCode::Char('T') => {
-                Self::create_new_thread(terminal, crossterm_lock)
-            }
-            _ => None,
-        }
+        None
     }
 }
 
@@ -124,7 +111,5 @@ where
 
     async fn render(self: Box<Self>, frame: &mut Frame) {
         let mut guard = self.0.lock().await;
-        guard.relayout(frame).await;
-        guard.draw_blocks(frame);
     }
 }
