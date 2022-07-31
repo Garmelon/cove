@@ -150,7 +150,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             let bottom_root = blocks.bottom_root();
             let next_tree_id = match bottom_root {
                 Root::Bottom => break,
-                Root::Tree(tree_id) => self.store.prev_tree_id(tree_id).await,
+                Root::Tree(tree_id) => self.store.next_tree_id(tree_id).await,
             };
             if let Some(next_tree_id) = next_tree_id {
                 let next_tree = self.store.tree(&next_tree_id).await;
