@@ -58,6 +58,14 @@ impl<Id: Clone> InnerListState<Id> {
             .find_map(|(i, r)| r.as_ref().map(|c| Cursor::new(c.clone(), i)))
     }
 
+    fn last_selectable(&self) -> Option<Cursor<Id>> {
+        self.rows
+            .iter()
+            .enumerate()
+            .rev()
+            .find_map(|(i, r)| r.as_ref().map(|c| Cursor::new(c.clone(), i)))
+    }
+
     fn selectable_at_or_before_index(&self, i: usize) -> Option<Cursor<Id>> {
         self.rows
             .iter()
@@ -92,7 +100,7 @@ impl<Id: Clone> InnerListState<Id> {
             .find_map(|(i, r)| r.as_ref().map(|c| Cursor::new(c.clone(), i)))
     }
 
-    fn make_cursor_visible(&mut self, height: usize) {
+    fn scroll_so_cursor_is_visible(&mut self, height: usize) {
         if height == 0 {
             // Cursor can't be visible because nothing is visible
             return;
@@ -103,6 +111,25 @@ impl<Id: Clone> InnerListState<Id> {
             let min = (cursor.idx + 1).saturating_sub(height);
             let max = cursor.idx;
             self.offset = self.offset.clamp(min, max);
+        }
+    }
+
+    fn move_cursor_to_make_it_visible(&mut self, height: usize) {
+        if let Some(cursor) = &self.cursor {
+            let min_idx = self.offset;
+            let max_idx = self.offset.saturating_add(height).saturating_sub(1);
+
+            let new_cursor = if cursor.idx < min_idx {
+                self.selectable_at_or_after_index(min_idx)
+            } else if cursor.idx > max_idx {
+                self.selectable_at_or_before_index(max_idx)
+            } else {
+                return;
+            };
+
+            if let Some(new_cursor) = new_cursor {
+                self.cursor = Some(new_cursor);
+            }
         }
     }
 
@@ -137,11 +164,13 @@ impl<Id: Clone + Eq> InnerListState<Id> {
 
         self.fix_cursor();
         if self.make_cursor_visible {
-            self.make_cursor_visible(height);
-            self.make_cursor_visible = false;
+            self.scroll_so_cursor_is_visible(height);
+            self.clamp_scrolling(height);
+        } else {
+            self.clamp_scrolling(height);
+            self.move_cursor_to_make_it_visible(height);
         }
-
-        self.clamp_scrolling(height);
+        self.make_cursor_visible = false;
     }
 }
 
@@ -156,14 +185,14 @@ impl<Id> ListState<Id> {
         List::new(self.0.clone())
     }
 
-    pub fn scroll_up(&mut self) {
+    pub fn scroll_up(&mut self, amount: usize) {
         let mut guard = self.0.lock();
-        guard.offset = guard.offset.saturating_sub(1);
+        guard.offset = guard.offset.saturating_sub(amount);
     }
 
-    pub fn scroll_down(&mut self) {
+    pub fn scroll_down(&mut self, amount: usize) {
         let mut guard = self.0.lock();
-        guard.offset = guard.offset.saturating_add(1);
+        guard.offset = guard.offset.saturating_add(amount);
     }
 }
 
@@ -177,9 +206,9 @@ impl<Id: Clone> ListState<Id> {
         if let Some(cursor) = &guard.cursor {
             if let Some(new_cursor) = guard.selectable_before_index(cursor.idx) {
                 guard.cursor = Some(new_cursor);
-                guard.make_cursor_visible = true;
             }
         }
+        guard.make_cursor_visible = true;
     }
 
     pub fn move_cursor_down(&mut self) {
@@ -187,9 +216,25 @@ impl<Id: Clone> ListState<Id> {
         if let Some(cursor) = &guard.cursor {
             if let Some(new_cursor) = guard.selectable_after_index(cursor.idx) {
                 guard.cursor = Some(new_cursor);
-                guard.make_cursor_visible = true;
             }
         }
+        guard.make_cursor_visible = true;
+    }
+
+    pub fn move_cursor_to_top(&mut self) {
+        let mut guard = self.0.lock();
+        if let Some(new_cursor) = guard.first_selectable() {
+            guard.cursor = Some(new_cursor);
+        }
+        guard.make_cursor_visible = true;
+    }
+
+    pub fn move_cursor_to_bottom(&mut self) {
+        let mut guard = self.0.lock();
+        if let Some(new_cursor) = guard.last_selectable() {
+            guard.cursor = Some(new_cursor);
+        }
+        guard.make_cursor_visible = true;
     }
 }
 

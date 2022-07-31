@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::iter;
 use std::sync::Arc;
 
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use crossterm::style::{ContentStyle, Stylize};
 use parking_lot::FairMutex;
 use tokio::sync::mpsc;
@@ -213,10 +213,16 @@ impl Rooms {
                         self.state = State::ShowRoom(name);
                     }
                 }
-                KeyCode::Char('j') | KeyCode::Down => self.list.move_cursor_down(),
                 KeyCode::Char('k') | KeyCode::Up => self.list.move_cursor_up(),
-                KeyCode::Char('J') => self.list.scroll_down(), // TODO Replace by Ctrl+E and mouse scroll
-                KeyCode::Char('K') => self.list.scroll_up(), // TODO Replace by Ctrl+Y and mouse scroll
+                KeyCode::Char('j') | KeyCode::Down => self.list.move_cursor_down(),
+                KeyCode::Char('g') | KeyCode::Home => self.list.move_cursor_to_top(),
+                KeyCode::Char('G') | KeyCode::End => self.list.move_cursor_to_bottom(),
+                KeyCode::Char('y') if event.modifiers == KeyModifiers::CONTROL => {
+                    self.list.scroll_up(1)
+                }
+                KeyCode::Char('e') if event.modifiers == KeyModifiers::CONTROL => {
+                    self.list.scroll_down(1)
+                }
                 KeyCode::Char('c') => {
                     if let Some(name) = self.list.cursor() {
                         self.get_or_insert_room(name).connect();
