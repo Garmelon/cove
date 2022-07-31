@@ -38,7 +38,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             blocks
                 .blocks()
                 .find(&BlockId::from_cursor(&self.cursor))
-                .expect("cursor is visible")
+                .expect("no cursor found")
                 .top_line
         }
     }
@@ -281,6 +281,33 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         }
     }
 
+    fn scroll_so_cursor_is_visible(&self, frame: &mut Frame, blocks: &mut TreeBlocks<M::Id>) {
+        if !matches!(self.cursor, Cursor::Msg(_)) {
+            // In all other cases, there is no need to make the cursor visible
+            // since scrolling behaves differently enough.
+            return;
+        }
+
+        let block = blocks
+            .blocks()
+            .find(&BlockId::from_cursor(&self.cursor))
+            .expect("no cursor found");
+
+        let size = frame.size();
+
+        let min_line = -block.focus.start;
+        let max_line = size.height as i32 - block.focus.end;
+
+        // If the message is higher than the available space, the top of the
+        // message should always be visible. I'm not using top_line.clamp(...)
+        // because the order of the min and max matters.
+        let top_line = block.top_line;
+        let new_top_line = top_line.min(max_line).max(min_line);
+        if new_top_line != top_line {
+            blocks.blocks_mut().offset(new_top_line - top_line);
+        }
+    }
+
     pub async fn relayout(&mut self, frame: &mut Frame) -> TreeBlocks<M::Id> {
         // The basic idea is this:
         //
@@ -319,7 +346,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         }
 
         if self.make_cursor_visible {
-            // self.make_cursor_visible(&mut blocks).await; // TODO
+            self.scroll_so_cursor_is_visible(frame, &mut blocks);
             self.fill_screen_and_clamp_scrolling(frame, &mut blocks)
                 .await;
         } else {
