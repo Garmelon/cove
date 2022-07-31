@@ -12,10 +12,17 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     async fn cursor_path(&self, cursor: &Cursor<M::Id>) -> Path<M::Id> {
         match cursor {
             Cursor::Msg(id) => self.store.path(id).await,
-            Cursor::Bottom | Cursor::Editor(None) | Cursor::Pseudo(None) => {
-                Path::new(vec![M::last_possible_id()])
+            Cursor::Bottom
+            | Cursor::Editor { parent: None, .. }
+            | Cursor::Pseudo { parent: None, .. } => Path::new(vec![M::last_possible_id()]),
+            Cursor::Editor {
+                parent: Some(parent),
+                ..
             }
-            Cursor::Editor(Some(parent)) | Cursor::Pseudo(Some(parent)) => {
+            | Cursor::Pseudo {
+                parent: Some(parent),
+                ..
+            } => {
                 let mut path = self.store.path(parent).await;
                 path.push(M::last_possible_id());
                 path
@@ -99,13 +106,17 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         let mut blocks = TreeBlocks::new(Root::Bottom, Root::Bottom);
 
         // Ghost cursor, for positioning according to last cursor line
-        if let Cursor::Editor(None) | Cursor::Pseudo(None) = self.last_cursor {
+        if let Cursor::Editor { parent: None, .. } | Cursor::Pseudo { parent: None, .. } =
+            self.last_cursor
+        {
             let block = Block::new(frame, BlockId::LastCursor, Empty);
             blocks.blocks_mut().push_back(block);
         }
 
         // Editor or pseudomessage
-        if let Cursor::Editor(None) | Cursor::Pseudo(None) = self.cursor {
+        if let Cursor::Editor { parent: None, .. } | Cursor::Pseudo { parent: None, .. } =
+            self.cursor
+        {
             // TODO Render proper editor or pseudocursor
             let block = Block::new(frame, BlockId::Cursor, Text::new("TODO"));
             blocks.blocks_mut().push_back(block);
@@ -187,7 +198,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
 
                 blocks
             }
-            Cursor::Editor(None) | Cursor::Pseudo(None) => {
+            Cursor::Editor { parent: None, .. } | Cursor::Pseudo { parent: None, .. } => {
                 let mut blocks = self.layout_bottom(frame);
 
                 blocks
@@ -196,7 +207,13 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
 
                 blocks
             }
-            Cursor::Msg(_) | Cursor::Editor(Some(_)) | Cursor::Pseudo(Some(_)) => {
+            Cursor::Msg(_)
+            | Cursor::Editor {
+                parent: Some(_), ..
+            }
+            | Cursor::Pseudo {
+                parent: Some(_), ..
+            } => {
                 let root = last_cursor_path.first();
                 let tree = self.store.tree(root).await;
                 let mut blocks = self.layout_tree(frame, tree);
@@ -219,14 +236,22 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         let bottom_line = frame.size().height as i32 - 1;
 
         match &self.cursor {
-            Cursor::Bottom | Cursor::Editor(None) | Cursor::Pseudo(None) => {
+            Cursor::Bottom
+            | Cursor::Editor { parent: None, .. }
+            | Cursor::Pseudo { parent: None, .. } => {
                 let mut blocks = self.layout_bottom(frame);
 
                 blocks.blocks_mut().set_bottom_line(bottom_line);
 
                 blocks
             }
-            Cursor::Msg(_) | Cursor::Editor(Some(_)) | Cursor::Pseudo(Some(_)) => {
+            Cursor::Msg(_)
+            | Cursor::Editor {
+                parent: Some(_), ..
+            }
+            | Cursor::Pseudo {
+                parent: Some(_), ..
+            } => {
                 let root = cursor_path.first();
                 let tree = self.store.tree(root).await;
                 let mut blocks = self.layout_tree(frame, tree);

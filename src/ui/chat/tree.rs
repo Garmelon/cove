@@ -1,3 +1,4 @@
+mod cursor;
 mod layout;
 mod time;
 mod tree_blocks;
@@ -6,7 +7,7 @@ mod widgets;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use crossterm::event::KeyEvent;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use parking_lot::FairMutex;
 use tokio::sync::Mutex;
 use toss::frame::{Frame, Pos, Size};
@@ -16,37 +17,11 @@ use crate::store::{Msg, MsgStore};
 use crate::ui::widgets::editor::EditorState;
 use crate::ui::widgets::Widget;
 
-use self::tree_blocks::TreeBlocks;
+use self::cursor::Cursor;
 
 ///////////
 // State //
 ///////////
-
-#[derive(Debug, Clone, Copy)]
-pub enum Cursor<I> {
-    Bottom,
-    Msg(I),
-    Editor(Option<I>),
-    Pseudo(Option<I>),
-}
-
-impl<I: Eq> Cursor<I> {
-    pub fn refers_to(&self, id: &I) -> bool {
-        if let Self::Msg(own_id) = self {
-            own_id == id
-        } else {
-            false
-        }
-    }
-
-    pub fn refers_to_last_child_of(&self, id: &I) -> bool {
-        if let Self::Editor(Some(parent)) | Self::Pseudo(Some(parent)) = self {
-            parent == id
-        } else {
-            false
-        }
-    }
-}
 
 struct InnerTreeViewState<M: Msg, S: MsgStore<M>> {
     store: S,
@@ -76,7 +51,20 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     }
 
     async fn handle_navigation(&mut self, event: KeyEvent) -> bool {
-        false
+        match event.code {
+            KeyCode::Char('k') | KeyCode::Up => self.move_cursor_up().await,
+            KeyCode::Char('j') | KeyCode::Down => self.move_cursor_down().await,
+            KeyCode::Char('g') | KeyCode::Home => self.move_cursor_to_top().await,
+            KeyCode::Char('G') | KeyCode::End => self.move_cursor_to_bottom().await,
+            KeyCode::Char('y') if event.modifiers == KeyModifiers::CONTROL => {
+                self.last_cursor_line += 1;
+            }
+            KeyCode::Char('e') if event.modifiers == KeyModifiers::CONTROL => {
+                self.last_cursor_line -= 1;
+            }
+            _ => return false,
+        }
+        true
     }
 
     async fn handle_messaging(

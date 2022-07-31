@@ -2,47 +2,44 @@
 
 use crate::store::{Msg, MsgStore, Tree};
 
-use super::blocks::{Block, BlockBody, MarkerBlock};
 use super::InnerTreeViewState;
-
-/// Position of a cursor that is displayed as the last child of its parent
-/// message, or last thread if it has no parent.
-#[derive(Debug, Clone, Copy)]
-pub struct LastChild<I> {
-    pub coming_from: Option<I>,
-    pub after: Option<I>,
-}
 
 #[derive(Debug, Clone, Copy)]
 pub enum Cursor<I> {
-    /// No cursor visible because it is at the bottom of the chat history.
-    ///
-    /// See also [`Anchor::Bottom`].
     Bottom,
-    /// The cursor points to a message.
     Msg(I),
-    /// The cursor has turned into an editor because we're composing a new
-    /// message.
-    Compose(LastChild<I>),
-    /// A placeholder message is being displayed for a message that was just
-    /// sent by the user.
-    ///
-    /// Will be replaced by a [`Cursor::Msg`] as soon as the server replies to
-    /// the send command with the sent message.
-    Placeholder(LastChild<I>),
+    Editor {
+        coming_from: Option<I>,
+        parent: Option<I>,
+    },
+    Pseudo {
+        coming_from: Option<I>,
+        parent: Option<I>,
+    },
 }
 
 impl<I: Eq> Cursor<I> {
-    pub fn matches_block(&self, block: &Block<I>) -> bool {
-        match self {
-            Self::Bottom => matches!(&block.body, BlockBody::Marker(MarkerBlock::Bottom)),
-            Self::Msg(id) => matches!(&block.body, BlockBody::Msg(msg) if msg.id == *id),
-            Self::Compose(lc) | Self::Placeholder(lc) => match &lc.after {
-                Some(bid) => {
-                    matches!(&block.body, BlockBody::Marker(MarkerBlock::After(aid)) if aid == bid)
-                }
-                None => matches!(&block.body, BlockBody::Marker(MarkerBlock::Bottom)),
-            },
+    pub fn refers_to(&self, id: &I) -> bool {
+        if let Self::Msg(own_id) = self {
+            own_id == id
+        } else {
+            false
+        }
+    }
+
+    pub fn refers_to_last_child_of(&self, id: &I) -> bool {
+        if let Self::Editor {
+            parent: Some(parent),
+            ..
+        }
+        | Self::Pseudo {
+            parent: Some(parent),
+            ..
+        } = self
+        {
+            parent == id
+        } else {
+            false
         }
     }
 }
@@ -156,7 +153,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
 
     pub async fn move_cursor_up(&mut self) {
         match &mut self.cursor {
-            Cursor::Bottom => {
+            Cursor::Bottom | Cursor::Pseudo { parent: None, .. } => {
                 if let Some(last_tree_id) = self.store.last_tree_id().await {
                     let tree = self.store.tree(&last_tree_id).await;
                     let mut id = last_tree_id;
@@ -169,18 +166,47 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                 let mut tree = self.store.tree(path.first()).await;
                 Self::find_prev_msg(&self.store, &mut tree, msg).await;
             }
-            _ => {}
+            Cursor::Editor { .. } => {}
+            Cursor::Pseudo {
+                parent: Some(parent),
+                ..
+            } => {
+                let tree = self.store.tree(parent).await;
+                let mut id = parent.clone();
+                while Self::find_last_child(&tree, &mut id) {}
+                self.cursor = Cursor::Msg(id);
+            }
         }
         self.make_cursor_visible = true;
     }
 
     pub async fn move_cursor_down(&mut self) {
-        if let Cursor::Msg(ref mut msg) = &mut self.cursor {
-            let path = self.store.path(msg).await;
-            let mut tree = self.store.tree(path.first()).await;
-            if !Self::find_next_msg(&self.store, &mut tree, msg).await {
+        match &mut self.cursor {
+            Cursor::Msg(ref mut msg) => {
+                let path = self.store.path(msg).await;
+                let mut tree = self.store.tree(path.first()).await;
+                if !Self::find_next_msg(&self.store, &mut tree, msg).await {
+                    self.cursor = Cursor::Bottom;
+                }
+            }
+            Cursor::Pseudo { parent: None, .. } => {
                 self.cursor = Cursor::Bottom;
             }
+            Cursor::Pseudo {
+                parent: Some(parent),
+                ..
+            } => {
+                let mut tree = self.store.tree(parent).await;
+                let mut id = parent.clone();
+                while Self::find_last_child(&tree, &mut id) {}
+                // Now we're at the previous message
+                if Self::find_next_msg(&self.store, &mut tree, &mut id).await {
+                    self.cursor = Cursor::Msg(id);
+                } else {
+                    self.cursor = Cursor::Bottom;
+                }
+            }
+            _ => {}
         }
         self.make_cursor_visible = true;
     }
