@@ -285,7 +285,8 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         // The basic idea is this:
         //
         // First, layout a full screen of blocks around self.last_cursor, using
-        // self.last_cursor_line for offset positioning.
+        // self.last_cursor_line for offset positioning. At this point, any
+        // outstanding scrolling is performed as well.
         //
         // Then, check if self.cursor is somewhere in these blocks. If it is, we
         // now know the position of our own cursor. If it is not, it has jumped
@@ -305,6 +306,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         let mut blocks = self
             .layout_initial_seed(frame, &last_cursor_path, &cursor_path)
             .await;
+        blocks.blocks_mut().offset(self.scroll);
         self.fill_screen_and_clamp_scrolling(frame, &mut blocks)
             .await;
 
@@ -329,6 +331,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         self.last_cursor = self.cursor.clone();
         self.last_cursor_line = self.cursor_line(&blocks);
         self.make_cursor_visible = false;
+        self.scroll = 0;
 
         blocks
     }

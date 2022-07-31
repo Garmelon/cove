@@ -34,6 +34,10 @@ struct InnerTreeViewState<M: Msg, S: MsgStore<M>> {
     /// to a different message such that it remains visible.
     make_cursor_visible: bool,
 
+    /// Scroll the view on the next render. Positive values scroll up and
+    /// negative values scroll down.
+    scroll: i32,
+
     editor: EditorState,
 }
 
@@ -45,6 +49,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             last_cursor_line: 0,
             cursor: Cursor::Bottom,
             make_cursor_visible: false,
+            scroll: 0,
             editor: EditorState::new(),
         }
     }
@@ -56,11 +61,9 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             KeyCode::Char('g') | KeyCode::Home => self.move_cursor_to_top().await,
             KeyCode::Char('G') | KeyCode::End => self.move_cursor_to_bottom().await,
             KeyCode::Char('y') if event.modifiers == KeyModifiers::CONTROL => {
-                self.last_cursor_line += 1;
+                self.scroll_up(1).await
             }
-            KeyCode::Char('e') if event.modifiers == KeyModifiers::CONTROL => {
-                self.last_cursor_line -= 1;
-            }
+            KeyCode::Char('e') if event.modifiers == KeyModifiers::CONTROL => self.scroll_down(1),
             _ => return false,
         }
         true
