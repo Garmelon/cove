@@ -1,4 +1,7 @@
+mod layout;
 mod time;
+mod tree_blocks;
+mod widgets;
 
 use std::sync::Arc;
 
@@ -6,22 +9,43 @@ use async_trait::async_trait;
 use crossterm::event::KeyEvent;
 use parking_lot::FairMutex;
 use tokio::sync::Mutex;
-use toss::frame::{Frame, Size};
+use toss::frame::{Frame, Pos, Size};
 use toss::terminal::Terminal;
 
 use crate::store::{Msg, MsgStore};
 use crate::ui::widgets::editor::EditorState;
 use crate::ui::widgets::Widget;
 
+use self::tree_blocks::TreeBlocks;
+
 ///////////
 // State //
 ///////////
 
+#[derive(Debug, Clone, Copy)]
 pub enum Cursor<I> {
     Bottom,
     Msg(I),
     Editor(Option<I>),
     Pseudo(Option<I>),
+}
+
+impl<I: Eq> Cursor<I> {
+    pub fn refers_to(&self, id: &I) -> bool {
+        if let Self::Msg(own_id) = self {
+            own_id == id
+        } else {
+            false
+        }
+    }
+
+    pub fn refers_to_last_child_of(&self, id: &I) -> bool {
+        if let Self::Editor(Some(parent)) | Self::Pseudo(Some(parent)) = self {
+            parent == id
+        } else {
+            false
+        }
+    }
 }
 
 struct InnerTreeViewState<M: Msg, S: MsgStore<M>> {
@@ -113,5 +137,16 @@ where
 
     async fn render(self: Box<Self>, frame: &mut Frame) {
         let mut guard = self.0.lock().await;
+        let blocks = guard.relayout(frame).await;
+
+        let size = frame.size();
+        for block in blocks.into_blocks().blocks {
+            frame.push(
+                Pos::new(0, block.top_line),
+                Size::new(size.width, block.height as u16),
+            );
+            block.widget.render(frame).await;
+            frame.pop();
+        }
     }
 }

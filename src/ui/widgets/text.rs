@@ -17,8 +17,8 @@ impl Text {
         }
     }
 
-    pub fn wrap(mut self) -> Self {
-        self.wrap = true;
+    pub fn wrap(mut self, active: bool) -> Self {
+        self.wrap = active;
         self
     }
 

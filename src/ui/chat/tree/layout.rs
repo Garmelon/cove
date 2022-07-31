@@ -1,292 +1,310 @@
-//! Arranging messages as blocks.
-
-use toss::frame::{Frame, Size};
+use toss::frame::Frame;
 
 use crate::store::{Msg, MsgStore, Path, Tree};
+use crate::ui::chat::blocks::Block;
+use crate::ui::widgets::empty::Empty;
+use crate::ui::widgets::text::Text;
 
-use super::blocks::{Block, BlockBody, Blocks, MsgBlock};
-use super::cursor::Cursor;
-use super::{util, InnerTreeViewState};
+use super::tree_blocks::{BlockId, Root, TreeBlocks};
+use super::{widgets, Cursor, InnerTreeViewState};
 
 impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     async fn cursor_path(&self, cursor: &Cursor<M::Id>) -> Path<M::Id> {
         match cursor {
-            Cursor::Bottom => match self.store.last_tree_id().await {
-                Some(id) => Path::new(vec![id]),
-                None => Path::new(vec![M::last_possible_id()]),
-            },
             Cursor::Msg(id) => self.store.path(id).await,
-            Cursor::Compose(lc) | Cursor::Placeholder(lc) => match &lc.after {
-                None => Path::new(vec![M::last_possible_id()]),
-                Some(id) => {
-                    let mut path = self.store.path(id).await;
-                    path.push(M::last_possible_id());
-                    path
-                }
-            },
+            Cursor::Bottom | Cursor::Editor(None) | Cursor::Pseudo(None) => {
+                Path::new(vec![M::last_possible_id()])
+            }
+            Cursor::Editor(Some(parent)) | Cursor::Pseudo(Some(parent)) => {
+                let mut path = self.store.path(parent).await;
+                path.push(M::last_possible_id());
+                path
+            }
         }
     }
 
-    fn cursor_tree_id<'a>(
-        cursor: &Cursor<M::Id>,
-        cursor_path: &'a Path<M::Id>,
-    ) -> Option<&'a M::Id> {
-        match cursor {
-            Cursor::Bottom => None,
-            Cursor::Msg(_) => Some(cursor_path.first()),
-            Cursor::Compose(lc) | Cursor::Placeholder(lc) => match &lc.after {
-                None => None,
-                Some(_) => Some(cursor_path.first()),
-            },
-        }
-    }
-
-    fn cursor_line(
-        last_blocks: &Blocks<M::Id>,
-        cursor: &Cursor<M::Id>,
-        cursor_path: &Path<M::Id>,
-        last_cursor_path: &Path<M::Id>,
-        size: Size,
-    ) -> i32 {
-        if matches!(cursor, Cursor::Bottom) {
-            // Ensures that a Cursor::Bottom is always at the bottom of the
-            // screen. Will be scroll-clamped to the bottom later.
+    fn cursor_line(&self, blocks: &TreeBlocks<M::Id>) -> i32 {
+        if let Cursor::Bottom = self.cursor {
+            // The value doesn't matter as it will always be ignored.
             0
-        } else if let Some(block) = last_blocks.find(|b| cursor.matches_block(b)) {
-            block.line
-        } else if last_cursor_path < cursor_path {
-            // If the cursor is bottom, the bottom marker needs to be located at
-            // the line below the last visible line. If it is a normal message
-            // cursor, it will be made visible again one way or another later.
-            size.height.into()
         } else {
-            0
+            blocks
+                .blocks()
+                .find(&BlockId::from_cursor(&self.cursor))
+                .expect("cursor is visible")
+                .top_line
         }
     }
 
-    fn msg_to_block(frame: &mut Frame, indent: usize, msg: &M) -> Block<M::Id> {
-        let size = frame.size();
-
-        let nick = msg.nick();
-        let content = msg.content();
-
-        let content_width = size.width as i32 - util::after_nick(frame, indent, &nick);
-        if content_width < util::MIN_CONTENT_WIDTH as i32 {
-            Block::placeholder(Some(msg.time()), indent, msg.id())
-        } else {
-            let content_width = content_width as usize;
-            let breaks = frame.wrap(&content.text(), content_width);
-            let lines = content.split_at_indices(&breaks);
-            Block::msg(msg.time(), indent, msg.id(), nick, lines)
-        }
+    fn contains_cursor(&self, blocks: &TreeBlocks<M::Id>) -> bool {
+        blocks
+            .blocks()
+            .find(&BlockId::from_cursor(&self.cursor))
+            .is_some()
     }
 
     fn layout_subtree(
+        &self,
         frame: &mut Frame,
         tree: &Tree<M>,
         indent: usize,
         id: &M::Id,
-        result: &mut Blocks<M::Id>,
+        blocks: &mut TreeBlocks<M::Id>,
     ) {
-        let block = if let Some(msg) = tree.msg(id) {
-            Self::msg_to_block(frame, indent, msg)
-        } else {
-            Block::placeholder(None, indent, id.clone())
-        };
-        result.push_back(block);
+        // Ghost cursor in front, for positioning according to last cursor line
+        if self.last_cursor.refers_to(id) {
+            let block = Block::new(frame, BlockId::LastCursor, Empty);
+            blocks.blocks_mut().push_back(block);
+        }
 
+        // Main message body
+        let highlighted = self.cursor.refers_to(id);
+        let widget = if let Some(msg) = tree.msg(id) {
+            widgets::msg(highlighted, indent, msg)
+        } else {
+            widgets::msg_placeholder(highlighted, indent)
+        };
+        let block = Block::new(frame, BlockId::Msg(id.clone()), widget);
+        blocks.blocks_mut().push_back(block);
+
+        // Children, recursively
         if let Some(children) = tree.children(id) {
             for child in children {
-                Self::layout_subtree(frame, tree, indent + 1, child, result);
+                self.layout_subtree(frame, tree, indent + 1, child, blocks);
             }
         }
 
-        result.push_back(Block::after(indent, id.clone()))
+        // Trailing ghost cursor, for positioning according to last cursor line
+        if self.last_cursor.refers_to_last_child_of(id) {
+            let block = Block::new(frame, BlockId::LastCursor, Empty);
+            blocks.blocks_mut().push_back(block);
+        }
+
+        // Trailing editor or pseudomessage
+        if self.cursor.refers_to_last_child_of(id) {
+            // TODO Render proper editor or pseudocursor
+            let block = Block::new(frame, BlockId::Cursor, Text::new("TODO"));
+            blocks.blocks_mut().push_back(block);
+        }
     }
 
-    fn layout_tree(frame: &mut Frame, tree: Tree<M>) -> Blocks<M::Id> {
-        let mut blocks = Blocks::new();
-        Self::layout_subtree(frame, &tree, 0, tree.root(), &mut blocks);
-        blocks.roots = Some((tree.root().clone(), tree.root().clone()));
+    fn layout_tree(&self, frame: &mut Frame, tree: Tree<M>) -> TreeBlocks<M::Id> {
+        let root = Root::Tree(tree.root().clone());
+        let mut blocks = TreeBlocks::new(root.clone(), root);
+        self.layout_subtree(frame, &tree, 0, tree.root(), &mut blocks);
         blocks
     }
 
-    /// Create a [`Blocks`] of the current cursor's immediate surroundings.
-    async fn layout_cursor_surroundings(&self, frame: &mut Frame) -> Blocks<M::Id> {
-        let size = frame.size();
+    fn layout_bottom(&self, frame: &mut Frame) -> TreeBlocks<M::Id> {
+        let mut blocks = TreeBlocks::new(Root::Bottom, Root::Bottom);
 
-        let cursor_path = self.cursor_path(&self.cursor).await;
-        let last_cursor_path = self.cursor_path(&self.last_cursor).await;
-        let tree_id = Self::cursor_tree_id(&self.cursor, &cursor_path);
-        let cursor_line = Self::cursor_line(
-            &self.last_blocks,
-            &self.cursor,
-            &cursor_path,
-            &last_cursor_path,
-            size,
-        );
-
-        if let Some(tree_id) = tree_id {
-            let tree = self.store.tree(tree_id).await;
-            let mut blocks = Self::layout_tree(frame, tree);
-            blocks.recalculate_offsets(|b| {
-                if self.cursor.matches_block(b) {
-                    Some(cursor_line)
-                } else {
-                    None
-                }
-            });
-            blocks
-        } else {
-            Blocks::new_bottom(cursor_line)
+        // Ghost cursor, for positioning according to last cursor line
+        if let Cursor::Editor(None) | Cursor::Pseudo(None) = self.last_cursor {
+            let block = Block::new(frame, BlockId::LastCursor, Empty);
+            blocks.blocks_mut().push_back(block);
         }
+
+        // Editor or pseudomessage
+        if let Cursor::Editor(None) | Cursor::Pseudo(None) = self.cursor {
+            // TODO Render proper editor or pseudocursor
+            let block = Block::new(frame, BlockId::Cursor, Text::new("TODO"));
+            blocks.blocks_mut().push_back(block);
+        }
+
+        blocks
     }
 
-    fn scroll_so_cursor_is_visible(blocks: &mut Blocks<M::Id>, cursor: &Cursor<M::Id>, size: Size) {
-        if !matches!(cursor, Cursor::Msg(_)) {
-            // In all other cases, there is special scrolling behaviour, so
-            // let's not interfere.
-            return;
-        }
-
-        let block = blocks
-            .find(|b| cursor.matches_block(b))
-            // This should never happen since we always start rendering the
-            // blocks from the cursor.
-            .expect("no cursor found");
-
-        let min_line = 0;
-        let max_line = size.height as i32 - block.height();
-        if block.line < min_line {
-            blocks.offset(min_line - block.line);
-        } else if block.line > max_line {
-            blocks.offset(max_line - block.line);
-        }
-    }
-
-    /// Try to obtain a [`Cursor::Msg`] pointing to the block.
-    fn as_msg_cursor(block: &Block<M::Id>) -> Option<Cursor<M::Id>> {
-        match &block.body {
-            BlockBody::Msg(MsgBlock { id, .. }) => Some(Cursor::Msg(id.clone())),
-            _ => None,
-        }
-    }
-
-    fn move_cursor_so_it_is_visible(
-        blocks: &mut Blocks<M::Id>,
-        cursor: &mut Cursor<M::Id>,
-        size: Size,
-    ) {
-        if !matches!(cursor, Cursor::Msg(_)) {
-            // In all other cases, there is special scrolling behaviour, so
-            // let's not interfere.
-            return;
-        }
-
-        let block = blocks
-            .find(|b| cursor.matches_block(b))
-            // This should never happen since we always start rendering the
-            // blocks from the cursor.
-            .expect("no cursor found");
-
-        let min_line = 1 - block.height();
-        let max_line = size.height as i32 - 1;
-
-        let new_cursor = if block.line < min_line {
-            // Move cursor to first possible visible block
-            blocks
-                .iter()
-                .filter(|b| b.line >= min_line)
-                .find_map(Self::as_msg_cursor)
-        } else if block.line > max_line {
-            // Move cursor to last possible visible block
-            blocks
-                .iter()
-                .rev()
-                .filter(|b| b.line <= max_line)
-                .find_map(Self::as_msg_cursor)
-        } else {
-            None
-        };
-
-        if let Some(new_cursor) = new_cursor {
-            *cursor = new_cursor;
-        }
-    }
-
-    async fn expand_blocks_up(&self, frame: &mut Frame, blocks: &mut Blocks<M::Id>) {
-        while blocks.top_line > 0 {
-            let tree_id = if let Some((root_top, _)) = &blocks.roots {
-                self.store.prev_tree_id(root_top).await
-            } else {
-                self.store.last_tree_id().await
-            };
-
-            if let Some(tree_id) = tree_id {
-                let tree = self.store.tree(&tree_id).await;
-                blocks.prepend(Self::layout_tree(frame, tree));
-            } else {
-                break;
-            }
-        }
-    }
-
-    async fn expand_blocks_down(&self, frame: &mut Frame, blocks: &mut Blocks<M::Id>) {
-        while blocks.bottom_line < frame.size().height as i32 {
-            let tree_id = if let Some((_, root_bot)) = &blocks.roots {
-                self.store.next_tree_id(root_bot).await
-            } else {
-                // We assume that a Blocks without roots is at the bottom of the
-                // room's history. Therefore, there are no more messages below.
-                break;
-            };
-
-            if let Some(tree_id) = tree_id {
-                let tree = self.store.tree(&tree_id).await;
-                blocks.append(Self::layout_tree(frame, tree));
-            } else {
-                break;
-            }
-        }
-    }
-
-    async fn clamp_scrolling(&self, frame: &mut Frame, blocks: &mut Blocks<M::Id>) {
-        let size = frame.size();
+    async fn expand_to_top(&self, frame: &mut Frame, blocks: &mut TreeBlocks<M::Id>) {
         let top_line = 0;
-        let bottom_line = size.height as i32 - 1;
 
-        self.expand_blocks_up(frame, blocks).await;
-
-        if blocks.top_line > top_line {
-            blocks.offset(top_line - blocks.top_line);
+        while blocks.blocks().top_line > top_line {
+            let top_root = blocks.top_root();
+            let prev_tree_id = match top_root {
+                Root::Bottom => self.store.last_tree_id().await,
+                Root::Tree(tree_id) => self.store.prev_tree_id(tree_id).await,
+            };
+            let prev_tree_id = match prev_tree_id {
+                Some(tree_id) => tree_id,
+                None => break,
+            };
+            let prev_tree = self.store.tree(&prev_tree_id).await;
+            blocks.prepend(self.layout_tree(frame, prev_tree));
         }
-
-        self.expand_blocks_down(frame, blocks).await;
-
-        if blocks.bottom_line < bottom_line {
-            blocks.offset(bottom_line - blocks.bottom_line);
-        }
-
-        self.expand_blocks_up(frame, blocks).await;
     }
 
-    pub async fn relayout(&mut self, frame: &mut Frame) {
-        let size = frame.size();
+    async fn expand_to_bottom(&self, frame: &mut Frame, blocks: &mut TreeBlocks<M::Id>) {
+        let bottom_line = frame.size().height as i32 - 1;
 
-        let mut blocks = self.layout_cursor_surroundings(frame).await;
+        while blocks.blocks().bottom_line < bottom_line {
+            let bottom_root = blocks.bottom_root();
+            let next_tree_id = match bottom_root {
+                Root::Bottom => break,
+                Root::Tree(tree_id) => self.store.prev_tree_id(tree_id).await,
+            };
+            if let Some(next_tree_id) = next_tree_id {
+                let next_tree = self.store.tree(&next_tree_id).await;
+                blocks.append(self.layout_tree(frame, next_tree));
+            } else {
+                blocks.append(self.layout_bottom(frame));
+            }
+        }
+    }
+
+    async fn fill_screen_and_clamp_scrolling(
+        &self,
+        frame: &mut Frame,
+        blocks: &mut TreeBlocks<M::Id>,
+    ) {
+        let top_line = 0;
+        let bottom_line = frame.size().height as i32 - 1;
+
+        self.expand_to_top(frame, blocks).await;
+
+        if blocks.blocks().top_line > top_line {
+            blocks.blocks_mut().set_top_line(0);
+        }
+
+        self.expand_to_bottom(frame, blocks).await;
+
+        if blocks.blocks().bottom_line < bottom_line {
+            blocks.blocks_mut().set_bottom_line(bottom_line);
+        }
+
+        self.expand_to_top(frame, blocks).await;
+    }
+
+    async fn layout_last_cursor_seed(
+        &self,
+        frame: &mut Frame,
+        last_cursor_path: &Path<M::Id>,
+    ) -> TreeBlocks<M::Id> {
+        match &self.last_cursor {
+            Cursor::Bottom => {
+                let mut blocks = self.layout_bottom(frame);
+
+                let bottom_line = frame.size().height as i32 - 1;
+                blocks.blocks_mut().set_bottom_line(bottom_line);
+
+                blocks
+            }
+            Cursor::Editor(None) | Cursor::Pseudo(None) => {
+                let mut blocks = self.layout_bottom(frame);
+
+                blocks
+                    .blocks_mut()
+                    .recalculate_offsets(&BlockId::LastCursor, self.last_cursor_line);
+
+                blocks
+            }
+            Cursor::Msg(_) | Cursor::Editor(Some(_)) | Cursor::Pseudo(Some(_)) => {
+                let root = last_cursor_path.first();
+                let tree = self.store.tree(root).await;
+                let mut blocks = self.layout_tree(frame, tree);
+
+                blocks
+                    .blocks_mut()
+                    .recalculate_offsets(&BlockId::LastCursor, self.last_cursor_line);
+
+                blocks
+            }
+        }
+    }
+
+    async fn layout_cursor_seed(
+        &self,
+        frame: &mut Frame,
+        last_cursor_path: &Path<M::Id>,
+        cursor_path: &Path<M::Id>,
+    ) -> TreeBlocks<M::Id> {
+        let bottom_line = frame.size().height as i32 - 1;
+
+        match &self.cursor {
+            Cursor::Bottom | Cursor::Editor(None) | Cursor::Pseudo(None) => {
+                let mut blocks = self.layout_bottom(frame);
+
+                blocks.blocks_mut().set_bottom_line(bottom_line);
+
+                blocks
+            }
+            Cursor::Msg(_) | Cursor::Editor(Some(_)) | Cursor::Pseudo(Some(_)) => {
+                let root = cursor_path.first();
+                let tree = self.store.tree(root).await;
+                let mut blocks = self.layout_tree(frame, tree);
+
+                let cursor_above_last = cursor_path < last_cursor_path;
+                let cursor_line = if cursor_above_last { 0 } else { bottom_line };
+                blocks
+                    .blocks_mut()
+                    .recalculate_offsets(&BlockId::from_cursor(&self.cursor), cursor_line);
+
+                blocks
+            }
+        }
+    }
+
+    async fn layout_initial_seed(
+        &self,
+        frame: &mut Frame,
+        last_cursor_path: &Path<M::Id>,
+        cursor_path: &Path<M::Id>,
+    ) -> TreeBlocks<M::Id> {
+        if let Cursor::Bottom = self.cursor {
+            self.layout_cursor_seed(frame, last_cursor_path, cursor_path)
+                .await
+        } else {
+            self.layout_last_cursor_seed(frame, last_cursor_path).await
+        }
+    }
+
+    pub async fn relayout(&mut self, frame: &mut Frame) -> TreeBlocks<M::Id> {
+        // The basic idea is this:
+        //
+        // First, layout a full screen of blocks around self.last_cursor, using
+        // self.last_cursor_line for offset positioning.
+        //
+        // Then, check if self.cursor is somewhere in these blocks. If it is, we
+        // now know the position of our own cursor. If it is not, it has jumped
+        // too far away from self.last_cursor and we'll need to render a new
+        // full screen of blocks around self.cursor before proceeding, using the
+        // cursor paths to determine the position of self.cursor on the screen.
+        //
+        // Now that we have a more-or-less accurate screen position of
+        // self.cursor, we can perform the actual cursor logic, i.e. make the
+        // cursor visible or move it so it is visible.
+        //
+        // This entire process is complicated by the different kinds of cursors.
+
+        let last_cursor_path = self.cursor_path(&self.last_cursor).await;
+        let cursor_path = self.cursor_path(&self.cursor).await;
+
+        let mut blocks = self
+            .layout_initial_seed(frame, &last_cursor_path, &cursor_path)
+            .await;
+        self.fill_screen_and_clamp_scrolling(frame, &mut blocks)
+            .await;
+
+        if !self.contains_cursor(&blocks) {
+            blocks = self
+                .layout_cursor_seed(frame, &last_cursor_path, &cursor_path)
+                .await;
+            self.fill_screen_and_clamp_scrolling(frame, &mut blocks)
+                .await;
+        }
 
         if self.make_cursor_visible {
-            Self::scroll_so_cursor_is_visible(&mut blocks, &self.cursor, size);
+            // self.make_cursor_visible(&mut blocks).await; // TODO
+            self.fill_screen_and_clamp_scrolling(frame, &mut blocks)
+                .await;
+        } else {
+            // self.move_cursor_so_it_is_visible(&mut blocks); // TODO
+            self.fill_screen_and_clamp_scrolling(frame, &mut blocks)
+                .await;
         }
 
-        self.clamp_scrolling(frame, &mut blocks).await;
-
-        if !self.make_cursor_visible {
-            Self::move_cursor_so_it_is_visible(&mut blocks, &mut self.cursor, size);
-        }
-
-        self.last_blocks = blocks;
         self.last_cursor = self.cursor.clone();
+        self.last_cursor_line = self.cursor_line(&blocks);
         self.make_cursor_visible = false;
+
+        blocks
     }
 }

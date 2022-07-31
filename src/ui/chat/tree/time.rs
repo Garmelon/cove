@@ -1,8 +1,8 @@
 use crossterm::style::{ContentStyle, Stylize};
 use time::format_description::FormatItem;
 use time::macros::format_description;
+use time::OffsetDateTime;
 
-use crate::euph::api::Time;
 use crate::ui::widgets::background::Background;
 use crate::ui::widgets::text::Text;
 use crate::ui::widgets::BoxedWidget;
@@ -18,9 +18,9 @@ fn style_inverted() -> ContentStyle {
     ContentStyle::default().black().on_white()
 }
 
-pub fn widget(time: Option<Time>, highlighted: bool) -> BoxedWidget {
+pub fn widget(time: Option<OffsetDateTime>, highlighted: bool) -> BoxedWidget {
     let text = if let Some(time) = time {
-        time.0.format(TIME_FORMAT).expect("could not format time")
+        time.format(TIME_FORMAT).expect("could not format time")
     } else {
         TIME_EMPTY.to_string()
     };

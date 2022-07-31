@@ -7,24 +7,24 @@ use crate::macros::some_or_return;
 use crate::ui::widgets::BoxedWidget;
 
 pub struct Block<I> {
-    id: I,
-    top_line: i32,
-    height: i32,
+    pub id: I,
+    pub top_line: i32,
+    pub height: i32,
     /// The lines of the block that should be made visible if the block is
     /// focused on. By default, the focus encompasses the entire block.
     ///
     /// If not all of these lines can be made visible, the top of the range
     /// should be preferred over the bottom.
-    focus: Range<i32>,
-    widget: BoxedWidget,
+    pub focus: Range<i32>,
+    pub widget: BoxedWidget,
 }
 
 impl<I> Block<I> {
-    pub fn new<W: Into<BoxedWidget>>(frame: &mut Frame, width: u16, id: I, widget: W) -> Self {
+    pub fn new<W: Into<BoxedWidget>>(frame: &mut Frame, id: I, widget: W) -> Self {
         // Interestingly, rust-analyzer fails to deduce the type of `widget`
         // here but rustc knows it's a `BoxedWidget`.
         let widget = widget.into();
-        let size = widget.size(frame, Some(width), None);
+        let size = widget.size(frame, Some(frame.size().width), None);
         let height = size.height.into();
         Self {
             id,
@@ -97,15 +97,55 @@ impl<I> Blocks<I> {
             self.push_back(block);
         }
     }
+
+    pub fn set_top_line(&mut self, line: i32) {
+        self.top_line = line;
+
+        if let Some(first_block) = self.blocks.front_mut() {
+            first_block.top_line = self.top_line;
+        }
+
+        for i in 1..self.blocks.len() {
+            self.blocks[i].top_line = self.blocks[i - 1].top_line + self.blocks[i - 1].height;
+        }
+
+        self.bottom_line = self
+            .blocks
+            .back()
+            .map(|b| b.top_line + b.height - 1)
+            .unwrap_or(self.top_line - 1);
+    }
+
+    pub fn set_bottom_line(&mut self, line: i32) {
+        self.bottom_line = line;
+
+        if let Some(last_block) = self.blocks.back_mut() {
+            last_block.top_line = self.bottom_line + 1 - last_block.height;
+        }
+
+        for i in (1..self.blocks.len()).rev() {
+            self.blocks[i - 1].top_line = self.blocks[i].top_line - self.blocks[i - 1].height;
+        }
+
+        self.top_line = self
+            .blocks
+            .front()
+            .map(|b| b.top_line)
+            .unwrap_or(self.bottom_line + 1)
+    }
 }
 
 impl<I: Eq> Blocks<I> {
-    pub fn recalculate_offsets(&mut self, id: I, top_line: i32) {
+    pub fn find(&self, id: &I) -> Option<&Block<I>> {
+        self.blocks.iter().find(|b| b.id == *id)
+    }
+
+    pub fn recalculate_offsets(&mut self, id: &I, top_line: i32) {
         let idx = some_or_return!(self
             .blocks
             .iter()
             .enumerate()
-            .find(|(_, b)| b.id == id)
+            .find(|(_, b)| b.id == *id)
             .map(|(i, _)| i));
 
         self.blocks[idx].top_line = top_line;
