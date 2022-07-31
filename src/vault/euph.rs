@@ -181,36 +181,36 @@ impl MsgStore<EuphMsg> for EuphVault {
         rx.await.unwrap()
     }
 
-    async fn tree(&self, root: &Snowflake) -> Tree<EuphMsg> {
+    async fn tree(&self, tree_id: &Snowflake) -> Tree<EuphMsg> {
         // TODO vault::Error
         let (tx, rx) = oneshot::channel();
         let request = EuphRequest::GetTree {
             room: self.room.clone(),
-            root: *root,
+            root: *tree_id,
             result: tx,
         };
         let _ = self.vault.tx.send(request.into());
         rx.await.unwrap()
     }
 
-    async fn prev_tree_id(&self, root: &Snowflake) -> Option<Snowflake> {
+    async fn prev_tree_id(&self, tree_id: &Snowflake) -> Option<Snowflake> {
         // TODO vault::Error
         let (tx, rx) = oneshot::channel();
         let request = EuphRequest::GetPrevTreeId {
             room: self.room.clone(),
-            root: *root,
+            root: *tree_id,
             result: tx,
         };
         let _ = self.vault.tx.send(request.into());
         rx.await.unwrap()
     }
 
-    async fn next_tree_id(&self, root: &Snowflake) -> Option<Snowflake> {
+    async fn next_tree_id(&self, tree_id: &Snowflake) -> Option<Snowflake> {
         // TODO vault::Error
         let (tx, rx) = oneshot::channel();
         let request = EuphRequest::GetNextTreeId {
             room: self.room.clone(),
-            root: *root,
+            root: *tree_id,
             result: tx,
         };
         let _ = self.vault.tx.send(request.into());

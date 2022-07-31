@@ -67,23 +67,23 @@ impl MsgStore<LogMsg> for Logger {
         Path::new(vec![*id])
     }
 
-    async fn tree(&self, root: &usize) -> Tree<LogMsg> {
+    async fn tree(&self, tree_id: &usize) -> Tree<LogMsg> {
         let msgs = self
             .messages
             .lock()
-            .get(*root)
+            .get(*tree_id)
             .map(|msg| vec![msg.clone()])
             .unwrap_or_default();
-        Tree::new(*root, msgs)
+        Tree::new(*tree_id, msgs)
     }
 
-    async fn prev_tree_id(&self, tree: &usize) -> Option<usize> {
-        tree.checked_sub(1)
+    async fn prev_tree_id(&self, tree_id: &usize) -> Option<usize> {
+        tree_id.checked_sub(1)
     }
 
-    async fn next_tree_id(&self, tree: &usize) -> Option<usize> {
+    async fn next_tree_id(&self, tree_id: &usize) -> Option<usize> {
         let len = self.messages.lock().len();
-        tree.checked_add(1).filter(|t| *t < len)
+        tree_id.checked_add(1).filter(|t| *t < len)
     }
 
     async fn first_tree_id(&self) -> Option<usize> {
