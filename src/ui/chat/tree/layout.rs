@@ -3,7 +3,6 @@ use toss::frame::Frame;
 use crate::store::{Msg, MsgStore, Path, Tree};
 use crate::ui::chat::blocks::Block;
 use crate::ui::widgets::empty::Empty;
-use crate::ui::widgets::text::Text;
 use crate::ui::ChatMsg;
 
 use super::tree_blocks::{BlockId, Root, TreeBlocks};
@@ -73,7 +72,7 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     ) {
         // Ghost cursor in front, for positioning according to last cursor line
         if self.last_cursor.refers_to(id) {
-            let block = Block::new(frame, BlockId::LastCursor, Empty);
+            let block = Block::new(frame, BlockId::LastCursor, Empty::new());
             blocks.blocks_mut().push_back(block);
         }
 
@@ -96,24 +95,25 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
 
         // Trailing ghost cursor, for positioning according to last cursor line
         if self.last_cursor.refers_to_last_child_of(id) {
-            let block = Block::new(frame, BlockId::LastCursor, Empty);
+            let block = Block::new(frame, BlockId::LastCursor, Empty::new());
             blocks.blocks_mut().push_back(block);
         }
 
         // Trailing editor or pseudomessage
         if self.cursor.refers_to_last_child_of(id) {
             match self.cursor {
-                Cursor::Editor { .. } => blocks
-                    .blocks_mut()
-                    .push_back(self.editor_block(nick, frame, indent)),
-                Cursor::Pseudo { .. } => blocks
-                    .blocks_mut()
-                    .push_back(self.pseudo_block(nick, frame, indent)),
+                Cursor::Editor { .. } => {
+                    blocks
+                        .blocks_mut()
+                        .push_back(self.editor_block(nick, frame, indent + 1))
+                }
+                Cursor::Pseudo { .. } => {
+                    blocks
+                        .blocks_mut()
+                        .push_back(self.pseudo_block(nick, frame, indent + 1))
+                }
                 _ => {}
             }
-            // TODO Render proper editor or pseudocursor
-            let block = Block::new(frame, BlockId::Cursor, Text::new("TODO"));
-            blocks.blocks_mut().push_back(block);
         }
     }
 
@@ -131,13 +131,13 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         if let Cursor::Editor { parent: None, .. } | Cursor::Pseudo { parent: None, .. } =
             self.last_cursor
         {
-            let block = Block::new(frame, BlockId::LastCursor, Empty);
+            let block = Block::new(frame, BlockId::LastCursor, Empty::new());
             blocks.blocks_mut().push_back(block);
         }
 
         match self.cursor {
             Cursor::Bottom => {
-                let block = Block::new(frame, BlockId::Cursor, Empty);
+                let block = Block::new(frame, BlockId::Cursor, Empty::new());
                 blocks.blocks_mut().push_back(block);
             }
             Cursor::Editor { parent: None, .. } => blocks

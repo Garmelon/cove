@@ -229,7 +229,7 @@ impl EuphRoom {
         let heading_style = ContentStyle::new().bold();
 
         if !list.is_empty() {
-            list.add_unsel(Empty);
+            list.add_unsel(Empty::new());
         }
 
         let row = Styled::new(name, heading_style).then_plain(format!(" ({})", sessions.len()));
