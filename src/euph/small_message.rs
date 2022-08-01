@@ -45,6 +45,10 @@ fn styled_content_me(content: &str) -> Styled {
     Styled::new(content.trim(), style).then("*", style)
 }
 
+fn styled_editor_content(content: &str) -> Styled {
+    Styled::new_plain(content)
+}
+
 impl Msg for SmallMessage {
     type Id = Snowflake;
 
@@ -71,7 +75,7 @@ impl ChatMsg for SmallMessage {
     }
 
     fn edit(nick: &str, content: &str) -> (Styled, Styled) {
-        (styled_nick(nick), styled_content(content))
+        (styled_nick(nick), styled_editor_content(content))
     }
 
     fn pseudo(nick: &str, content: &str) -> (Styled, Styled) {
