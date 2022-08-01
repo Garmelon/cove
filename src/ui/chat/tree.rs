@@ -24,6 +24,11 @@ use super::ChatMsg;
 // State //
 ///////////
 
+enum Correction {
+    MakeCursorVisible,
+    MoveCursorToVisibleArea,
+}
+
 struct InnerTreeViewState<M: Msg, S: MsgStore<M>> {
     store: S,
 
@@ -31,14 +36,11 @@ struct InnerTreeViewState<M: Msg, S: MsgStore<M>> {
     last_cursor_line: i32,
 
     cursor: Cursor<M::Id>,
-    /// Set to true if the chat should be scrolled such that the cursor is fully
-    /// visible (if possible). If set to false, then the cursor itself is moved
-    /// to a different message such that it remains visible.
-    make_cursor_visible: bool,
 
     /// Scroll the view on the next render. Positive values scroll up and
     /// negative values scroll down.
     scroll: i32,
+    correction: Option<Correction>,
 
     editor: EditorState,
 }
@@ -50,8 +52,8 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             last_cursor: Cursor::Bottom,
             last_cursor_line: 0,
             cursor: Cursor::Bottom,
-            make_cursor_visible: false,
             scroll: 0,
+            correction: None,
             editor: EditorState::new(),
         }
     }

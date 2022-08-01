@@ -2,7 +2,7 @@
 
 use crate::store::{Msg, MsgStore, Tree};
 
-use super::InnerTreeViewState;
+use super::{Correction, InnerTreeViewState};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Cursor<I> {
@@ -177,7 +177,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                 self.cursor = Cursor::Msg(id);
             }
         }
-        self.make_cursor_visible = true;
+        self.correction = Some(Correction::MakeCursorVisible);
     }
 
     pub async fn move_cursor_down(&mut self) {
@@ -208,28 +208,30 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             }
             _ => {}
         }
-        self.make_cursor_visible = true;
+        self.correction = Some(Correction::MakeCursorVisible);
     }
 
     pub async fn move_cursor_to_top(&mut self) {
         if let Some(first_tree_id) = self.store.first_tree_id().await {
             self.cursor = Cursor::Msg(first_tree_id);
-            self.make_cursor_visible = true;
+            self.correction = Some(Correction::MakeCursorVisible);
         }
     }
 
     pub async fn move_cursor_to_bottom(&mut self) {
         self.cursor = Cursor::Bottom;
         // Not really necessary; only here for consistency with other methods
-        self.make_cursor_visible = true;
+        self.correction = Some(Correction::MakeCursorVisible);
     }
 
     pub fn scroll_up(&mut self, amount: i32) {
         self.scroll += amount;
+        self.correction = Some(Correction::MoveCursorToVisibleArea);
     }
 
     pub fn scroll_down(&mut self, amount: i32) {
         self.scroll -= amount;
+        self.correction = Some(Correction::MoveCursorToVisibleArea);
     }
 }
 

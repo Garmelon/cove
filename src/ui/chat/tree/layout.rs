@@ -7,7 +7,7 @@ use crate::ui::widgets::text::Text;
 use crate::ui::ChatMsg;
 
 use super::tree_blocks::{BlockId, Root, TreeBlocks};
-use super::{widgets, Cursor, InnerTreeViewState};
+use super::{widgets, Correction, Cursor, InnerTreeViewState};
 
 impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     async fn cursor_path(&self, cursor: &Cursor<M::Id>) -> Path<M::Id> {
@@ -410,33 +410,37 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                 .await;
         }
 
-        if self.make_cursor_visible {
-            self.scroll_so_cursor_is_visible(frame, &mut blocks);
-            self.fill_screen_and_clamp_scrolling(frame, &mut blocks)
-                .await;
-        } else {
-            let new_cursor_msg_id = self.move_cursor_so_it_is_visible(frame, &blocks);
-            if let Some(cursor_msg_id) = new_cursor_msg_id {
-                // Moving the cursor invalidates our current blocks, so we sadly
-                // have to either perform an expensive operation or redraw the
-                // entire thing. I'm choosing the latter for now.
-
-                self.last_cursor = self.cursor.clone();
-                self.last_cursor_line = self.cursor_line(&blocks);
-                self.make_cursor_visible = false;
-                self.scroll = 0;
-
-                let last_cursor_path = self.store.path(&cursor_msg_id).await;
-                blocks = self.layout_last_cursor_seed(frame, &last_cursor_path).await;
+        match self.correction {
+            Some(Correction::MakeCursorVisible) => {
+                self.scroll_so_cursor_is_visible(frame, &mut blocks);
                 self.fill_screen_and_clamp_scrolling(frame, &mut blocks)
                     .await;
             }
+            Some(Correction::MoveCursorToVisibleArea) => {
+                let new_cursor_msg_id = self.move_cursor_so_it_is_visible(frame, &blocks);
+                if let Some(cursor_msg_id) = new_cursor_msg_id {
+                    // Moving the cursor invalidates our current blocks, so we sadly
+                    // have to either perform an expensive operation or redraw the
+                    // entire thing. I'm choosing the latter for now.
+
+                    self.last_cursor = self.cursor.clone();
+                    self.last_cursor_line = self.cursor_line(&blocks);
+                    self.scroll = 0;
+                    self.correction = None;
+
+                    let last_cursor_path = self.store.path(&cursor_msg_id).await;
+                    blocks = self.layout_last_cursor_seed(frame, &last_cursor_path).await;
+                    self.fill_screen_and_clamp_scrolling(frame, &mut blocks)
+                        .await;
+                }
+            }
+            None => {}
         }
 
         self.last_cursor = self.cursor.clone();
         self.last_cursor_line = self.cursor_line(&blocks);
-        self.make_cursor_visible = false;
         self.scroll = 0;
+        self.correction = None;
 
         blocks
     }
