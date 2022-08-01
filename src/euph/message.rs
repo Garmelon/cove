@@ -17,14 +17,32 @@ pub struct Message {
     pub content: String,
 }
 
+fn as_me(content: &str) -> Option<&str> {
+    content.strip_prefix("/me")
+}
+
+fn style_me() -> ContentStyle {
+    ContentStyle::default().grey().italic()
+}
+
 fn styled_nick(nick: &str) -> Styled {
     Styled::new_plain("[")
         .then(nick, util::nick_style(nick))
         .then_plain("]")
 }
 
+fn styled_nick_me(nick: &str) -> Styled {
+    let style = style_me();
+    Styled::new("*", style).then(nick, util::nick_style(nick).italic())
+}
+
 fn styled_content(content: &str) -> Styled {
     Styled::new_plain(content.trim())
+}
+
+fn styled_content_me(content: &str) -> Styled {
+    let style = style_me();
+    Styled::new(content.trim(), style).then("*", style)
 }
 
 impl Msg for Message {
@@ -57,6 +75,10 @@ impl ChatMsg for Message {
     }
 
     fn pseudo(nick: &str, content: &str) -> (Styled, Styled) {
-        (styled_nick(nick), styled_content(content))
+        if let Some(content) = as_me(content) {
+            (styled_nick_me(nick), styled_content_me(content))
+        } else {
+            (styled_nick(nick), styled_content(content))
+        }
     }
 }
