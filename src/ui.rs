@@ -216,7 +216,9 @@ impl Ui {
                     .await
             }
             Mode::Log => {
-                self.log_chat.handle_navigation(event).await;
+                self.log_chat
+                    .handle_key_event(terminal, crossterm_lock, event, false)
+                    .await;
             }
         }
 

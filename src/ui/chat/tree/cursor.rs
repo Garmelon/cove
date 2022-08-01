@@ -233,6 +233,58 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         self.scroll -= amount;
         self.correction = Some(Correction::MoveCursorToVisibleArea);
     }
+
+    pub async fn parent_for_normal_reply(&self) -> Option<Option<M::Id>> {
+        match &self.cursor {
+            Cursor::Bottom => Some(None),
+            Cursor::Msg(id) => {
+                let path = self.store.path(id).await;
+                let tree = self.store.tree(path.first()).await;
+
+                Some(Some(if tree.next_sibling(id).is_some() {
+                    // A reply to a message that has further siblings should be a
+                    // direct reply. An indirect reply might end up a lot further
+                    // down in the current conversation.
+                    id.clone()
+                } else if let Some(parent) = tree.parent(id) {
+                    // A reply to a message without younger siblings should be
+                    // an indirect reply so as not to create unnecessarily deep
+                    // threads. In the case that our message has children, this
+                    // might get a bit confusing. I'm not sure yet how well this
+                    // "smart" reply actually works in practice.
+                    parent
+                } else {
+                    // When replying to a top-level message, it makes sense to avoid
+                    // creating unnecessary new threads.
+                    id.clone()
+                }))
+            }
+            _ => None,
+        }
+    }
+
+    pub async fn parent_for_alternate_reply(&self) -> Option<Option<M::Id>> {
+        match &self.cursor {
+            Cursor::Bottom => Some(None),
+            Cursor::Msg(id) => {
+                let path = self.store.path(id).await;
+                let tree = self.store.tree(path.first()).await;
+
+                Some(Some(if tree.next_sibling(id).is_none() {
+                    // The opposite of replying normally
+                    id.clone()
+                } else if let Some(parent) = tree.parent(id) {
+                    // The opposite of replying normally
+                    parent
+                } else {
+                    // The same as replying normally, still to avoid creating
+                    // unnecessary new threads
+                    id.clone()
+                }))
+            }
+            _ => None,
+        }
+    }
 }
 
 /*

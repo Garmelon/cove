@@ -12,7 +12,7 @@ use crate::euph::api::{SessionType, SessionView};
 use crate::euph::{self, Joined, Status};
 use crate::vault::EuphVault;
 
-use super::chat::ChatState;
+use super::chat::{ChatState, Reaction};
 use super::widgets::background::Background;
 use super::widgets::border::Border;
 use super::widgets::editor::EditorState;
@@ -284,12 +284,26 @@ impl EuphRoom {
     ) -> bool {
         match &self.state {
             State::Normal => {
-                if self.chat.handle_navigation(event).await {
-                    return true;
-                }
-
+                // TODO Use if-let chain
                 if let Some(room) = &self.room {
                     if let Ok(Some(Status::Joined(joined))) = room.status().await {
+                        match self
+                            .chat
+                            .handle_key_event(terminal, crossterm_lock, event, true)
+                            .await
+                        {
+                            Reaction::NotHandled => {}
+                            Reaction::Handled => return true,
+                            Reaction::Composed { parent, content } => {
+                                let _ = room.send(parent, content);
+                                return true;
+                            }
+                        }
+
+                        if !event.modifiers.is_empty() {
+                            return false;
+                        }
+
                         if let KeyCode::Char('n' | 'N') = event.code {
                             self.state = State::ChooseNick(EditorState::with_initial_text(
                                 joined.session.name.clone(),
@@ -297,18 +311,14 @@ impl EuphRoom {
                             return true;
                         }
 
-                        let potential_message = self
-                            .chat
-                            .handle_messaging(terminal, crossterm_lock, event)
-                            .await;
-                        if let Some((parent, content)) = potential_message {
-                            let _ = room.send(parent, content);
-                            return true;
-                        }
+                        return false;
                     }
                 }
 
-                false
+                self.chat
+                    .handle_key_event(terminal, crossterm_lock, event, false)
+                    .await
+                    .handled()
             }
             State::ChooseNick(ed) => {
                 match event.code {

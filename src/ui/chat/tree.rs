@@ -18,7 +18,7 @@ use crate::ui::widgets::Widget;
 
 use self::cursor::Cursor;
 
-use super::ChatMsg;
+use super::{ChatMsg, Reaction};
 
 ///////////
 // State //
@@ -58,26 +58,181 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         }
     }
 
-    async fn handle_navigation(&mut self, event: KeyEvent) -> bool {
+    fn handle_editor_key_event(
+        &mut self,
+        terminal: &mut Terminal,
+        crossterm_lock: &Arc<FairMutex<()>>,
+        event: KeyEvent,
+        coming_from: Option<M::Id>,
+        parent: Option<M::Id>,
+    ) -> Reaction<M> {
+        let harmless_char = event.modifiers.difference(KeyModifiers::SHIFT).is_empty();
+
         match event.code {
-            KeyCode::Char('k') | KeyCode::Up => self.move_cursor_up().await,
-            KeyCode::Char('j') | KeyCode::Down => self.move_cursor_down().await,
-            KeyCode::Char('g') | KeyCode::Home => self.move_cursor_to_top().await,
-            KeyCode::Char('G') | KeyCode::End => self.move_cursor_to_bottom().await,
+            KeyCode::Esc => {
+                self.cursor = coming_from.map(Cursor::Msg).unwrap_or(Cursor::Bottom);
+                Reaction::Handled
+            }
+            KeyCode::Enter => {
+                let content = self.editor.text();
+                if content.trim().is_empty() {
+                    Reaction::Handled
+                } else {
+                    self.cursor = Cursor::Pseudo {
+                        coming_from,
+                        parent: parent.clone(),
+                    };
+                    Reaction::Composed { parent, content }
+                }
+            }
+            KeyCode::Backspace => {
+                self.editor.backspace();
+                self.correction = Some(Correction::MakeCursorVisible);
+                Reaction::Handled
+            }
+            KeyCode::Left => {
+                self.editor.move_cursor_left();
+                self.correction = Some(Correction::MakeCursorVisible);
+                Reaction::Handled
+            }
+            KeyCode::Right => {
+                self.editor.move_cursor_right();
+                self.correction = Some(Correction::MakeCursorVisible);
+                Reaction::Handled
+            }
+            KeyCode::Delete => {
+                self.editor.delete();
+                self.correction = Some(Correction::MakeCursorVisible);
+                Reaction::Handled
+            }
+            KeyCode::Char(ch) if harmless_char => {
+                self.editor.insert_char(ch);
+                self.correction = Some(Correction::MakeCursorVisible);
+                Reaction::Handled
+            }
+            KeyCode::Char('e') if event.modifiers == KeyModifiers::CONTROL => {
+                self.editor.edit_externally(terminal, crossterm_lock);
+                self.correction = Some(Correction::MakeCursorVisible);
+                Reaction::Handled
+            }
+            _ => Reaction::NotHandled,
+        }
+    }
+
+    async fn handle_movement_key_event(&mut self, event: KeyEvent) -> bool {
+        let shift_only = event.modifiers.difference(KeyModifiers::SHIFT).is_empty();
+
+        match event.code {
+            KeyCode::Char('k') | KeyCode::Up if shift_only => self.move_cursor_up().await,
+            KeyCode::Char('j') | KeyCode::Down if shift_only => self.move_cursor_down().await,
+            KeyCode::Char('g') | KeyCode::Home if shift_only => self.move_cursor_to_top().await,
+            KeyCode::Char('G') | KeyCode::End if shift_only => self.move_cursor_to_bottom().await,
             KeyCode::Char('y') if event.modifiers == KeyModifiers::CONTROL => self.scroll_up(1),
             KeyCode::Char('e') if event.modifiers == KeyModifiers::CONTROL => self.scroll_down(1),
             _ => return false,
         }
+
         true
     }
 
-    async fn handle_messaging(
-        &self,
+    async fn handle_edit_initiating_key_event(
+        &mut self,
+        event: KeyEvent,
+        id: Option<M::Id>,
+    ) -> bool {
+        let shift_only = event.modifiers.difference(KeyModifiers::SHIFT).is_empty();
+        if !shift_only {
+            return false;
+        }
+
+        match event.code {
+            KeyCode::Char('r') => {
+                if let Some(parent) = self.parent_for_normal_reply().await {
+                    self.cursor = Cursor::Editor {
+                        coming_from: id,
+                        parent,
+                    };
+                }
+            }
+            KeyCode::Char('R') => {
+                if let Some(parent) = self.parent_for_alternate_reply().await {
+                    self.cursor = Cursor::Editor {
+                        coming_from: id,
+                        parent,
+                    };
+                }
+            }
+            KeyCode::Char('t' | 'T') => {
+                self.cursor = Cursor::Editor {
+                    coming_from: id,
+                    parent: None,
+                };
+            }
+            _ => return false,
+        }
+
+        true
+    }
+
+    async fn handle_normal_key_event(
+        &mut self,
+        event: KeyEvent,
+        can_compose: bool,
+        id: Option<M::Id>,
+    ) -> bool {
+        if self.handle_movement_key_event(event).await {
+            true
+        } else if can_compose {
+            self.handle_edit_initiating_key_event(event, id).await
+        } else {
+            false
+        }
+    }
+
+    async fn handle_key_event(
+        &mut self,
         terminal: &mut Terminal,
         crossterm_lock: &Arc<FairMutex<()>>,
         event: KeyEvent,
-    ) -> Option<(Option<M::Id>, String)> {
-        None
+        can_compose: bool,
+    ) -> Reaction<M> {
+        match &self.cursor {
+            Cursor::Bottom => {
+                if self.handle_normal_key_event(event, can_compose, None).await {
+                    Reaction::Handled
+                } else {
+                    Reaction::NotHandled
+                }
+            }
+            Cursor::Msg(id) => {
+                let id = id.clone();
+                if self
+                    .handle_normal_key_event(event, can_compose, Some(id))
+                    .await
+                {
+                    Reaction::Handled
+                } else {
+                    Reaction::NotHandled
+                }
+            }
+            Cursor::Editor {
+                coming_from,
+                parent,
+            } => self.handle_editor_key_event(
+                terminal,
+                crossterm_lock,
+                event,
+                coming_from.clone(),
+                parent.clone(),
+            ),
+            Cursor::Pseudo { .. } => {
+                if self.handle_movement_key_event(event).await {
+                    Reaction::Handled
+                } else {
+                    Reaction::NotHandled
+                }
+            }
+        }
     }
 }
 
@@ -95,20 +250,17 @@ impl<M: Msg, S: MsgStore<M>> TreeViewState<M, S> {
         }
     }
 
-    pub async fn handle_navigation(&mut self, event: KeyEvent) -> bool {
-        self.0.lock().await.handle_navigation(event).await
-    }
-
-    pub async fn handle_messaging(
-        &self,
+    pub async fn handle_key_event(
+        &mut self,
         terminal: &mut Terminal,
         crossterm_lock: &Arc<FairMutex<()>>,
         event: KeyEvent,
-    ) -> Option<(Option<M::Id>, String)> {
+        can_compose: bool,
+    ) -> Reaction<M> {
         self.0
             .lock()
             .await
-            .handle_messaging(terminal, crossterm_lock, event)
+            .handle_key_event(terminal, crossterm_lock, event, can_compose)
             .await
     }
 }

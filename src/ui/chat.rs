@@ -66,23 +66,35 @@ impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
             Mode::Tree => Chat::Tree(self.tree.widget(nick)),
         }
     }
+}
 
-    pub async fn handle_navigation(&mut self, event: KeyEvent) -> bool {
-        match self.mode {
-            Mode::Tree => self.tree.handle_navigation(event).await,
-        }
+pub enum Reaction<M: Msg> {
+    NotHandled,
+    Handled,
+    Composed {
+        parent: Option<M::Id>,
+        content: String,
+    },
+}
+
+impl<M: Msg> Reaction<M> {
+    pub fn handled(&self) -> bool {
+        !matches!(self, Self::NotHandled)
     }
+}
 
-    pub async fn handle_messaging(
+impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
+    pub async fn handle_key_event(
         &mut self,
         terminal: &mut Terminal,
         crossterm_lock: &Arc<FairMutex<()>>,
         event: KeyEvent,
-    ) -> Option<(Option<M::Id>, String)> {
+        can_compose: bool,
+    ) -> Reaction<M> {
         match self.mode {
             Mode::Tree => {
                 self.tree
-                    .handle_messaging(terminal, crossterm_lock, event)
+                    .handle_key_event(terminal, crossterm_lock, event, can_compose)
                     .await
             }
         }
