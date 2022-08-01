@@ -30,7 +30,7 @@ pub fn msg<M: Msg>(highlighted: bool, indent: usize, msg: &M) -> BoxedWidget {
         Segment::new(Padding::new(Text::new(msg.nick())).right(1)),
         // TODO Minimum content width
         // TODO Minimizing and maximizing messages
-        Segment::new(Text::new(msg.content()).wrap(true)),
+        Segment::new(Text::new(msg.content()).wrap(true)).priority(1),
     ])
     .into()
 }
