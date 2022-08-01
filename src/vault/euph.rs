@@ -8,10 +8,9 @@ use rusqlite::{named_params, params, Connection, OptionalExtension, ToSql, Trans
 use time::OffsetDateTime;
 use tokio::sync::oneshot;
 
-use crate::euph;
 use crate::euph::api::{Message, Snowflake, Time};
-use crate::store::{Msg, MsgStore, Path, Tree};
-use crate::ui::ChatMsg;
+use crate::euph::SmallMessage;
+use crate::store::{MsgStore, Path, Tree};
 
 use super::{Request, Vault};
 
@@ -131,7 +130,7 @@ impl EuphVault {
 }
 
 #[async_trait]
-impl MsgStore<euph::Message> for EuphVault {
+impl MsgStore<SmallMessage> for EuphVault {
     async fn path(&self, id: &Snowflake) -> Path<Snowflake> {
         // TODO vault::Error
         let (tx, rx) = oneshot::channel();
@@ -144,7 +143,7 @@ impl MsgStore<euph::Message> for EuphVault {
         rx.await.unwrap()
     }
 
-    async fn tree(&self, tree_id: &Snowflake) -> Tree<euph::Message> {
+    async fn tree(&self, tree_id: &Snowflake) -> Tree<SmallMessage> {
         // TODO vault::Error
         let (tx, rx) = oneshot::channel();
         let request = EuphRequest::GetTree {
@@ -253,7 +252,7 @@ pub(super) enum EuphRequest {
     GetTree {
         room: String,
         root: Snowflake,
-        result: oneshot::Sender<Tree<euph::Message>>,
+        result: oneshot::Sender<Tree<SmallMessage>>,
     },
     GetPrevTreeId {
         room: String,
@@ -644,7 +643,7 @@ impl EuphRequest {
         conn: &Connection,
         room: String,
         root: Snowflake,
-        result: oneshot::Sender<Tree<euph::Message>>,
+        result: oneshot::Sender<Tree<SmallMessage>>,
     ) -> rusqlite::Result<()> {
         let msgs = conn
             .prepare(
@@ -666,7 +665,7 @@ impl EuphRequest {
                 ",
             )?
             .query_map(params![room, root], |row| {
-                Ok(euph::Message {
+                Ok(SmallMessage {
                     id: row.get(0)?,
                     parent: row.get(1)?,
                     time: row.get(2)?,

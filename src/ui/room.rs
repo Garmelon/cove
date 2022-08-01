@@ -37,7 +37,7 @@ pub struct EuphRoom {
     state: State,
 
     room: Option<euph::Room>,
-    chat: ChatState<euph::Message, EuphVault>,
+    chat: ChatState<euph::SmallMessage, EuphVault>,
     nick_list: ListState<String>,
 }
 

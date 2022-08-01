@@ -9,7 +9,7 @@ use super::api::{Snowflake, Time};
 use super::util;
 
 #[derive(Debug, Clone)]
-pub struct Message {
+pub struct SmallMessage {
     pub id: Snowflake,
     pub parent: Option<Snowflake>,
     pub time: Time,
@@ -45,7 +45,7 @@ fn styled_content_me(content: &str) -> Styled {
     Styled::new(content.trim(), style).then("*", style)
 }
 
-impl Msg for Message {
+impl Msg for SmallMessage {
     type Id = Snowflake;
 
     fn id(&self) -> Self::Id {
@@ -61,7 +61,7 @@ impl Msg for Message {
     }
 }
 
-impl ChatMsg for Message {
+impl ChatMsg for SmallMessage {
     fn time(&self) -> OffsetDateTime {
         self.time.0
     }

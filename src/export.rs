@@ -8,8 +8,8 @@ use time::format_description::FormatItem;
 use time::macros::format_description;
 use unicode_width::UnicodeWidthStr;
 
-use crate::euph;
 use crate::euph::api::Snowflake;
+use crate::euph::SmallMessage;
 use crate::store::{MsgStore, Tree};
 use crate::vault::Vault;
 
@@ -44,7 +44,7 @@ pub async fn export(vault: &Vault, room: String, file: &Path) -> anyhow::Result<
 
 fn write_tree(
     file: &mut BufWriter<File>,
-    tree: &Tree<euph::Message>,
+    tree: &Tree<SmallMessage>,
     id: Snowflake,
     indent: usize,
 ) -> anyhow::Result<()> {
@@ -68,7 +68,7 @@ fn write_tree(
 fn write_msg(
     file: &mut BufWriter<File>,
     indent_string: &str,
-    msg: &euph::Message,
+    msg: &SmallMessage,
 ) -> anyhow::Result<()> {
     let nick = &msg.nick;
     let nick_empty = " ".repeat(nick.width());
