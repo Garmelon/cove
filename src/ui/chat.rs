@@ -6,7 +6,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use crossterm::event::KeyEvent;
 use parking_lot::FairMutex;
+use time::OffsetDateTime;
 use toss::frame::{Frame, Size};
+use toss::styled::Styled;
 use toss::terminal::Terminal;
 
 use crate::store::{Msg, MsgStore};
@@ -14,6 +16,17 @@ use crate::store::{Msg, MsgStore};
 use self::tree::{TreeView, TreeViewState};
 
 use super::widgets::Widget;
+
+///////////
+// Trait //
+///////////
+
+pub trait ChatMsg {
+    fn time(&self) -> OffsetDateTime;
+    fn styled(&self) -> (Styled, Styled);
+    fn edit(nick: &str, content: &str) -> (Styled, Styled);
+    fn pseudo(nick: &str, content: &str) -> (Styled, Styled);
+}
 
 ///////////
 // State //
@@ -87,7 +100,7 @@ pub enum Chat<M: Msg, S: MsgStore<M>> {
 #[async_trait]
 impl<M, S> Widget for Chat<M, S>
 where
-    M: Msg,
+    M: Msg + ChatMsg,
     M::Id: Send + Sync,
     S: MsgStore<M> + Send + Sync,
 {

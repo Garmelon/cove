@@ -7,11 +7,11 @@ use rusqlite::types::{FromSql, FromSqlError, ToSqlOutput, Value, ValueRef};
 use rusqlite::{named_params, params, Connection, OptionalExtension, ToSql, Transaction};
 use time::OffsetDateTime;
 use tokio::sync::oneshot;
-use toss::styled::Styled;
 
 use crate::euph;
 use crate::euph::api::{Message, Snowflake, Time};
 use crate::store::{Msg, MsgStore, Path, Tree};
+use crate::ui::ChatMsg;
 
 use super::{Request, Vault};
 
@@ -40,43 +40,6 @@ impl FromSql for Time {
         Ok(Self(
             OffsetDateTime::from_unix_timestamp(timestamp).expect("timestamp in range"),
         ))
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct EuphMsg {
-    pub id: Snowflake,
-    pub parent: Option<Snowflake>,
-    pub time: Time,
-    pub nick: String,
-    pub content: String,
-}
-
-impl Msg for EuphMsg {
-    type Id = Snowflake;
-
-    fn id(&self) -> Self::Id {
-        self.id
-    }
-
-    fn parent(&self) -> Option<Self::Id> {
-        self.parent
-    }
-
-    fn time(&self) -> OffsetDateTime {
-        self.time.0
-    }
-
-    fn nick(&self) -> Styled {
-        (&self.nick, euph::nick_style(&self.nick)).into()
-    }
-
-    fn content(&self) -> Styled {
-        self.content.trim().into()
-    }
-
-    fn last_possible_id() -> Self::Id {
-        Snowflake::MAX
     }
 }
 
@@ -168,7 +131,7 @@ impl EuphVault {
 }
 
 #[async_trait]
-impl MsgStore<EuphMsg> for EuphVault {
+impl MsgStore<euph::Message> for EuphVault {
     async fn path(&self, id: &Snowflake) -> Path<Snowflake> {
         // TODO vault::Error
         let (tx, rx) = oneshot::channel();
@@ -181,7 +144,7 @@ impl MsgStore<EuphMsg> for EuphVault {
         rx.await.unwrap()
     }
 
-    async fn tree(&self, tree_id: &Snowflake) -> Tree<EuphMsg> {
+    async fn tree(&self, tree_id: &Snowflake) -> Tree<euph::Message> {
         // TODO vault::Error
         let (tx, rx) = oneshot::channel();
         let request = EuphRequest::GetTree {
@@ -290,7 +253,7 @@ pub(super) enum EuphRequest {
     GetTree {
         room: String,
         root: Snowflake,
-        result: oneshot::Sender<Tree<EuphMsg>>,
+        result: oneshot::Sender<Tree<euph::Message>>,
     },
     GetPrevTreeId {
         room: String,
@@ -681,7 +644,7 @@ impl EuphRequest {
         conn: &Connection,
         room: String,
         root: Snowflake,
-        result: oneshot::Sender<Tree<EuphMsg>>,
+        result: oneshot::Sender<Tree<euph::Message>>,
     ) -> rusqlite::Result<()> {
         let msgs = conn
             .prepare(
@@ -703,7 +666,7 @@ impl EuphRequest {
                 ",
             )?
             .query_map(params![room, root], |row| {
-                Ok(EuphMsg {
+                Ok(euph::Message {
                     id: row.get(0)?,
                     parent: row.get(1)?,
                     time: row.get(2)?,

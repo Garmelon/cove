@@ -10,7 +10,7 @@ use toss::terminal::Terminal;
 
 use crate::euph::api::{SessionType, SessionView};
 use crate::euph::{self, Joined, Status};
-use crate::vault::{EuphMsg, EuphVault};
+use crate::vault::EuphVault;
 
 use super::chat::ChatState;
 use super::widgets::background::Background;
@@ -37,7 +37,7 @@ pub struct EuphRoom {
     state: State,
 
     room: Option<euph::Room>,
-    chat: ChatState<EuphMsg, EuphVault>,
+    chat: ChatState<euph::Message, EuphVault>,
     nick_list: ListState<String>,
 }
 

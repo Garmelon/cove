@@ -5,6 +5,7 @@ mod time;
 
 use crossterm::style::{ContentStyle, Stylize};
 
+use super::super::ChatMsg;
 use crate::store::Msg;
 use crate::ui::widgets::join::{HJoin, Segment};
 use crate::ui::widgets::padding::Padding;
@@ -19,7 +20,8 @@ pub fn style_placeholder() -> ContentStyle {
     ContentStyle::default().dark_grey()
 }
 
-pub fn msg<M: Msg>(highlighted: bool, indent: usize, msg: &M) -> BoxedWidget {
+pub fn msg<M: Msg + ChatMsg>(highlighted: bool, indent: usize, msg: &M) -> BoxedWidget {
+    let (nick, content) = msg.styled();
     HJoin::new(vec![
         Segment::new(
             Padding::new(time::widget(Some(msg.time()), highlighted))
@@ -27,10 +29,10 @@ pub fn msg<M: Msg>(highlighted: bool, indent: usize, msg: &M) -> BoxedWidget {
                 .right(1),
         ),
         Segment::new(Indent::new(indent, highlighted)),
-        Segment::new(Padding::new(Text::new(msg.nick())).right(1)),
+        Segment::new(Padding::new(Text::new(nick)).right(1)),
         // TODO Minimum content width
         // TODO Minimizing and maximizing messages
-        Segment::new(Text::new(msg.content()).wrap(true)).priority(1),
+        Segment::new(Text::new(content).wrap(true)).priority(1),
     ])
     .into()
 }

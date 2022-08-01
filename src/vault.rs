@@ -9,7 +9,7 @@ use rusqlite::Connection;
 use tokio::sync::{mpsc, oneshot};
 
 use self::euph::EuphRequest;
-pub use self::euph::{EuphMsg, EuphVault};
+pub use self::euph::EuphVault;
 
 enum Request {
     Close(oneshot::Sender<()>),

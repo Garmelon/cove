@@ -10,6 +10,7 @@ use tokio::sync::mpsc;
 use toss::styled::Styled;
 
 use crate::store::{Msg, MsgStore, Path, Tree};
+use crate::ui::ChatMsg;
 
 #[derive(Debug, Clone)]
 pub struct LogMsg {
@@ -30,28 +31,35 @@ impl Msg for LogMsg {
         None
     }
 
+    fn last_possible_id() -> Self::Id {
+        Self::Id::MAX
+    }
+}
+
+impl ChatMsg for LogMsg {
     fn time(&self) -> OffsetDateTime {
         self.time
     }
 
-    fn nick(&self) -> Styled {
-        let style = match self.level {
+    fn styled(&self) -> (Styled, Styled) {
+        let nick_style = match self.level {
             Level::Error => ContentStyle::default().bold().red(),
             Level::Warn => ContentStyle::default().bold().yellow(),
             Level::Info => ContentStyle::default().bold().green(),
             Level::Debug => ContentStyle::default().bold().blue(),
             Level::Trace => ContentStyle::default().bold().magenta(),
         };
-        let text = format!("{}", self.level);
-        Styled::new(text, style)
+        let nick = Styled::new(format!("{}", self.level), nick_style);
+        let content = Styled::new_plain(&self.content);
+        (nick, content)
     }
 
-    fn content(&self) -> Styled {
-        Styled::new_plain(&self.content)
+    fn edit(nick: &str, content: &str) -> (Styled, Styled) {
+        panic!("log is not editable")
     }
 
-    fn last_possible_id() -> Self::Id {
-        Self::Id::MAX
+    fn pseudo(nick: &str, content: &str) -> (Styled, Styled) {
+        panic!("log is not editable")
     }
 }
 

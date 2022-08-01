@@ -18,6 +18,7 @@ use toss::terminal::Terminal;
 use crate::logger::{LogMsg, Logger};
 use crate::vault::Vault;
 
+pub use self::chat::ChatMsg;
 use self::chat::ChatState;
 use self::rooms::Rooms;
 use self::widgets::BoxedWidget;

@@ -4,11 +4,12 @@ use crate::store::{Msg, MsgStore, Path, Tree};
 use crate::ui::chat::blocks::Block;
 use crate::ui::widgets::empty::Empty;
 use crate::ui::widgets::text::Text;
+use crate::ui::ChatMsg;
 
 use super::tree_blocks::{BlockId, Root, TreeBlocks};
 use super::{widgets, Cursor, InnerTreeViewState};
 
-impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
+impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     async fn cursor_path(&self, cursor: &Cursor<M::Id>) -> Path<M::Id> {
         match cursor {
             Cursor::Msg(id) => self.store.path(id).await,

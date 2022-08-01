@@ -18,6 +18,8 @@ use crate::ui::widgets::Widget;
 
 use self::cursor::Cursor;
 
+use super::ChatMsg;
+
 ///////////
 // State //
 ///////////
@@ -115,7 +117,7 @@ pub struct TreeView<M: Msg, S: MsgStore<M>>(Arc<Mutex<InnerTreeViewState<M, S>>>
 #[async_trait]
 impl<M, S> Widget for TreeView<M, S>
 where
-    M: Msg,
+    M: Msg + ChatMsg,
     M::Id: Send + Sync,
     S: MsgStore<M> + Send + Sync,
 {
