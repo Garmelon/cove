@@ -105,7 +105,7 @@ impl MsgStore<LogMsg> for Logger {
 }
 
 impl Log for Logger {
-    fn enabled(&self, metadata: &log::Metadata) -> bool {
+    fn enabled(&self, _metadata: &log::Metadata) -> bool {
         true
     }
 

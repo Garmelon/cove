@@ -102,7 +102,7 @@ impl EuphVault {
     pub fn add_message(&self, msg: Message, prev_msg: Option<Snowflake>) {
         let request = EuphRequest::AddMsg {
             room: self.room.clone(),
-            msg,
+            msg: Box::new(msg),
             prev_msg,
         };
         let _ = self.vault.tx.send(request.into());
@@ -232,7 +232,7 @@ pub(super) enum EuphRequest {
     //////////////
     AddMsg {
         room: String,
-        msg: Message,
+        msg: Box<Message>,
         prev_msg: Option<Snowflake>,
     },
     AddMsgs {
@@ -286,7 +286,7 @@ impl EuphRequest {
                 room,
                 msg,
                 prev_msg,
-            } => Self::add_msg(conn, room, msg, prev_msg),
+            } => Self::add_msg(conn, room, *msg, prev_msg),
             EuphRequest::AddMsgs {
                 room,
                 msgs,

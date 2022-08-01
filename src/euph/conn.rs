@@ -157,6 +157,7 @@ impl Joined {
 }
 
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum Status {
     Joining(Joining),
     Joined(Joined),

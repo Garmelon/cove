@@ -32,7 +32,7 @@ pub enum Error {
 enum Event {
     Connected(ConnTx),
     Disconnected,
-    Data(Data),
+    Data(Box<Data>),
     Status(oneshot::Sender<Option<Status>>),
     RequestLogs,
     Nick(String),
@@ -85,7 +85,7 @@ impl State {
                 event_tx.send(Event::Connected(conn_tx))?;
 
                 while let Ok(data) = conn_rx.recv().await {
-                    event_tx.send(Event::Data(data))?;
+                    event_tx.send(Event::Data(Box::new(data)))?;
                 }
 
                 info!("e&{}: disconnected", name);
@@ -160,7 +160,7 @@ impl State {
                     self.conn_tx = None;
                     self.last_msg_id = None;
                 }
-                Event::Data(data) => self.on_data(data).await?,
+                Event::Data(data) => self.on_data(*data).await?,
                 Event::Status(reply_tx) => self.on_status(reply_tx).await,
                 Event::RequestLogs => self.on_request_logs(),
                 Event::Nick(name) => self.on_nick(name),
@@ -340,12 +340,6 @@ impl Room {
             .send(Event::Status(tx))
             .map_err(|_| Error::Stopped)?;
         rx.await.map_err(|_| Error::Stopped)
-    }
-
-    pub fn request_logs(&self) -> Result<(), Error> {
-        self.event_tx
-            .send(Event::RequestLogs)
-            .map_err(|_| Error::Stopped)
     }
 
     pub fn nick(&self, name: String) -> Result<(), Error> {
