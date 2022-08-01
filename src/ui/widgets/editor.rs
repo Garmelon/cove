@@ -279,7 +279,7 @@ impl Widget for Editor {
 
         let min_width = lines
             .iter()
-            .map(|l| frame.width(l.text()))
+            .map(|l| frame.width(l.text().trim_end()))
             .max()
             .unwrap_or(0)
             + 1;
