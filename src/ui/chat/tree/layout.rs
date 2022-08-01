@@ -114,13 +114,17 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             blocks.blocks_mut().push_back(block);
         }
 
-        // Editor or pseudomessage
-        if let Cursor::Editor { parent: None, .. } | Cursor::Pseudo { parent: None, .. } =
-            self.cursor
-        {
-            // TODO Render proper editor or pseudocursor
-            let block = Block::new(frame, BlockId::Cursor, Text::new("TODO"));
-            blocks.blocks_mut().push_back(block);
+        match self.cursor {
+            Cursor::Bottom => {
+                let block = Block::new(frame, BlockId::Cursor, Empty);
+                blocks.blocks_mut().push_back(block);
+            }
+            Cursor::Editor { parent: None, .. } | Cursor::Pseudo { parent: None, .. } => {
+                // TODO Render proper editor or pseudocursor
+                let block = Block::new(frame, BlockId::Cursor, Text::new("TODO"));
+                blocks.blocks_mut().push_back(block);
+            }
+            _ => {}
         }
 
         blocks
