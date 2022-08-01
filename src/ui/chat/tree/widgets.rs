@@ -8,6 +8,7 @@ use crossterm::style::{ContentStyle, Stylize};
 use super::super::ChatMsg;
 use crate::store::Msg;
 use crate::ui::widgets::join::{HJoin, Segment};
+use crate::ui::widgets::layer::Layer;
 use crate::ui::widgets::padding::Padding;
 use crate::ui::widgets::text::Text;
 use crate::ui::widgets::BoxedWidget;
@@ -29,7 +30,10 @@ pub fn msg<M: Msg + ChatMsg>(highlighted: bool, indent: usize, msg: &M) -> Boxed
                 .right(1),
         ),
         Segment::new(Indent::new(indent, highlighted)),
-        Segment::new(Padding::new(Text::new(nick)).right(1)),
+        Segment::new(Layer::new(vec![
+            Indent::new(1, false).into(),
+            Padding::new(Text::new(nick)).right(1).into(),
+        ])),
         // TODO Minimum content width
         // TODO Minimizing and maximizing messages
         Segment::new(Text::new(content).wrap(true)).priority(1),
