@@ -2,10 +2,13 @@ use std::iter;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use parking_lot::Mutex;
+use parking_lot::{FairMutex, Mutex};
 use toss::frame::{Frame, Pos, Size};
 use toss::styled::Styled;
+use toss::terminal::Terminal;
 use unicode_segmentation::UnicodeSegmentation;
+
+use crate::ui::util;
 
 use super::Widget;
 
@@ -64,6 +67,12 @@ impl InnerEditorState {
         // This loop should always return since the index behind the last
         // grapheme is included in the grapheme boundary iterator.
         panic!("cursor index out of bounds");
+    }
+
+    fn set_text(&mut self, text: String) {
+        self.text = text;
+        self.idx = self.idx.min(self.text.len());
+        self.move_cursor_to_grapheme_boundary();
     }
 
     /// Insert a character at the current cursor position and move the cursor
@@ -201,6 +210,10 @@ impl EditorState {
         self.0.lock().text.clone()
     }
 
+    pub fn set_text(&self, text: String) {
+        self.0.lock().set_text(text);
+    }
+
     pub fn insert_char(&self, ch: char) {
         self.0.lock().insert_char(ch);
     }
@@ -221,6 +234,13 @@ impl EditorState {
 
     pub fn move_cursor_right(&self) {
         self.0.lock().move_cursor_right();
+    }
+
+    pub fn edit_externally(&self, terminal: &mut Terminal, crossterm_lock: &Arc<FairMutex<()>>) {
+        let mut guard = self.0.lock();
+        if let Some(text) = util::prompt(terminal, crossterm_lock, &guard.text) {
+            guard.set_text(text);
+        }
     }
 }
 
