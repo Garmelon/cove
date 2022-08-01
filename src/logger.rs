@@ -54,11 +54,11 @@ impl ChatMsg for LogMsg {
         (nick, content)
     }
 
-    fn edit(nick: &str, content: &str) -> (Styled, Styled) {
+    fn edit(_nick: &str, _content: &str) -> (Styled, Styled) {
         panic!("log is not editable")
     }
 
-    fn pseudo(nick: &str, content: &str) -> (Styled, Styled) {
+    fn pseudo(_nick: &str, _content: &str) -> (Styled, Styled) {
         panic!("log is not editable")
     }
 }

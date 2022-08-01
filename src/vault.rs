@@ -57,6 +57,7 @@ fn run(mut conn: Connection, mut rx: mpsc::UnboundedReceiver<Request>) {
             }
             Request::Gc(tx) => {
                 let _ = conn.execute_batch("ANALYZE; VACUUM;");
+                drop(tx);
             }
             Request::Euph(r) => r.perform(&mut conn),
         }
