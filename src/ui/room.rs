@@ -118,7 +118,8 @@ impl EuphRoom {
             Segment::new(Border::new(
                 Padding::new(self.status_widget(status)).horizontal(1),
             )),
-            Segment::new(self.chat.widget()).expanding(true),
+            // TODO Use last known nick?
+            Segment::new(self.chat.widget(String::new())).expanding(true),
         ])
         .into()
     }
@@ -133,7 +134,7 @@ impl EuphRoom {
                 Segment::new(Border::new(
                     Padding::new(self.status_widget(status)).horizontal(1),
                 )),
-                Segment::new(self.chat.widget()).expanding(true),
+                Segment::new(self.chat.widget(joined.session.name.clone())).expanding(true),
             ]))
             .expanding(true),
             Segment::new(Border::new(

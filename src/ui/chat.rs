@@ -61,9 +61,9 @@ impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
         &self.store
     }
 
-    pub fn widget(&self) -> Chat<M, S> {
+    pub fn widget(&self, nick: String) -> Chat<M, S> {
         match self.mode {
-            Mode::Tree => Chat::Tree(self.tree.widget()),
+            Mode::Tree => Chat::Tree(self.tree.widget(nick)),
         }
     }
 
