@@ -188,7 +188,7 @@ impl EditorState {
 
     pub fn widget(&self) -> Editor {
         let guard = self.0.lock();
-        let text = Styled::new(guard.text.clone());
+        let text = Styled::new_plain(guard.text.clone());
         let idx = guard.idx;
         Editor {
             state: self.0.clone(),
@@ -239,9 +239,8 @@ impl Editor {
     where
         F: FnOnce(&str) -> Styled,
     {
-        let text = self.text.text();
-        let new_text = f(&text);
-        assert_eq!(text, new_text.text());
+        let new_text = f(self.text.text());
+        assert_eq!(self.text.text(), new_text.text());
         self.text = new_text;
         self
     }
@@ -264,7 +263,7 @@ impl Editor {
 
     pub fn cursor_row(&self, frame: &mut Frame) -> usize {
         let width: usize = frame.size().width.into();
-        let indices = frame.wrap(&self.text.text(), width);
+        let indices = frame.wrap(self.text.text(), width);
         let (row, _) = Self::wrapped_cursor(self.idx, &indices);
         row
     }
@@ -275,12 +274,12 @@ impl Widget for Editor {
     fn size(&self, frame: &mut Frame, max_width: Option<u16>, _max_height: Option<u16>) -> Size {
         let max_width = max_width.map(|w| w as usize).unwrap_or(usize::MAX).max(1);
         let max_text_width = max_width - 1;
-        let indices = frame.wrap(&self.text.text(), max_text_width);
+        let indices = frame.wrap(self.text.text(), max_text_width);
         let lines = self.text.clone().split_at_indices(&indices);
 
         let min_width = lines
             .iter()
-            .map(|l| frame.width_styled(l))
+            .map(|l| frame.width(l.text()))
             .max()
             .unwrap_or(0)
             + 1;
@@ -291,7 +290,7 @@ impl Widget for Editor {
     async fn render(self: Box<Self>, frame: &mut Frame) {
         let width = frame.size().width.max(1);
         let text_width = (width - 1) as usize;
-        let indices = frame.wrap(&self.text.text(), text_width);
+        let indices = frame.wrap(self.text.text(), text_width);
         let lines = self.text.split_at_indices(&indices);
 
         let (cursor_row, cursor_line_idx) = Self::wrapped_cursor(self.idx, &indices);

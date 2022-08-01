@@ -29,7 +29,7 @@ impl Text {
             usize::MAX
         };
 
-        let indices = frame.wrap(&self.styled.text(), max_width);
+        let indices = frame.wrap(self.styled.text(), max_width);
         self.styled.clone().split_at_indices(&indices)
     }
 }
@@ -40,7 +40,7 @@ impl Widget for Text {
         let lines = self.wrapped(frame, max_width);
         let min_width = lines
             .iter()
-            .map(|l| frame.width_styled(l))
+            .map(|l| frame.width(l.text()))
             .max()
             .unwrap_or(0);
         let min_height = lines.len();

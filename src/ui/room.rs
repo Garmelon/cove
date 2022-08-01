@@ -100,7 +100,7 @@ impl EuphRoom {
                         Segment::new(Text::new("Choose nick ")),
                         Segment::new(
                             ed.widget()
-                                .highlight(|s| Styled::new((s, euph::nick_style(s)))),
+                                .highlight(|s| Styled::new(s, euph::nick_style(s))),
                         ),
                     ]))
                     .left(1),
@@ -146,19 +146,21 @@ impl EuphRoom {
     fn status_widget(&self, status: &Option<Option<Status>>) -> BoxedWidget {
         let room = self.chat.store().room();
         let room_style = ContentStyle::default().bold().blue();
-        let mut info = Styled::new((format!("&{room}"), room_style));
+        let mut info = Styled::new(format!("&{room}"), room_style);
         info = match status {
-            None => info.then(", archive"),
-            Some(None) => info.then(", connecting..."),
-            Some(Some(Status::Joining(j))) if j.bounce.is_some() => info.then(", auth required"),
-            Some(Some(Status::Joining(_))) => info.then(", joining..."),
+            None => info.then_plain(", archive"),
+            Some(None) => info.then_plain(", connecting..."),
+            Some(Some(Status::Joining(j))) if j.bounce.is_some() => {
+                info.then_plain(", auth required")
+            }
+            Some(Some(Status::Joining(_))) => info.then_plain(", joining..."),
             Some(Some(Status::Joined(j))) => {
                 let nick = &j.session.name;
                 if nick.is_empty() {
-                    info.then(", present without nick")
+                    info.then_plain(", present without nick")
                 } else {
                     let nick_style = euph::nick_style(nick);
-                    info.then(", present as ").then((nick, nick_style))
+                    info.then_plain(", present as ").then(nick, nick_style)
                 }
             }
         };
@@ -202,8 +204,10 @@ impl EuphRoom {
             ""
         };
 
-        let normal = Styled::new(owner).then((name, style)).then(perms);
-        let selected = Styled::new(owner).then((name, style_inv)).then(perms);
+        let normal = Styled::new_plain(owner).then(name, style).then_plain(perms);
+        let selected = Styled::new_plain(owner)
+            .then(name, style_inv)
+            .then_plain(perms);
         list.add_sel(
             id,
             Text::new(normal),
@@ -227,7 +231,7 @@ impl EuphRoom {
             list.add_unsel(Empty);
         }
 
-        let row = Styled::new((name, heading_style)).then(format!(" ({})", sessions.len()));
+        let row = Styled::new(name, heading_style).then_plain(format!(" ({})", sessions.len()));
         list.add_unsel(Text::new(row));
 
         for session in sessions {

@@ -43,11 +43,11 @@ impl Msg for LogMsg {
             Level::Trace => ContentStyle::default().bold().magenta(),
         };
         let text = format!("{}", self.level);
-        Styled::new((text, style))
+        Styled::new(text, style)
     }
 
     fn content(&self) -> Styled {
-        Styled::new(&self.content)
+        Styled::new_plain(&self.content)
     }
 
     fn last_possible_id() -> Self::Id {

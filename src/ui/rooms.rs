@@ -107,9 +107,7 @@ impl Rooms {
                             Segment::new(Text::new("Connect to ")),
                             Segment::new(HJoin::new(vec![
                                 Segment::new(Text::new(("&", room_style))),
-                                Segment::new(
-                                    ed.widget().highlight(|s| Styled::new((s, room_style))),
-                                ),
+                                Segment::new(ed.widget().highlight(|s| Styled::new(s, room_style))),
                             ])),
                         ]))
                         .left(1),
@@ -166,7 +164,7 @@ impl Rooms {
 
     async fn render_rows(&self, list: &mut List<String>, rooms: Vec<String>) {
         let heading_style = ContentStyle::default().bold();
-        let heading = Styled::new(("Rooms", heading_style)).then(format!(" ({})", rooms.len()));
+        let heading = Styled::new("Rooms", heading_style).then_plain(format!(" ({})", rooms.len()));
         list.add_unsel(Text::new(heading));
 
         for room in rooms {
@@ -175,13 +173,13 @@ impl Rooms {
             let room_style = ContentStyle::default().bold().blue();
             let room_sel_style = ContentStyle::default().bold().black().on_white();
 
-            let mut normal = Styled::new((format!("&{room}"), room_style));
-            let mut selected = Styled::new((format!("&{room}"), room_sel_style));
+            let mut normal = Styled::new(format!("&{room}"), room_style);
+            let mut selected = Styled::new(format!("&{room}"), room_sel_style);
             if let Some(room) = self.euph_rooms.get(&room) {
                 if let Some(status) = room.status().await {
                     let status = Self::format_status(&status);
-                    normal = normal.then((status.clone(), bg_style));
-                    selected = selected.then((status, bg_sel_style));
+                    normal = normal.then(status.clone(), bg_style);
+                    selected = selected.then(status, bg_sel_style);
                 }
             };
 

@@ -34,7 +34,7 @@ features = ["rustls-tls-native-roots"]
 
 [dependencies.toss]
 git = "https://github.com/Garmelon/toss.git"
-rev = "464aefa6d744e671806789dfd6fbd22c7e333273"
+rev = "26a8936cf50ee4b775fd4d1bf96f1b3077421e5c"
 
 # [patch."https://github.com/Garmelon/toss.git"]
 # toss = { path = "../toss/" }
