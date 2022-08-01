@@ -58,7 +58,7 @@ impl Ui {
         terminal: &mut Terminal,
         vault: Vault,
         logger: Logger,
-        logger_rx: mpsc::UnboundedReceiver<()>,
+        logger_rx: UnboundedReceiver<()>,
     ) -> anyhow::Result<()> {
         let (event_tx, event_rx) = mpsc::unbounded_channel();
         let crossterm_lock = Arc::new(FairMutex::new(()));
@@ -107,8 +107,8 @@ impl Ui {
     }
 
     async fn update_on_log_event(
-        mut logger_rx: mpsc::UnboundedReceiver<()>,
-        event_tx: &mpsc::UnboundedSender<UiEvent>,
+        mut logger_rx: UnboundedReceiver<()>,
+        event_tx: &UnboundedSender<UiEvent>,
     ) {
         while let Some(()) = logger_rx.recv().await {
             if event_tx.send(UiEvent::Redraw).is_err() {

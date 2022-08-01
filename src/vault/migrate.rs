@@ -16,9 +16,9 @@ pub fn migrate(conn: &mut Connection) -> rusqlite::Result<()> {
     tx.commit()
 }
 
-const MIGRATIONS: [fn(&mut Transaction) -> rusqlite::Result<()>; 2] = [m1, m2];
+const MIGRATIONS: [fn(&mut Transaction<'_>) -> rusqlite::Result<()>; 2] = [m1, m2];
 
-fn m1(tx: &mut Transaction) -> rusqlite::Result<()> {
+fn m1(tx: &mut Transaction<'_>) -> rusqlite::Result<()> {
     tx.execute_batch(
         "
         CREATE TABLE euph_rooms (
@@ -76,7 +76,7 @@ fn m1(tx: &mut Transaction) -> rusqlite::Result<()> {
     )
 }
 
-fn m2(tx: &mut Transaction) -> rusqlite::Result<()> {
+fn m2(tx: &mut Transaction<'_>) -> rusqlite::Result<()> {
     tx.execute_batch(
         "
         CREATE TABLE euph_cookies (

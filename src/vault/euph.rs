@@ -406,7 +406,7 @@ impl EuphRequest {
         Ok(())
     }
 
-    fn insert_msgs(tx: &Transaction, room: &str, msgs: Vec<Message>) -> rusqlite::Result<()> {
+    fn insert_msgs(tx: &Transaction<'_>, room: &str, msgs: Vec<Message>) -> rusqlite::Result<()> {
         let mut insert_msg = tx.prepare(
             "
             INSERT OR REPLACE INTO euph_msgs (
@@ -475,7 +475,7 @@ impl EuphRequest {
     }
 
     fn add_span(
-        tx: &Transaction,
+        tx: &Transaction<'_>,
         room: &str,
         start: Option<Snowflake>,
         end: Option<Snowflake>,

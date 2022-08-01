@@ -48,14 +48,14 @@ impl Widget for Float {
             let available = (size.width - inner_size.width) as f32;
             // Biased towards the left if horizontal lands exactly on the
             // boundary between two cells
-            inner_pos.x = (horizontal * available as f32).floor().min(available) as i32;
+            inner_pos.x = (horizontal * available).floor().min(available) as i32;
         }
 
         if let Some(vertical) = self.vertical {
             let available = (size.height - inner_size.height) as f32;
             // Biased towards the top if vertical lands exactly on the boundary
             // between two cells
-            inner_pos.y = (vertical * available as f32).floor().min(available) as i32;
+            inner_pos.y = (vertical * available).floor().min(available) as i32;
         }
 
         frame.push(inner_pos, inner_size);

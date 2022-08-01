@@ -66,7 +66,7 @@ impl<I> Blocks<I> {
         }
     }
 
-    pub fn iter(&self) -> vec_deque::Iter<Block<I>> {
+    pub fn iter(&self) -> vec_deque::Iter<'_, Block<I>> {
         self.blocks.iter()
     }
 

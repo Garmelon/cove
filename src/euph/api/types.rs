@@ -304,10 +304,10 @@ impl Serialize for Snowflake {
 
 struct SnowflakeVisitor;
 
-impl<'de> de::Visitor<'de> for SnowflakeVisitor {
+impl de::Visitor<'_> for SnowflakeVisitor {
     type Value = Snowflake;
 
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "a base36 string of length 13")
     }
 
