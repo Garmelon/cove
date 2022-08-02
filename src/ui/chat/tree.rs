@@ -169,6 +169,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                         coming_from: id,
                         parent,
                     };
+                    self.correction = Some(Correction::MakeCursorVisible);
                 }
             }
             KeyCode::Char('R') => {
@@ -177,6 +178,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                         coming_from: id,
                         parent,
                     };
+                    self.correction = Some(Correction::MakeCursorVisible);
                 }
             }
             KeyCode::Char('t' | 'T') => {
@@ -184,6 +186,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                     coming_from: id,
                     parent: None,
                 };
+                self.correction = Some(Correction::MakeCursorVisible);
             }
             _ => return false,
         }

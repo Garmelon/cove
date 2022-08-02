@@ -77,7 +77,7 @@ pub fn editor<M: ChatMsg>(
             Indent::new(1, false).into(),
             Padding::new(Text::new(nick)).right(1).into(),
         ])),
-        Segment::new(editor).priority(1),
+        Segment::new(editor).priority(1).expanding(true),
     ])
     .into();
 

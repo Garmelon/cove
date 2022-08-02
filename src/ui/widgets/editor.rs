@@ -27,7 +27,7 @@ struct InnerEditorState {
     /// Width of the text when the editor was last rendered.
     ///
     /// Does not include additional column for cursor.
-    last_width: usize,
+    last_width: u16,
 }
 
 impl InnerEditorState {
@@ -286,8 +286,9 @@ impl Editor {
     }
 
     pub fn cursor_row(&self, frame: &mut Frame) -> usize {
-        let width: usize = frame.size().width.into();
-        let indices = frame.wrap(self.text.text(), width);
+        let width = self.state.lock().last_width;
+        let text_width = (width - 1) as usize;
+        let indices = frame.wrap(self.text.text(), text_width);
         let (row, _) = Self::wrapped_cursor(self.idx, &indices);
         row
     }
@@ -324,5 +325,7 @@ impl Widget for Editor {
         for (i, line) in lines.into_iter().enumerate() {
             frame.write(Pos::new(0, i as i32), line);
         }
+
+        self.state.lock().last_width = width;
     }
 }

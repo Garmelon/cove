@@ -51,9 +51,9 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     }
 
     fn editor_block(&self, nick: &str, frame: &mut Frame, indent: usize) -> Block<BlockId<M::Id>> {
-        let (widget, cursor_line) = widgets::editor::<M>(frame, indent, nick, &self.editor);
-        let cursor_line = cursor_line as i32;
-        Block::new(frame, BlockId::Cursor, widget).focus(cursor_line..cursor_line + 1)
+        let (widget, cursor_row) = widgets::editor::<M>(frame, indent, nick, &self.editor);
+        let cursor_row = cursor_row as i32;
+        Block::new(frame, BlockId::Cursor, widget).focus(cursor_row..cursor_row + 1)
     }
 
     fn pseudo_block(&self, nick: &str, frame: &mut Frame, indent: usize) -> Block<BlockId<M::Id>> {
@@ -319,7 +319,18 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     }
 
     fn scroll_so_cursor_is_visible(&self, frame: &mut Frame, blocks: &mut TreeBlocks<M::Id>) {
-        if !matches!(self.cursor, Cursor::Msg(_)) {
+        if !matches!(
+            self.cursor,
+            Cursor::Msg(_)
+                | Cursor::Editor {
+                    parent: Some(_),
+                    ..
+                }
+                | Cursor::Pseudo {
+                    parent: Some(_),
+                    ..
+                }
+        ) {
             // In all other cases, there is no need to make the cursor visible
             // since scrolling behaves differently enough.
             return;
