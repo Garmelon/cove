@@ -119,7 +119,8 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         }
     }
 
-    async fn handle_movement_key_event(&mut self, event: KeyEvent) -> bool {
+    async fn handle_movement_key_event(&mut self, frame: &mut Frame, event: KeyEvent) -> bool {
+        let chat_height = frame.size().height - 3;
         let shift_only = event.modifiers.difference(KeyModifiers::SHIFT).is_empty();
 
         match event.code {
@@ -129,6 +130,22 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             KeyCode::Char('G') | KeyCode::End if shift_only => self.move_cursor_to_bottom().await,
             KeyCode::Char('y') if event.modifiers == KeyModifiers::CONTROL => self.scroll_up(1),
             KeyCode::Char('e') if event.modifiers == KeyModifiers::CONTROL => self.scroll_down(1),
+            KeyCode::Char('u') if event.modifiers == KeyModifiers::CONTROL => {
+                let delta = chat_height / 2;
+                self.scroll_up(delta.into());
+            }
+            KeyCode::Char('d') if event.modifiers == KeyModifiers::CONTROL => {
+                let delta = chat_height / 2;
+                self.scroll_down(delta.into());
+            }
+            KeyCode::Char('b') if event.modifiers == KeyModifiers::CONTROL => {
+                let delta = chat_height.saturating_sub(1);
+                self.scroll_up(delta.into());
+            }
+            KeyCode::Char('f') if event.modifiers == KeyModifiers::CONTROL => {
+                let delta = chat_height.saturating_sub(1);
+                self.scroll_down(delta.into());
+            }
             _ => return false,
         }
 
@@ -176,11 +193,12 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
 
     async fn handle_normal_key_event(
         &mut self,
+        frame: &mut Frame,
         event: KeyEvent,
         can_compose: bool,
         id: Option<M::Id>,
     ) -> bool {
-        if self.handle_movement_key_event(event).await {
+        if self.handle_movement_key_event(frame, event).await {
             true
         } else if can_compose {
             self.handle_edit_initiating_key_event(event, id).await
@@ -198,7 +216,10 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     ) -> Reaction<M> {
         match &self.cursor {
             Cursor::Bottom => {
-                if self.handle_normal_key_event(event, can_compose, None).await {
+                if self
+                    .handle_normal_key_event(terminal.frame(), event, can_compose, None)
+                    .await
+                {
                     Reaction::Handled
                 } else {
                     Reaction::NotHandled
@@ -207,7 +228,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             Cursor::Msg(id) => {
                 let id = id.clone();
                 if self
-                    .handle_normal_key_event(event, can_compose, Some(id))
+                    .handle_normal_key_event(terminal.frame(), event, can_compose, Some(id))
                     .await
                 {
                     Reaction::Handled
@@ -226,7 +247,10 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                 parent.clone(),
             ),
             Cursor::Pseudo { .. } => {
-                if self.handle_movement_key_event(event).await {
+                if self
+                    .handle_movement_key_event(terminal.frame(), event)
+                    .await
+                {
                     Reaction::Handled
                 } else {
                     Reaction::NotHandled
