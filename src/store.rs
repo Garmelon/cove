@@ -22,28 +22,12 @@ impl<I> Path<I> {
         Self(segments)
     }
 
-    pub fn segments(&self) -> &[I] {
-        &self.0
-    }
-
     pub fn push(&mut self, segment: I) {
         self.0.push(segment)
     }
 
     pub fn first(&self) -> &I {
         self.0.first().expect("path is not empty")
-    }
-
-    pub fn first_mut(&mut self) -> &mut I {
-        self.0.first_mut().expect("path is not empty")
-    }
-
-    pub fn last(&self) -> &I {
-        self.0.last().expect("path is not empty")
-    }
-
-    pub fn last_mut(&mut self) -> &mut I {
-        self.0.last_mut().expect("path is not empty")
     }
 }
 

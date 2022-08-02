@@ -73,19 +73,6 @@ macro_rules! packets {
     };
 }
 
-macro_rules! events {
-    ( $( $name:ident, )* ) => {
-        impl Data {
-            pub fn is_event(&self) -> bool {
-                match self {
-                    $( Self::$name(_) => true, )*
-                    _ => false,
-                }
-            }
-        }
-    };
-}
-
 macro_rules! commands {
     ( $( $cmd:ident => $rpl:ident, )* ) => {
         $(
@@ -127,23 +114,6 @@ packets! {
     SendReply,
     Who,
     WhoReply,
-}
-
-events! {
-    BounceEvent,
-    DisconnectEvent,
-    HelloEvent,
-    JoinEvent,
-    LoginEvent,
-    LogoutEvent,
-    NetworkEvent,
-    NickEvent,
-    EditMessageEvent,
-    PartEvent,
-    PingEvent,
-    PmInitiateEvent,
-    SendEvent,
-    SnapshotEvent,
 }
 
 commands! {

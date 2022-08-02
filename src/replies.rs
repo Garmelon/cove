@@ -62,10 +62,6 @@ impl<I: Eq + Hash, R> Replies<I, R> {
         }
     }
 
-    pub fn cancel(&mut self, id: &I) {
-        self.pending.remove(id);
-    }
-
     pub fn purge(&mut self) {
         self.pending.retain(|_, tx| !tx.is_closed());
     }
