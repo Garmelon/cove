@@ -66,14 +66,14 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         coming_from: Option<M::Id>,
         parent: Option<M::Id>,
     ) -> Reaction<M> {
-        let harmless_char = event.modifiers.difference(KeyModifiers::SHIFT).is_empty();
+        let harmless_char = (event.modifiers - KeyModifiers::SHIFT).is_empty();
 
         match event.code {
             KeyCode::Esc => {
                 self.cursor = coming_from.map(Cursor::Msg).unwrap_or(Cursor::Bottom);
                 Reaction::Handled
             }
-            KeyCode::Enter => {
+            KeyCode::Enter if event.modifiers.is_empty() => {
                 let content = self.editor.text();
                 if content.trim().is_empty() {
                     Reaction::Handled
@@ -84,6 +84,13 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                     };
                     Reaction::Composed { parent, content }
                 }
+            }
+            KeyCode::Enter => {
+                // Enter with *any* modifier pressed - if ctrl and shift don't
+                // work, maybe alt does
+                self.editor.insert_char('\n');
+                self.correction = Some(Correction::MakeCursorVisible);
+                Reaction::Handled
             }
             KeyCode::Backspace => {
                 self.editor.backspace();
