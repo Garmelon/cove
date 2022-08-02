@@ -265,6 +265,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     fn sent(&mut self, id: Option<M::Id>) {
         if let Cursor::Pseudo { coming_from, .. } = &self.cursor {
             if let Some(id) = id {
+                self.last_cursor = Cursor::Msg(id.clone());
                 self.cursor = Cursor::Msg(id);
                 self.editor.clear();
             } else {
