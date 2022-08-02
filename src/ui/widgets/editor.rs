@@ -12,6 +12,16 @@ use crate::ui::util;
 
 use super::Widget;
 
+/// Like [`Frame::wrap`] but includes a final break index if the text ends with
+/// a newline.
+fn wrap(frame: &mut Frame, text: &str, width: usize) -> Vec<usize> {
+    let mut breaks = frame.wrap(text, width);
+    if text.ends_with('\n') {
+        breaks.push(text.len())
+    }
+    breaks
+}
+
 ///////////
 // State //
 ///////////
@@ -288,7 +298,7 @@ impl Editor {
     pub fn cursor_row(&self, frame: &mut Frame) -> usize {
         let width = self.state.lock().last_width;
         let text_width = (width - 1) as usize;
-        let indices = frame.wrap(self.text.text(), text_width);
+        let indices = wrap(frame, self.text.text(), text_width);
         let (row, _) = Self::wrapped_cursor(self.idx, &indices);
         row
     }
@@ -299,7 +309,7 @@ impl Widget for Editor {
     fn size(&self, frame: &mut Frame, max_width: Option<u16>, _max_height: Option<u16>) -> Size {
         let max_width = max_width.map(|w| w as usize).unwrap_or(usize::MAX).max(1);
         let max_text_width = max_width - 1;
-        let indices = frame.wrap(self.text.text(), max_text_width);
+        let indices = wrap(frame, self.text.text(), max_text_width);
         let lines = self.text.clone().split_at_indices(&indices);
 
         let min_width = lines
@@ -315,7 +325,7 @@ impl Widget for Editor {
     async fn render(self: Box<Self>, frame: &mut Frame) {
         let width = frame.size().width.max(1);
         let text_width = (width - 1) as usize;
-        let indices = frame.wrap(self.text.text(), text_width);
+        let indices = wrap(frame, self.text.text(), text_width);
         let lines = self.text.split_at_indices(&indices);
 
         let (cursor_row, cursor_line_idx) = Self::wrapped_cursor(self.idx, &indices);
