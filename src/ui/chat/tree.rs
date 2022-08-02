@@ -122,6 +122,11 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                 self.correction = Some(Correction::MakeCursorVisible);
                 Reaction::Handled
             }
+            KeyCode::Char('l') if event.modifiers == KeyModifiers::CONTROL => {
+                self.editor.clear();
+                self.correction = Some(Correction::MakeCursorVisible);
+                Reaction::Handled
+            }
             _ => Reaction::NotHandled,
         }
     }
