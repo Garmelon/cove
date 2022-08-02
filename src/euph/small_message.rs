@@ -1,4 +1,4 @@
-use crossterm::style::{ContentStyle, Stylize};
+use crossterm::style::{Color, ContentStyle, Stylize};
 use time::OffsetDateTime;
 use toss::styled::Styled;
 
@@ -7,6 +7,77 @@ use crate::ui::ChatMsg;
 
 use super::api::{Snowflake, Time};
 use super::util;
+
+fn nick_char(ch: char) -> bool {
+    !ch.is_ascii_punctuation() && !ch.is_whitespace()
+}
+
+fn nick_char_(ch: Option<&char>) -> bool {
+    ch.filter(|c| nick_char(**c)).is_some()
+}
+
+fn room_char(ch: char) -> bool {
+    ch.is_ascii_alphabetic() || ch == '_'
+}
+
+fn room_char_(ch: Option<&char>) -> bool {
+    ch.filter(|c| room_char(**c)).is_some()
+}
+
+// TODO Allocate less?
+fn highlight_content(content: &str, base_style: ContentStyle) -> Styled {
+    let mut result = Styled::default();
+    let mut current = String::new();
+    let mut chars = content.chars().peekable();
+    let mut possible_room_or_mention = true;
+
+    while let Some(char) = chars.next() {
+        match char {
+            '@' if possible_room_or_mention && nick_char_(chars.peek()) => {
+                result = result.then(&current, base_style);
+                current.clear();
+
+                let mut nick = String::new();
+                while let Some(ch) = chars.peek() {
+                    if nick_char(*ch) {
+                        nick.push(*ch);
+                    } else {
+                        break;
+                    }
+                    chars.next();
+                }
+
+                let (r, g, b) = util::nick_color(&nick);
+                let style = base_style.with(Color::Rgb { r, g, b }).bold();
+                result = result.then("@", style).then(nick, style);
+            }
+            '&' if possible_room_or_mention && room_char_(chars.peek()) => {
+                result = result.then(&current, base_style);
+                current.clear();
+
+                let mut room = "&".to_string();
+                while let Some(ch) = chars.peek() {
+                    if room_char(*ch) {
+                        room.push(*ch);
+                    } else {
+                        break;
+                    }
+                    chars.next();
+                }
+
+                let style = base_style.blue().bold();
+                result = result.then(room, style);
+            }
+            _ => current.push(char),
+        }
+
+        possible_room_or_mention = !char.is_alphanumeric();
+    }
+
+    result = result.then(current, base_style);
+
+    result
+}
 
 #[derive(Debug, Clone)]
 pub struct SmallMessage {
@@ -37,16 +108,16 @@ fn styled_nick_me(nick: &str) -> Styled {
 }
 
 fn styled_content(content: &str) -> Styled {
-    Styled::new_plain(content.trim())
+    highlight_content(content.trim(), ContentStyle::default())
 }
 
 fn styled_content_me(content: &str) -> Styled {
     let style = style_me();
-    Styled::new(content.trim(), style).then("*", style)
+    highlight_content(content.trim(), style).then("*", style)
 }
 
 fn styled_editor_content(content: &str) -> Styled {
-    Styled::new_plain(content)
+    highlight_content(content, ContentStyle::default())
 }
 
 impl Msg for SmallMessage {
