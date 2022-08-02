@@ -155,6 +155,28 @@ impl MsgStore<SmallMessage> for EuphVault {
         rx.await.unwrap()
     }
 
+    async fn first_tree_id(&self) -> Option<Snowflake> {
+        // TODO vault::Error
+        let (tx, rx) = oneshot::channel();
+        let request = EuphRequest::GetFirstTreeId {
+            room: self.room.clone(),
+            result: tx,
+        };
+        let _ = self.vault.tx.send(request.into());
+        rx.await.unwrap()
+    }
+
+    async fn last_tree_id(&self) -> Option<Snowflake> {
+        // TODO vault::Error
+        let (tx, rx) = oneshot::channel();
+        let request = EuphRequest::GetLastTreeId {
+            room: self.room.clone(),
+            result: tx,
+        };
+        let _ = self.vault.tx.send(request.into());
+        rx.await.unwrap()
+    }
+
     async fn prev_tree_id(&self, tree_id: &Snowflake) -> Option<Snowflake> {
         // TODO vault::Error
         let (tx, rx) = oneshot::channel();
@@ -179,10 +201,10 @@ impl MsgStore<SmallMessage> for EuphVault {
         rx.await.unwrap()
     }
 
-    async fn first_tree_id(&self) -> Option<Snowflake> {
+    async fn oldest_msg_id(&self) -> Option<Snowflake> {
         // TODO vault::Error
         let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::GetFirstTreeId {
+        let request = EuphRequest::GetOldestMsgId {
             room: self.room.clone(),
             result: tx,
         };
@@ -190,11 +212,35 @@ impl MsgStore<SmallMessage> for EuphVault {
         rx.await.unwrap()
     }
 
-    async fn last_tree_id(&self) -> Option<Snowflake> {
+    async fn newest_msg_id(&self) -> Option<Snowflake> {
         // TODO vault::Error
         let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::GetLastTreeId {
+        let request = EuphRequest::GetNewestMsgId {
             room: self.room.clone(),
+            result: tx,
+        };
+        let _ = self.vault.tx.send(request.into());
+        rx.await.unwrap()
+    }
+
+    async fn older_msg_id(&self, id: &Snowflake) -> Option<Snowflake> {
+        // TODO vault::Error
+        let (tx, rx) = oneshot::channel();
+        let request = EuphRequest::GetOlderMsgId {
+            room: self.room.clone(),
+            id: *id,
+            result: tx,
+        };
+        let _ = self.vault.tx.send(request.into());
+        rx.await.unwrap()
+    }
+
+    async fn newer_msg_id(&self, id: &Snowflake) -> Option<Snowflake> {
+        // TODO vault::Error
+        let (tx, rx) = oneshot::channel();
+        let request = EuphRequest::GetNewerMsgId {
+            room: self.room.clone(),
+            id: *id,
             result: tx,
         };
         let _ = self.vault.tx.send(request.into());
@@ -254,6 +300,14 @@ pub(super) enum EuphRequest {
         root: Snowflake,
         result: oneshot::Sender<Tree<SmallMessage>>,
     },
+    GetFirstTreeId {
+        room: String,
+        result: oneshot::Sender<Option<Snowflake>>,
+    },
+    GetLastTreeId {
+        room: String,
+        result: oneshot::Sender<Option<Snowflake>>,
+    },
     GetPrevTreeId {
         room: String,
         root: Snowflake,
@@ -264,12 +318,22 @@ pub(super) enum EuphRequest {
         root: Snowflake,
         result: oneshot::Sender<Option<Snowflake>>,
     },
-    GetFirstTreeId {
+    GetOldestMsgId {
         room: String,
         result: oneshot::Sender<Option<Snowflake>>,
     },
-    GetLastTreeId {
+    GetNewestMsgId {
         room: String,
+        result: oneshot::Sender<Option<Snowflake>>,
+    },
+    GetOlderMsgId {
+        room: String,
+        id: Snowflake,
+        result: oneshot::Sender<Option<Snowflake>>,
+    },
+    GetNewerMsgId {
+        room: String,
+        id: Snowflake,
         result: oneshot::Sender<Option<Snowflake>>,
     },
 }
@@ -295,17 +359,29 @@ impl EuphRequest {
             EuphRequest::GetLastSpan { room, result } => Self::get_last_span(conn, room, result),
             EuphRequest::GetPath { room, id, result } => Self::get_path(conn, room, id, result),
             EuphRequest::GetTree { room, root, result } => Self::get_tree(conn, room, root, result),
+            EuphRequest::GetFirstTreeId { room, result } => {
+                Self::get_first_tree_id(conn, room, result)
+            }
+            EuphRequest::GetLastTreeId { room, result } => {
+                Self::get_last_tree_id(conn, room, result)
+            }
             EuphRequest::GetPrevTreeId { room, root, result } => {
                 Self::get_prev_tree_id(conn, room, root, result)
             }
             EuphRequest::GetNextTreeId { room, root, result } => {
                 Self::get_next_tree_id(conn, room, root, result)
             }
-            EuphRequest::GetFirstTreeId { room, result } => {
-                Self::get_first_tree_id(conn, room, result)
+            EuphRequest::GetOldestMsgId { room, result } => {
+                Self::get_oldest_msg_id(conn, room, result)
             }
-            EuphRequest::GetLastTreeId { room, result } => {
-                Self::get_last_tree_id(conn, room, result)
+            EuphRequest::GetNewestMsgId { room, result } => {
+                Self::get_newest_msg_id(conn, room, result)
+            }
+            EuphRequest::GetOlderMsgId { room, id, result } => {
+                Self::get_older_msg_id(conn, room, id, result)
+            }
+            EuphRequest::GetNewerMsgId { room, id, result } => {
+                Self::get_newer_msg_id(conn, room, id, result)
             }
         };
         if let Err(e) = result {
@@ -679,6 +755,48 @@ impl EuphRequest {
         Ok(())
     }
 
+    fn get_first_tree_id(
+        conn: &Connection,
+        room: String,
+        result: oneshot::Sender<Option<Snowflake>>,
+    ) -> rusqlite::Result<()> {
+        let tree = conn
+            .prepare(
+                "
+                SELECT id
+                FROM euph_trees
+                WHERE room = ?
+                ORDER BY id ASC
+                LIMIT 1
+                ",
+            )?
+            .query_row([room], |row| row.get(0))
+            .optional()?;
+        let _ = result.send(tree);
+        Ok(())
+    }
+
+    fn get_last_tree_id(
+        conn: &Connection,
+        room: String,
+        result: oneshot::Sender<Option<Snowflake>>,
+    ) -> rusqlite::Result<()> {
+        let tree = conn
+            .prepare(
+                "
+                SELECT id
+                FROM euph_trees
+                WHERE room = ?
+                ORDER BY id DESC
+                LIMIT 1
+                ",
+            )?
+            .query_row([room], |row| row.get(0))
+            .optional()?;
+        let _ = result.send(tree);
+        Ok(())
+    }
+
     fn get_prev_tree_id(
         conn: &Connection,
         room: String,
@@ -725,7 +843,7 @@ impl EuphRequest {
         Ok(())
     }
 
-    fn get_first_tree_id(
+    fn get_oldest_msg_id(
         conn: &Connection,
         room: String,
         result: oneshot::Sender<Option<Snowflake>>,
@@ -734,7 +852,7 @@ impl EuphRequest {
             .prepare(
                 "
                 SELECT id
-                FROM euph_trees
+                FROM euph_msgs
                 WHERE room = ?
                 ORDER BY id ASC
                 LIMIT 1
@@ -746,7 +864,7 @@ impl EuphRequest {
         Ok(())
     }
 
-    fn get_last_tree_id(
+    fn get_newest_msg_id(
         conn: &Connection,
         room: String,
         result: oneshot::Sender<Option<Snowflake>>,
@@ -755,13 +873,59 @@ impl EuphRequest {
             .prepare(
                 "
                 SELECT id
-                FROM euph_trees
+                FROM euph_msgs
                 WHERE room = ?
                 ORDER BY id DESC
                 LIMIT 1
                 ",
             )?
             .query_row([room], |row| row.get(0))
+            .optional()?;
+        let _ = result.send(tree);
+        Ok(())
+    }
+
+    fn get_older_msg_id(
+        conn: &Connection,
+        room: String,
+        id: Snowflake,
+        result: oneshot::Sender<Option<Snowflake>>,
+    ) -> rusqlite::Result<()> {
+        let tree = conn
+            .prepare(
+                "
+                SELECT id
+                FROM euph_msgs
+                WHERE room = ?
+                AND id < ?
+                ORDER BY id DESC
+                LIMIT 1
+                ",
+            )?
+            .query_row(params![room, id], |row| row.get(0))
+            .optional()?;
+        let _ = result.send(tree);
+        Ok(())
+    }
+
+    fn get_newer_msg_id(
+        conn: &Connection,
+        room: String,
+        id: Snowflake,
+        result: oneshot::Sender<Option<Snowflake>>,
+    ) -> rusqlite::Result<()> {
+        let tree = conn
+            .prepare(
+                "
+                SELECT id
+                FROM euph_msgs
+                WHERE room = ?
+                AND id > ?
+                ORDER BY id ASC
+                LIMIT 1
+                ",
+            )?
+            .query_row(params![room, id], |row| row.get(0))
             .optional()?;
         let _ = result.send(tree);
         Ok(())

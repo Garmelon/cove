@@ -85,6 +85,15 @@ impl MsgStore<LogMsg> for Logger {
         Tree::new(*tree_id, msgs)
     }
 
+    async fn first_tree_id(&self) -> Option<usize> {
+        let empty = self.messages.lock().is_empty();
+        Some(0).filter(|_| !empty)
+    }
+
+    async fn last_tree_id(&self) -> Option<usize> {
+        self.messages.lock().len().checked_sub(1)
+    }
+
     async fn prev_tree_id(&self, tree_id: &usize) -> Option<usize> {
         tree_id.checked_sub(1)
     }
@@ -94,13 +103,20 @@ impl MsgStore<LogMsg> for Logger {
         tree_id.checked_add(1).filter(|t| *t < len)
     }
 
-    async fn first_tree_id(&self) -> Option<usize> {
-        let empty = self.messages.lock().is_empty();
-        Some(0).filter(|_| !empty)
+    async fn oldest_msg_id(&self) -> Option<usize> {
+        self.first_tree_id().await
     }
 
-    async fn last_tree_id(&self) -> Option<usize> {
-        self.messages.lock().len().checked_sub(1)
+    async fn newest_msg_id(&self) -> Option<usize> {
+        self.last_tree_id().await
+    }
+
+    async fn older_msg_id(&self, id: &usize) -> Option<usize> {
+        self.prev_tree_id(id).await
+    }
+
+    async fn newer_msg_id(&self, id: &usize) -> Option<usize> {
+        self.next_tree_id(id).await
     }
 }
 
