@@ -9,7 +9,12 @@ use super::api::{Snowflake, Time};
 use super::util;
 
 fn nick_char(ch: char) -> bool {
-    !ch.is_ascii_punctuation() && !ch.is_whitespace()
+    // Closely following the heim mention regex:
+    // https://github.com/euphoria-io/heim/blob/978c921063e6b06012fc8d16d9fbf1b3a0be1191/client/lib/stores/chat.js#L14-L15
+    match ch {
+        ',' | '.' | '!' | '?' | ';' | '&' | '<' | '\'' | '"' => false,
+        _ => !ch.is_whitespace(),
+    }
 }
 
 fn nick_char_(ch: Option<&char>) -> bool {
@@ -17,7 +22,9 @@ fn nick_char_(ch: Option<&char>) -> bool {
 }
 
 fn room_char(ch: char) -> bool {
-    ch.is_ascii_alphabetic() || ch == '_'
+    // Basically just \w, see also
+    // https://github.com/euphoria-io/heim/blob/978c921063e6b06012fc8d16d9fbf1b3a0be1191/client/lib/ui/MessageText.js#L66
+    ch.is_ascii_alphanumeric() || ch == '_'
 }
 
 fn room_char_(ch: Option<&char>) -> bool {
@@ -71,6 +78,7 @@ fn highlight_content(content: &str, base_style: ContentStyle) -> Styled {
             _ => current.push(char),
         }
 
+        // More permissive than the heim web client
         possible_room_or_mention = !char.is_alphanumeric();
     }
 
