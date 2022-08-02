@@ -99,6 +99,17 @@ impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
             }
         }
     }
+
+    /// A [`Reaction::Composed`] message was sent, either successfully or
+    /// unsuccessfully.
+    ///
+    /// If successful, include the message's id as an argument. If unsuccessful,
+    /// instead pass a `None`.
+    pub async fn sent(&mut self, id: Option<M::Id>) {
+        match self.mode {
+            Mode::Tree => self.tree.sent(id).await,
+        }
+    }
 }
 
 ////////////

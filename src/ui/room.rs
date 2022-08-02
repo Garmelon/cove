@@ -4,11 +4,12 @@ use std::sync::Arc;
 use crossterm::event::{KeyCode, KeyEvent};
 use crossterm::style::{Color, ContentStyle, Stylize};
 use parking_lot::FairMutex;
-use tokio::sync::mpsc;
+use tokio::sync::oneshot::error::TryRecvError;
+use tokio::sync::{mpsc, oneshot};
 use toss::styled::Styled;
 use toss::terminal::Terminal;
 
-use crate::euph::api::{SessionType, SessionView};
+use crate::euph::api::{SessionType, SessionView, Snowflake};
 use crate::euph::{self, Joined, Status};
 use crate::vault::EuphVault;
 
@@ -34,10 +35,13 @@ enum State {
 pub struct EuphRoom {
     ui_event_tx: mpsc::UnboundedSender<UiEvent>,
 
+    room: Option<euph::Room>,
+
     state: State,
 
-    room: Option<euph::Room>,
     chat: ChatState<euph::SmallMessage, EuphVault>,
+    last_msg_sent: Option<oneshot::Receiver<Snowflake>>,
+
     nick_list: ListState<String>,
 }
 
@@ -45,9 +49,10 @@ impl EuphRoom {
     pub fn new(vault: EuphVault, ui_event_tx: mpsc::UnboundedSender<UiEvent>) -> Self {
         Self {
             ui_event_tx,
-            state: State::Normal,
             room: None,
+            state: State::Normal,
             chat: ChatState::new(vault),
+            last_msg_sent: None,
             nick_list: ListState::new(),
         }
     }
@@ -85,7 +90,25 @@ impl EuphRoom {
         }
     }
 
-    pub async fn widget(&self) -> BoxedWidget {
+    async fn stabilize_pseudo_msg(&mut self) {
+        if let Some(id_rx) = &mut self.last_msg_sent {
+            match id_rx.try_recv() {
+                Ok(id) => {
+                    self.chat.sent(Some(id)).await;
+                    self.last_msg_sent = None;
+                }
+                Err(TryRecvError::Empty) => {} // Wait a bit longer
+                Err(TryRecvError::Closed) => {
+                    self.chat.sent(None).await;
+                    self.last_msg_sent = None;
+                }
+            }
+        }
+    }
+
+    pub async fn widget(&mut self) -> BoxedWidget {
+        self.stabilize_pseudo_msg().await;
+
         let status = self.status().await;
         let chat = match &status {
             Some(Some(Status::Joined(joined))) => self.widget_with_nick_list(&status, joined),
@@ -295,7 +318,10 @@ impl EuphRoom {
                             Reaction::NotHandled => {}
                             Reaction::Handled => return true,
                             Reaction::Composed { parent, content } => {
-                                let _ = room.send(parent, content);
+                                match room.send(parent, content) {
+                                    Ok(id_rx) => self.last_msg_sent = Some(id_rx),
+                                    Err(_) => self.chat.sent(None).await,
+                                }
                                 return true;
                             }
                         }

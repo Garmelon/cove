@@ -258,6 +258,20 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             }
         }
     }
+
+    fn sent(&mut self, id: Option<M::Id>) {
+        if let Cursor::Pseudo { coming_from, .. } = &self.cursor {
+            if let Some(id) = id {
+                self.cursor = Cursor::Msg(id);
+                self.editor.clear();
+            } else {
+                self.cursor = match coming_from {
+                    Some(id) => Cursor::Msg(id.clone()),
+                    None => Cursor::Bottom,
+                };
+            };
+        }
+    }
 }
 
 pub struct TreeViewState<M: Msg, S: MsgStore<M>>(Arc<Mutex<InnerTreeViewState<M, S>>>);
@@ -286,6 +300,10 @@ impl<M: Msg, S: MsgStore<M>> TreeViewState<M, S> {
             .await
             .handle_key_event(terminal, crossterm_lock, event, can_compose)
             .await
+    }
+
+    pub async fn sent(&mut self, id: Option<M::Id>) {
+        self.0.lock().await.sent(id)
     }
 }
 

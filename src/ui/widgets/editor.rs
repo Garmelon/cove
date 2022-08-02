@@ -214,6 +214,10 @@ impl EditorState {
         self.0.lock().set_text(text);
     }
 
+    pub fn clear(&self) {
+        self.set_text(String::new());
+    }
+
     pub fn insert_char(&self, ch: char) {
         self.0.lock().insert_char(ch);
     }

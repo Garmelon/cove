@@ -36,7 +36,7 @@ enum Event {
     Status(oneshot::Sender<Option<Status>>),
     RequestLogs,
     Nick(String),
-    Send(Option<Snowflake>, String),
+    Send(Option<Snowflake>, String, oneshot::Sender<Snowflake>),
 }
 
 #[derive(Debug)]
@@ -164,7 +164,7 @@ impl State {
                 Event::Status(reply_tx) => self.on_status(reply_tx).await,
                 Event::RequestLogs => self.on_request_logs(),
                 Event::Nick(name) => self.on_nick(name),
-                Event::Send(parent, content) => self.on_send(parent, content),
+                Event::Send(parent, content, id_tx) => self.on_send(parent, content, id_tx),
             }
         }
         Ok(())
@@ -291,11 +291,18 @@ impl State {
         }
     }
 
-    fn on_send(&self, parent: Option<Snowflake>, content: String) {
+    fn on_send(
+        &self,
+        parent: Option<Snowflake>,
+        content: String,
+        id_tx: oneshot::Sender<Snowflake>,
+    ) {
         if let Some(conn_tx) = &self.conn_tx {
             let conn_tx = conn_tx.clone();
             task::spawn(async move {
-                let _ = conn_tx.send(Send { content, parent }).await;
+                if let Ok(reply) = conn_tx.send(Send { content, parent }).await {
+                    let _ = id_tx.send(reply.0.id);
+                }
             });
         }
     }
@@ -348,9 +355,15 @@ impl Room {
             .map_err(|_| Error::Stopped)
     }
 
-    pub fn send(&self, parent: Option<Snowflake>, content: String) -> Result<(), Error> {
+    pub fn send(
+        &self,
+        parent: Option<Snowflake>,
+        content: String,
+    ) -> Result<oneshot::Receiver<Snowflake>, Error> {
+        let (id_tx, id_rx) = oneshot::channel();
         self.event_tx
-            .send(Event::Send(parent, content))
+            .send(Event::Send(parent, content, id_tx))
+            .map(|_| id_rx)
             .map_err(|_| Error::Stopped)
     }
 }
