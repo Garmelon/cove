@@ -19,7 +19,7 @@ enum Request {
 
 #[derive(Debug, Clone)]
 pub struct Vault {
-    pub(self) tx: mpsc::UnboundedSender<Request>,
+    tx: mpsc::UnboundedSender<Request>,
 }
 
 impl Vault {
