@@ -68,6 +68,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     ) -> Reaction<M> {
         let harmless_char = (event.modifiers - KeyModifiers::SHIFT).is_empty();
 
+        // TODO Tab-completion
         match event.code {
             KeyCode::Esc => {
                 self.cursor = coming_from.map(Cursor::Msg).unwrap_or(Cursor::Bottom);

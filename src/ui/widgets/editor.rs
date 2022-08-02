@@ -199,6 +199,9 @@ impl EditorState {
             guard.set_text(text);
         }
     }
+
+    // TODO Share key binding code
+    // TODO Support more of the emacs-y bindings, see bash as example
 }
 
 ////////////
