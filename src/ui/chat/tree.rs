@@ -139,6 +139,8 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         match event.code {
             KeyCode::Char('k') | KeyCode::Up if shift_only => self.move_cursor_up().await,
             KeyCode::Char('j') | KeyCode::Down if shift_only => self.move_cursor_down().await,
+            KeyCode::Char('h') | KeyCode::Left if shift_only => self.move_cursor_older().await,
+            KeyCode::Char('l') | KeyCode::Right if shift_only => self.move_cursor_newer().await,
             KeyCode::Char('g') | KeyCode::Home if shift_only => self.move_cursor_to_top().await,
             KeyCode::Char('G') | KeyCode::End if shift_only => self.move_cursor_to_bottom().await,
             KeyCode::Char('y') if event.modifiers == KeyModifiers::CONTROL => self.scroll_up(1),
