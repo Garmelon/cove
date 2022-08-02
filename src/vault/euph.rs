@@ -86,7 +86,7 @@ impl EuphVault {
         &self.room
     }
 
-    pub fn join(&self, time: OffsetDateTime) {
+    pub fn join(&self, time: Time) {
         let request = EuphRequest::Join {
             room: self.room.clone(),
             time,
@@ -221,7 +221,7 @@ pub(super) enum EuphRequest {
     },
     Join {
         room: String,
-        time: OffsetDateTime,
+        time: Time,
     },
     Delete {
         room: String,
@@ -382,7 +382,7 @@ impl EuphRequest {
         Ok(())
     }
 
-    fn join(conn: &mut Connection, room: String, time: OffsetDateTime) -> rusqlite::Result<()> {
+    fn join(conn: &mut Connection, room: String, time: Time) -> rusqlite::Result<()> {
         conn.execute(
             "
             INSERT INTO euph_rooms (room, first_joined, last_joined)

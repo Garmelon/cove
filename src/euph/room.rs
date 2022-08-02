@@ -7,7 +7,6 @@ use anyhow::bail;
 use cookie::{Cookie, CookieJar};
 use log::{error, info, warn};
 use parking_lot::Mutex;
-use time::OffsetDateTime;
 use tokio::sync::{mpsc, oneshot};
 use tokio::{select, task};
 use tokio_tungstenite::tungstenite;
@@ -15,6 +14,7 @@ use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::handshake::client::Response;
 use tokio_tungstenite::tungstenite::http::{header, HeaderValue};
 
+use crate::euph::api::Time;
 use crate::macros::ok_or_return;
 use crate::ui::UiEvent;
 use crate::vault::{EuphVault, Vault};
@@ -212,7 +212,7 @@ impl State {
             }
             Data::SnapshotEvent(d) => {
                 info!("e&{}: successfully joined", self.name);
-                self.vault.join(OffsetDateTime::now_utc());
+                self.vault.join(Time::now());
                 self.last_msg_id = Some(d.log.last().map(|m| m.id));
                 self.vault.add_messages(d.log, None);
             }

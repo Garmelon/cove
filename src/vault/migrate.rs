@@ -7,6 +7,7 @@ pub fn migrate(conn: &mut Connection) -> rusqlite::Result<()> {
         tx.query_row("SELECT * FROM pragma_user_version", [], |r| r.get(0))?;
 
     let total = MIGRATIONS.len();
+    assert!(user_version <= total, "malformed database schema");
     for (i, migration) in MIGRATIONS.iter().enumerate().skip(user_version) {
         println!("Migrating vault from {} to {} (out of {})", i, i + 1, total);
         migration(&mut tx)?;
@@ -16,15 +17,15 @@ pub fn migrate(conn: &mut Connection) -> rusqlite::Result<()> {
     tx.commit()
 }
 
-const MIGRATIONS: [fn(&mut Transaction<'_>) -> rusqlite::Result<()>; 2] = [m1, m2];
+const MIGRATIONS: [fn(&mut Transaction<'_>) -> rusqlite::Result<()>; 1] = [m1];
 
 fn m1(tx: &mut Transaction<'_>) -> rusqlite::Result<()> {
     tx.execute_batch(
         "
         CREATE TABLE euph_rooms (
             room         TEXT NOT NULL PRIMARY KEY,
-            first_joined TEXT NOT NULL,
-            last_joined  TEXT NOT NULL
+            first_joined INT  NOT NULL,
+            last_joined  INT  NOT NULL
         ) STRICT;
 
         CREATE TABLE euph_msgs (
@@ -67,21 +68,15 @@ fn m1(tx: &mut Transaction<'_>) -> rusqlite::Result<()> {
             CHECK (start IS NULL OR end IS NOT NULL)
         ) STRICT;
 
+        CREATE TABLE euph_cookies (
+            cookie TEXT NOT NULL
+        ) STRICT;
+
         CREATE INDEX euph_idx_msgs_room_id_parent
         ON euph_msgs (room, id, parent);
 
         CREATE INDEX euph_idx_msgs_room_parent_id
         ON euph_msgs (room, parent, id);
-        ",
-    )
-}
-
-fn m2(tx: &mut Transaction<'_>) -> rusqlite::Result<()> {
-    tx.execute_batch(
-        "
-        CREATE TABLE euph_cookies (
-            cookie TEXT NOT NULL
-        ) STRICT;
         ",
     )
 }
