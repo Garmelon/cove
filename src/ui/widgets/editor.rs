@@ -135,63 +135,6 @@ impl InnerEditorState {
             }
         }
     }
-
-    /*
-    fn wrap(&self, frame: &mut Frame, width: usize) -> Vec<Range<usize>> {
-        let mut rows = vec![];
-        let mut start = 0;
-        let mut col = 0;
-        for (i, g) in self.text.grapheme_indices(true) {
-            let grapheme_width = if g == "\t" {
-                frame.tab_width_at_column(col)
-            } else {
-                frame.grapheme_width(g)
-            } as usize;
-
-            if col + grapheme_width > width {
-                rows.push(start..i);
-                start = i;
-                col = grapheme_width;
-            } else {
-                col += grapheme_width;
-            }
-        }
-        rows.push(start..self.text.len());
-        rows
-    }
-
-    pub fn render_highlighted<F>(&self, frame: &mut Frame, pos: Pos, width: usize, highlight: F)
-    where
-        F: Fn(&str) -> Styled,
-    {
-        let text = highlight(&self.text);
-        let row_ranges = self.wrap(frame, width);
-        let breakpoints = row_ranges
-            .iter()
-            .skip(1)
-            .map(|r| r.start)
-            .collect::<Vec<_>>();
-        let rows = text.split_at_indices(&breakpoints);
-        for (i, row) in rows.into_iter().enumerate() {
-            let pos = pos + Pos::new(0, i as i32);
-            frame.write(pos, row);
-        }
-    }
-
-    pub fn render_with_style(
-        &self,
-        frame: &mut Frame,
-        pos: Pos,
-        width: usize,
-        style: ContentStyle,
-    ) {
-        self.render_highlighted(frame, pos, width, |s| Styled::new((s, style)));
-    }
-
-    pub fn render(&self, frame: &mut Frame, pos: Pos, width: usize) {
-        self.render_highlighted(frame, pos, width, |s| Styled::new(s));
-    }
-    */
 }
 
 pub struct EditorState(Arc<Mutex<InnerEditorState>>);
