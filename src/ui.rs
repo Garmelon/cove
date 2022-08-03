@@ -8,7 +8,6 @@ use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent};
-use log::debug;
 use parking_lot::FairMutex;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -203,7 +202,6 @@ impl Ui {
         }
 
         match event.code {
-            KeyCode::Char('e') => debug!("{:#?}", event),
             KeyCode::F(1) => self.mode = Mode::Main,
             KeyCode::F(2) => self.mode = Mode::Log,
             _ => {}
