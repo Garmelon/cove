@@ -161,7 +161,7 @@ impl EuphRoom {
             ]))
             .expanding(true),
             Segment::new(Border::new(
-                Padding::new(self.nick_list_widget(joined)).horizontal(1),
+                Padding::new(self.nick_list_widget(joined)).right(1),
             )),
         ])
         .into()
@@ -225,7 +225,7 @@ impl EuphRoom {
         let owner = if session.session_id == own_session.session_id {
             ">"
         } else {
-            ""
+            " "
         };
 
         let normal = Styled::new_plain(owner).then(name, style).then_plain(perms);
@@ -255,7 +255,9 @@ impl EuphRoom {
             list.add_unsel(Empty::new());
         }
 
-        let row = Styled::new(name, heading_style).then_plain(format!(" ({})", sessions.len()));
+        let row = Styled::new_plain(" ")
+            .then(name, heading_style)
+            .then_plain(format!(" ({})", sessions.len()));
         list.add_unsel(Text::new(row));
 
         for session in sessions {
