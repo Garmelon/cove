@@ -8,6 +8,14 @@ use crate::ui::ChatMsg;
 use super::tree_blocks::{BlockId, Root, TreeBlocks};
 use super::{widgets, Correction, Cursor, InnerTreeViewState};
 
+const SCROLLOFF: i32 = 2;
+const MIN_CONTENT_HEIGHT: i32 = 10;
+
+fn scrolloff(height: i32) -> i32 {
+    let scrolloff = (height - MIN_CONTENT_HEIGHT).max(0) / 2;
+    scrolloff.min(SCROLLOFF)
+}
+
 impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     async fn cursor_path(&self, cursor: &Cursor<M::Id>) -> Path<M::Id> {
         match cursor {
@@ -341,10 +349,11 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             .find(&BlockId::from_cursor(&self.cursor))
             .expect("no cursor found");
 
-        let size = frame.size();
+        let height = frame.size().height as i32;
+        let scrolloff = scrolloff(height);
 
-        let min_line = -block.focus.start;
-        let max_line = size.height as i32 - block.focus.end;
+        let min_line = -block.focus.start + scrolloff;
+        let max_line = height - block.focus.end - scrolloff;
 
         // If the message is higher than the available space, the top of the
         // message should always be visible. I'm not using top_line.clamp(...)
@@ -364,8 +373,8 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         }
     }
 
-    fn visible(block: &Block<BlockId<M::Id>>, height: i32) -> bool {
-        (1 - block.height..height).contains(&block.top_line)
+    fn visible(block: &Block<BlockId<M::Id>>, first_line: i32, last_line: i32) -> bool {
+        (first_line + 1 - block.height..=last_line).contains(&block.top_line)
     }
 
     fn move_cursor_so_it_is_visible(
@@ -380,13 +389,17 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         }
 
         let height = frame.size().height as i32;
+        let scrolloff = scrolloff(height);
+
+        let first_line = scrolloff;
+        let last_line = height - 1 - scrolloff;
 
         let new_cursor = if matches!(self.cursor, Cursor::Bottom) {
             blocks
                 .blocks()
                 .iter()
                 .rev()
-                .filter(|b| Self::visible(b, height))
+                .filter(|b| Self::visible(b, first_line, last_line))
                 .find_map(Self::msg_id)
         } else {
             let block = blocks
@@ -394,20 +407,20 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                 .find(&BlockId::from_cursor(&self.cursor))
                 .expect("no cursor found");
 
-            if Self::visible(block, height) {
+            if Self::visible(block, first_line, last_line) {
                 return None;
-            } else if block.top_line < 0 {
+            } else if block.top_line < first_line {
                 blocks
                     .blocks()
                     .iter()
-                    .filter(|b| Self::visible(b, height))
+                    .filter(|b| Self::visible(b, first_line, last_line))
                     .find_map(Self::msg_id)
             } else {
                 blocks
                     .blocks()
                     .iter()
                     .rev()
-                    .filter(|b| Self::visible(b, height))
+                    .filter(|b| Self::visible(b, first_line, last_line))
                     .find_map(Self::msg_id)
             }
         };
