@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::iter;
 use std::sync::Arc;
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::KeyCode;
 use crossterm::style::{ContentStyle, Stylize};
 use parking_lot::FairMutex;
 use tokio::sync::mpsc;
@@ -13,6 +13,7 @@ use crate::euph::api::SessionType;
 use crate::euph::{Joined, Status};
 use crate::vault::Vault;
 
+use super::input::{key, KeyEvent};
 use super::room::EuphRoom;
 use super::widgets::background::Background;
 use super::widgets::border::Border;
@@ -205,34 +206,31 @@ impl Rooms {
         event: KeyEvent,
     ) {
         match &self.state {
-            State::ShowList => match event.code {
-                KeyCode::Enter => {
+            State::ShowList => match event {
+                key!(Enter) => {
                     if let Some(name) = self.list.cursor() {
                         self.state = State::ShowRoom(name);
                     }
                 }
-                KeyCode::Char('k') | KeyCode::Up => self.list.move_cursor_up(),
-                KeyCode::Char('j') | KeyCode::Down => self.list.move_cursor_down(),
-                KeyCode::Char('g') | KeyCode::Home => self.list.move_cursor_to_top(),
-                KeyCode::Char('G') | KeyCode::End => self.list.move_cursor_to_bottom(),
-                KeyCode::Char('y') if event.modifiers == KeyModifiers::CONTROL => {
-                    self.list.scroll_up(1)
-                }
-                KeyCode::Char('e') if event.modifiers == KeyModifiers::CONTROL => {
-                    self.list.scroll_down(1)
-                }
-                KeyCode::Char('c') => {
+                key!('k') | key!(Up) => self.list.move_cursor_up(),
+                key!('j') | key!(Down) => self.list.move_cursor_down(),
+                key!('g') | key!(Home) => self.list.move_cursor_to_top(),
+                key!('G') | key!(End) => self.list.move_cursor_to_bottom(),
+                key!(Ctrl + 'y') => self.list.scroll_up(1),
+                key!(Ctrl + 'e') => self.list.scroll_down(1),
+
+                key!('c') => {
                     if let Some(name) = self.list.cursor() {
                         self.get_or_insert_room(name).connect();
                     }
                 }
-                KeyCode::Char('C') => self.state = State::Connect(EditorState::new()),
-                KeyCode::Char('d') => {
+                key!('C') => self.state = State::Connect(EditorState::new()),
+                key!('d') => {
                     if let Some(name) = self.list.cursor() {
                         self.get_or_insert_room(name).disconnect();
                     }
                 }
-                KeyCode::Char('D') => {
+                key!('D') => {
                     // TODO Check whether user wanted this via popup
                     if let Some(name) = self.list.cursor() {
                         self.euph_rooms.remove(&name);
@@ -250,24 +248,24 @@ impl Rooms {
                     return;
                 }
 
-                if event.code == KeyCode::Esc {
+                if let key!(Esc) = event {
                     self.state = State::ShowList;
                 }
             }
-            State::Connect(ed) => match event.code {
-                KeyCode::Esc => self.state = State::ShowList,
-                KeyCode::Enter => {
+            State::Connect(ed) => match event {
+                key!(Esc) => self.state = State::ShowList,
+                key!(Enter) => {
                     let name = ed.text();
                     if !name.is_empty() {
                         self.get_or_insert_room(name.clone()).connect();
                         self.state = State::ShowRoom(name);
                     }
                 }
-                KeyCode::Backspace => ed.backspace(),
-                KeyCode::Left => ed.move_cursor_left(),
-                KeyCode::Right => ed.move_cursor_right(),
-                KeyCode::Delete => ed.delete(),
-                KeyCode::Char(ch) if ch.is_ascii_alphanumeric() || ch == '_' => ed.insert_char(ch),
+                key!(Char ch) if ch.is_ascii_alphanumeric() || ch == '_' => ed.insert_char(ch),
+                key!(Backspace) => ed.backspace(),
+                key!(Left) => ed.move_cursor_left(),
+                key!(Right) => ed.move_cursor_right(),
+                key!(Delete) => ed.delete(),
                 _ => {}
             },
         }

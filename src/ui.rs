@@ -1,4 +1,5 @@
 mod chat;
+mod input;
 mod room;
 mod rooms;
 mod util;
@@ -7,7 +8,7 @@ mod widgets;
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent};
+use crossterm::event::{Event, KeyCode, MouseEvent};
 use parking_lot::FairMutex;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -19,6 +20,7 @@ use crate::vault::Vault;
 
 pub use self::chat::ChatMsg;
 use self::chat::ChatState;
+use self::input::{key, KeyEvent};
 use self::rooms::Rooms;
 use self::widgets::BoxedWidget;
 
@@ -152,7 +154,7 @@ impl Ui {
                 let result = match event {
                     UiEvent::Redraw => EventHandleResult::Continue,
                     UiEvent::Term(Event::Key(event)) => {
-                        self.handle_key_event(event, terminal, &crossterm_lock)
+                        self.handle_key_event(event.into(), terminal, &crossterm_lock)
                             .await
                     }
                     UiEvent::Term(Event::Mouse(event)) => self.handle_mouse_event(event).await?,
@@ -193,17 +195,13 @@ impl Ui {
         terminal: &mut Terminal,
         crossterm_lock: &Arc<FairMutex<()>>,
     ) -> EventHandleResult {
-        // Always exit when ctrl+c is pressed. Previously, shift+q would also
-        // unconditionally quit cove, but that interfered with typing text in
-        // inline editors.
-        let ctrl_c = event.modifiers == KeyModifiers::CONTROL && event.code == KeyCode::Char('c');
-        if ctrl_c {
-            return EventHandleResult::Stop;
-        }
-
-        match event.code {
-            KeyCode::F(1) => self.mode = Mode::Main,
-            KeyCode::F(2) => self.mode = Mode::Log,
+        match event {
+            // Exit unconditionally on ctrl+c. Previously, shift+q would also
+            // unconditionally exit, but that interfered with typing text in
+            // inline editors.
+            key!(Ctrl + 'c') => return EventHandleResult::Stop,
+            key!(F 1) => self.mode = Mode::Main,
+            key!(F 2) => self.mode = Mode::Log,
             _ => {}
         }
 

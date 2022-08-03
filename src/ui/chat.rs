@@ -4,7 +4,6 @@ mod tree;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use crossterm::event::KeyEvent;
 use parking_lot::FairMutex;
 use time::OffsetDateTime;
 use toss::frame::{Frame, Size};
@@ -15,6 +14,7 @@ use crate::store::{Msg, MsgStore};
 
 use self::tree::{TreeView, TreeViewState};
 
+use super::input::KeyEvent;
 use super::widgets::Widget;
 
 ///////////

@@ -18,6 +18,15 @@ pub enum Cursor<I> {
     },
 }
 
+impl<I> Cursor<I> {
+    pub fn editor(coming_from: Option<I>, parent: Option<I>) -> Self {
+        Self::Editor {
+            coming_from,
+            parent,
+        }
+    }
+}
+
 impl<I: Eq> Cursor<I> {
     pub fn refers_to(&self, id: &I) -> bool {
         if let Self::Msg(own_id) = self {

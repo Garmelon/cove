@@ -1,7 +1,7 @@
 use std::iter;
 use std::sync::Arc;
 
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::KeyCode;
 use crossterm::style::{Color, ContentStyle, Stylize};
 use parking_lot::FairMutex;
 use tokio::sync::oneshot::error::TryRecvError;
@@ -14,6 +14,7 @@ use crate::euph::{self, Joined, Status};
 use crate::vault::EuphVault;
 
 use super::chat::{ChatState, Reaction};
+use super::input::{key, KeyEvent};
 use super::widgets::background::Background;
 use super::widgets::border::Border;
 use super::widgets::editor::EditorState;
@@ -328,11 +329,7 @@ impl EuphRoom {
                             }
                         }
 
-                        if !event.modifiers.is_empty() {
-                            return false;
-                        }
-
-                        if let KeyCode::Char('n' | 'N') = event.code {
+                        if let key!('n') | key!('N') = event {
                             self.state = State::ChooseNick(EditorState::with_initial_text(
                                 joined.session.name.clone(),
                             ));
@@ -349,19 +346,19 @@ impl EuphRoom {
                     .handled()
             }
             State::ChooseNick(ed) => {
-                match event.code {
-                    KeyCode::Esc => self.state = State::Normal,
-                    KeyCode::Enter => {
+                match event {
+                    key!(Esc) => self.state = State::Normal,
+                    key!(Enter) => {
                         if let Some(room) = &self.room {
                             let _ = room.nick(ed.text());
                         }
                         self.state = State::Normal;
                     }
-                    KeyCode::Backspace => ed.backspace(),
-                    KeyCode::Left => ed.move_cursor_left(),
-                    KeyCode::Right => ed.move_cursor_right(),
-                    KeyCode::Delete => ed.delete(),
-                    KeyCode::Char(ch) => ed.insert_char(ch),
+                    key!(Char ch) => ed.insert_char(ch),
+                    key!(Backspace) => ed.backspace(),
+                    key!(Left) => ed.move_cursor_left(),
+                    key!(Right) => ed.move_cursor_right(),
+                    key!(Delete) => ed.delete(),
                     _ => return false,
                 }
                 true
