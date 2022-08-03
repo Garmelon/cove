@@ -75,6 +75,9 @@ fn sizes_horiz(
         s.size = segments[s.idx]
             .widget
             .size(frame, available_width, max_height);
+        if let Some(available_width) = available_width {
+            s.size.width = s.size.width.min(available_width);
+        }
         total_width += s.size.width;
     }
 
@@ -102,6 +105,9 @@ fn sizes_vert(
         s.size = segments[s.idx]
             .widget
             .size(frame, max_width, available_height);
+        if let Some(available_height) = available_height {
+            s.size.height = s.size.height.min(available_height);
+        }
         total_height += s.size.height;
     }
 
