@@ -327,21 +327,8 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     }
 
     fn scroll_so_cursor_is_visible(&self, frame: &mut Frame, blocks: &mut TreeBlocks<M::Id>) {
-        if !matches!(
-            self.cursor,
-            Cursor::Msg(_)
-                | Cursor::Editor {
-                    parent: Some(_),
-                    ..
-                }
-                | Cursor::Pseudo {
-                    parent: Some(_),
-                    ..
-                }
-        ) {
-            // In all other cases, there is no need to make the cursor visible
-            // since scrolling behaves differently enough.
-            return;
+        if matches!(self.cursor, Cursor::Bottom) {
+            return; // Cursor is locked to bottom
         }
 
         let block = blocks
