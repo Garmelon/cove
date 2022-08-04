@@ -276,6 +276,7 @@ impl Widget for Editor {
 
         let (cursor_row, cursor_line_idx) = Self::wrapped_cursor(self.idx, &indices);
         let cursor_col = frame.width(lines[cursor_row].text().split_at(cursor_line_idx).0);
+        let cursor_col = cursor_col.min(text_width);
         frame.set_cursor(Some(Pos::new(cursor_col as i32, cursor_row as i32)));
 
         for (i, line) in lines.into_iter().enumerate() {
