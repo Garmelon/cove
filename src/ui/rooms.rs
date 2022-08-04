@@ -13,7 +13,7 @@ use crate::euph::api::SessionType;
 use crate::euph::{Joined, Status};
 use crate::vault::Vault;
 
-use super::input::{key, KeyEvent};
+use super::input::{key, KeyBindingsList, KeyEvent};
 use super::room::EuphRoom;
 use super::widgets::background::Background;
 use super::widgets::border::Border;
@@ -199,19 +199,54 @@ impl Rooms {
         list.into()
     }
 
+    pub async fn list_key_bindings(&self, bindings: &mut KeyBindingsList) {
+        match &self.state {
+            State::ShowList => {
+                bindings.heading("Rooms");
+                bindings.binding("j/k, ↓/↑", "move cursor up/down");
+                bindings.binding("g, home", "move cursor to top");
+                bindings.binding("G, end", "move cursor to bottom");
+                bindings.binding("ctrl+y/e", "scroll up/down");
+                bindings.empty();
+                bindings.binding("enter", "enter selected room");
+                bindings.binding("c", "connect to selected room");
+                bindings.binding("C", "connect to new room");
+                bindings.binding("d", "disconnect from selected room");
+                bindings.binding("D", "delete room");
+            }
+            State::ShowRoom(name) => {
+                // Key bindings for leaving the room are a part of the room's
+                // list_key_bindings function since they may be shadowed by the
+                // nick selector or message editor.
+                if let Some(room) = self.euph_rooms.get(name) {
+                    room.list_key_bindings(bindings).await;
+                } else {
+                    // There should always be a room here already but I don't
+                    // really want to panic in case it is not. If I show a
+                    // message like this, it'll hopefully be reported if
+                    // somebody ever encounters it.
+                    bindings.binding_ctd("oops, this text should never be visible")
+                }
+            }
+            State::Connect(_) => {
+                bindings.heading("Rooms");
+                bindings.binding("esc", "abort");
+                bindings.binding("enter", "connect to room");
+                bindings.binding("←/→", "move cursor left/right");
+                bindings.binding("backspace", "delete before cursor");
+                bindings.binding("delete", "delete after cursor");
+            }
+        }
+    }
+
     pub async fn handle_key_event(
         &mut self,
         terminal: &mut Terminal,
         crossterm_lock: &Arc<FairMutex<()>>,
         event: KeyEvent,
-    ) {
+    ) -> bool {
         match &self.state {
             State::ShowList => match event {
-                key!(Enter) => {
-                    if let Some(name) = self.list.cursor() {
-                        self.state = State::ShowRoom(name);
-                    }
-                }
                 key!('k') | key!(Up) => self.list.move_cursor_up(),
                 key!('j') | key!(Down) => self.list.move_cursor_down(),
                 key!('g') | key!(Home) => self.list.move_cursor_to_top(),
@@ -219,6 +254,11 @@ impl Rooms {
                 key!(Ctrl + 'y') => self.list.scroll_up(1),
                 key!(Ctrl + 'e') => self.list.scroll_down(1),
 
+                key!(Enter) => {
+                    if let Some(name) = self.list.cursor() {
+                        self.state = State::ShowRoom(name);
+                    }
+                }
                 key!('c') => {
                     if let Some(name) = self.list.cursor() {
                         self.get_or_insert_room(name).connect();
@@ -237,7 +277,7 @@ impl Rooms {
                         self.vault.euph(name.clone()).delete();
                     }
                 }
-                _ => {}
+                _ => return false,
             },
             State::ShowRoom(name) => {
                 if self
@@ -245,7 +285,7 @@ impl Rooms {
                     .handle_key_event(terminal, crossterm_lock, event)
                     .await
                 {
-                    return;
+                    return true;
                 }
 
                 if let key!(Esc) = event {
@@ -262,12 +302,14 @@ impl Rooms {
                     }
                 }
                 key!(Char ch) if ch.is_ascii_alphanumeric() || ch == '_' => ed.insert_char(ch),
-                key!(Backspace) => ed.backspace(),
                 key!(Left) => ed.move_cursor_left(),
                 key!(Right) => ed.move_cursor_right(),
+                key!(Backspace) => ed.backspace(),
                 key!(Delete) => ed.delete(),
-                _ => {}
+                _ => return false,
             },
         }
+
+        true
     }
 }

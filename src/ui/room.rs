@@ -14,7 +14,7 @@ use crate::euph::{self, Joined, Status};
 use crate::vault::EuphVault;
 
 use super::chat::{ChatState, Reaction};
-use super::input::{key, KeyEvent};
+use super::input::{key, KeyBindingsList, KeyEvent};
 use super::widgets::background::Background;
 use super::widgets::border::Border;
 use super::widgets::editor::EditorState;
@@ -300,6 +300,37 @@ impl EuphRoom {
         let mut list = self.nick_list.widget();
         Self::render_nick_list_rows(&mut list, joined);
         list.into()
+    }
+
+    pub async fn list_key_bindings(&self, bindings: &mut KeyBindingsList) {
+        bindings.heading("Room");
+
+        match &self.state {
+            State::Normal => {
+                // TODO Use if-let chain
+                bindings.binding("esc", "leave room");
+                let can_compose = if let Some(room) = &self.room {
+                    if let Ok(Some(Status::Joined(_))) = room.status().await {
+                        bindings.binding("n", "change nick");
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+
+                bindings.empty();
+                self.chat.list_key_bindings(bindings, can_compose).await;
+            }
+            State::ChooseNick(_) => {
+                bindings.binding("esc", "abort");
+                bindings.binding("enter", "set nick");
+                bindings.binding("←/→", "move cursor left/right");
+                bindings.binding("backspace", "delete before cursor");
+                bindings.binding("delete", "delete after cursor");
+            }
+        }
     }
 
     pub async fn handle_key_event(

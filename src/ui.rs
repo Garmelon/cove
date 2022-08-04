@@ -5,6 +5,7 @@ mod rooms;
 mod util;
 mod widgets;
 
+use std::convert::Infallible;
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 
@@ -20,8 +21,10 @@ use crate::vault::Vault;
 
 pub use self::chat::ChatMsg;
 use self::chat::ChatState;
-use self::input::{key, KeyEvent};
+use self::input::{key, KeyBindingsList, KeyEvent};
 use self::rooms::Rooms;
+use self::widgets::layer::Layer;
+use self::widgets::list::ListState;
 use self::widgets::BoxedWidget;
 
 /// Time to spend batch processing events before redrawing the screen.
@@ -50,6 +53,7 @@ pub struct Ui {
 
     rooms: Rooms,
     log_chat: ChatState<LogMsg, Logger>,
+    key_bindings_list: Option<ListState<Infallible>>,
 }
 
 impl Ui {
@@ -85,6 +89,7 @@ impl Ui {
             mode: Mode::Main,
             rooms: Rooms::new(vault, event_tx.clone()),
             log_chat: ChatState::new(logger),
+            key_bindings_list: None,
         };
         tokio::select! {
             e = ui.run_main(terminal, event_rx, crossterm_lock) => Ok(e),
@@ -183,9 +188,34 @@ impl Ui {
     }
 
     async fn widget(&mut self) -> BoxedWidget {
-        match self.mode {
+        let widget = match self.mode {
             Mode::Main => self.rooms.widget().await,
             Mode::Log => self.log_chat.widget(String::new()).into(),
+        };
+
+        if let Some(key_bindings_list) = &self.key_bindings_list {
+            let mut bindings = KeyBindingsList::new(key_bindings_list);
+            self.list_key_bindings(&mut bindings).await;
+            Layer::new(vec![widget, bindings.widget()]).into()
+        } else {
+            widget
+        }
+    }
+
+    fn show_key_bindings(&mut self) {
+        if self.key_bindings_list.is_none() {
+            self.key_bindings_list = Some(ListState::new())
+        }
+    }
+
+    async fn list_key_bindings(&self, bindings: &mut KeyBindingsList) {
+        bindings.binding("ctrl+c", "quit cove");
+        bindings.binding("F1, ?", "show this menu");
+        bindings.binding("F12", "toggle log");
+        bindings.empty();
+        match self.mode {
+            Mode::Main => self.rooms.list_key_bindings(bindings).await,
+            Mode::Log => self.log_chat.list_key_bindings(bindings, false).await,
         }
     }
 
@@ -195,26 +225,58 @@ impl Ui {
         terminal: &mut Terminal,
         crossterm_lock: &Arc<FairMutex<()>>,
     ) -> EventHandleResult {
-        match event {
+        if let key!(Ctrl + 'c') = event {
             // Exit unconditionally on ctrl+c. Previously, shift+q would also
             // unconditionally exit, but that interfered with typing text in
             // inline editors.
-            key!(Ctrl + 'c') => return EventHandleResult::Stop,
-            key!(F 1) => self.mode = Mode::Main,
-            key!(F 2) => self.mode = Mode::Log,
+            return EventHandleResult::Stop;
+        }
+
+        // Key bindings list overrides any other bindings if visible
+        if let Some(key_bindings_list) = &mut self.key_bindings_list {
+            match event {
+                key!(Esc) | key!(F 1) | key!('?') => self.key_bindings_list = None,
+                key!('k') | key!(Up) => key_bindings_list.scroll_up(1),
+                key!('j') | key!(Down) => key_bindings_list.scroll_down(1),
+                _ => {}
+            }
+            return EventHandleResult::Continue;
+        }
+
+        match event {
+            key!(F 1) => {
+                self.key_bindings_list = Some(ListState::new());
+                return EventHandleResult::Continue;
+            }
+            key!(F 12) => {
+                self.mode = match self.mode {
+                    Mode::Main => Mode::Log,
+                    Mode::Log => Mode::Main,
+                };
+                return EventHandleResult::Continue;
+            }
             _ => {}
         }
 
-        match self.mode {
+        let handled = match self.mode {
             Mode::Main => {
                 self.rooms
                     .handle_key_event(terminal, crossterm_lock, event)
                     .await
             }
-            Mode::Log => {
-                self.log_chat
-                    .handle_key_event(terminal, crossterm_lock, event, false)
-                    .await;
+            Mode::Log => self
+                .log_chat
+                .handle_key_event(terminal, crossterm_lock, event, false)
+                .await
+                .handled(),
+        };
+
+        // Pressing '?' should only open the key bindings list if it doesn't
+        // interfere with any part of the main UI, such as entering text in a
+        // text editor.
+        if !handled {
+            if let key!('?') = event {
+                self.show_key_bindings();
             }
         }
 

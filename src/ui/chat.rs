@@ -14,7 +14,7 @@ use crate::store::{Msg, MsgStore};
 
 use self::tree::{TreeView, TreeViewState};
 
-use super::input::KeyEvent;
+use super::input::{KeyBindingsList, KeyEvent};
 use super::widgets::Widget;
 
 ///////////
@@ -84,6 +84,12 @@ impl<M: Msg> Reaction<M> {
 }
 
 impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
+    pub async fn list_key_bindings(&self, bindings: &mut KeyBindingsList, can_compose: bool) {
+        match self.mode {
+            Mode::Tree => self.tree.list_key_bindings(bindings, can_compose).await,
+        }
+    }
+
     pub async fn handle_key_event(
         &mut self,
         terminal: &mut Terminal,
