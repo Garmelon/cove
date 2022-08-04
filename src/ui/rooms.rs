@@ -290,7 +290,10 @@ impl Rooms {
 
                 if let key!(Esc) = event {
                     self.state = State::ShowList;
+                    return true;
                 }
+
+                return false;
             }
             State::Connect(ed) => match event {
                 key!(Esc) => self.state = State::ShowList,
