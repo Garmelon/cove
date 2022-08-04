@@ -168,6 +168,13 @@ impl Rooms {
         let heading = Styled::new("Rooms", heading_style).then_plain(format!(" ({})", rooms.len()));
         list.add_unsel(Text::new(heading));
 
+        if rooms.is_empty() {
+            list.add_unsel(Text::new((
+                "Press F1 for key bindings",
+                ContentStyle::default().grey().italic(),
+            )))
+        }
+
         for room in rooms {
             let bg_style = ContentStyle::default();
             let bg_sel_style = ContentStyle::default().black().on_white();
