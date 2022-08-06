@@ -46,7 +46,7 @@ pub fn list_editor_key_bindings(
     bindings.binding("ctrl+d, delete", "delete after cursor");
     bindings.binding("ctrl+l", "clear editor contents");
     if can_edit_externally {
-        bindings.binding("ctrl+e", "edit in $EDITOR");
+        bindings.binding("ctrl+x", "edit in external editor");
     }
 
     bindings.empty();
@@ -83,7 +83,7 @@ pub fn handle_editor_key_event(
         key!(Ctrl + 'h') | key!(Backspace) => editor.backspace(terminal.frame()),
         key!(Ctrl + 'd') | key!(Delete) => editor.delete(),
         key!(Ctrl + 'l') => editor.clear(),
-        key!(Ctrl + 'e') if can_edit_externally => editor.edit_externally(terminal, crossterm_lock), // TODO Change to some other binding
+        key!(Ctrl + 'x') if can_edit_externally => editor.edit_externally(terminal, crossterm_lock),
 
         // Cursor movement
         key!(Ctrl + 'b') | key!(Left) => editor.move_cursor_left(terminal.frame()),
