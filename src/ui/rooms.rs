@@ -311,10 +311,12 @@ impl Rooms {
                         self.state = State::ShowRoom(name);
                     }
                 }
-                key!(Char ch) if ch.is_ascii_alphanumeric() || ch == '_' => ed.insert_char(ch),
-                key!(Left) => ed.move_cursor_left(),
-                key!(Right) => ed.move_cursor_right(),
-                key!(Backspace) => ed.backspace(),
+                key!(Char ch) if ch.is_ascii_alphanumeric() || ch == '_' => {
+                    ed.insert_char(terminal.frame(), ch)
+                }
+                key!(Left) => ed.move_cursor_left(terminal.frame()),
+                key!(Right) => ed.move_cursor_right(terminal.frame()),
+                key!(Backspace) => ed.backspace(terminal.frame()),
                 key!(Delete) => ed.delete(),
                 _ => return false,
             },

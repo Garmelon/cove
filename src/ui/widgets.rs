@@ -1,5 +1,6 @@
 // Since the widget module is effectively a library and will probably be moved
 // to toss later, warnings about unused functions are mostly inaccurate.
+// TODO Restrict this a bit more?
 #![allow(dead_code)]
 
 pub mod background;

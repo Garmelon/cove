@@ -34,6 +34,10 @@ struct InnerEditorState {
     /// Must point to a valid grapheme boundary.
     idx: usize,
 
+    /// Column of the cursor on the screen just after it was last moved
+    /// horizontally.
+    col: usize,
+
     /// Width of the text when the editor was last rendered.
     ///
     /// Does not include additional column for cursor.
@@ -44,10 +48,15 @@ impl InnerEditorState {
     fn new(text: String) -> Self {
         Self {
             idx: text.len(),
+            col: 0,
             last_width: 0,
             text,
         }
     }
+
+    ///////////////////////////////
+    // Grapheme helper functions //
+    ///////////////////////////////
 
     fn grapheme_boundaries(&self) -> Vec<usize> {
         self.text
@@ -57,9 +66,10 @@ impl InnerEditorState {
             .collect()
     }
 
-    /// Ensure the cursor index lies on a grapheme boundary.
+    /// Ensure the cursor index lies on a grapheme boundary. If it doesn't, it
+    /// is moved to the next grapheme boundary.
     ///
-    /// If it doesn't, it is moved to the next grapheme boundary.
+    /// Can handle arbitrary cursor index.
     fn move_cursor_to_grapheme_boundary(&mut self) {
         for i in self.grapheme_boundaries() {
             #[allow(clippy::comparison_chain)]
@@ -74,32 +84,114 @@ impl InnerEditorState {
             }
         }
 
-        // This loop should always return since the index behind the last
-        // grapheme is included in the grapheme boundary iterator.
-        panic!("cursor index out of bounds");
+        // The cursor was out of bounds, so move it to the last valid index.
+        self.idx = self.text.len();
     }
 
-    fn set_text(&mut self, text: String) {
+    ///////////////////////////////
+    // Line/col helper functions //
+    ///////////////////////////////
+
+    /// Like [`Self::grapheme_boundaries`] but for lines.
+    ///
+    /// Note that the last line can have a length of 0 if the text ends with a
+    /// newline.
+    fn line_boundaries(&self) -> Vec<usize> {
+        let newlines = self
+            .text
+            .char_indices()
+            .filter(|(_, c)| *c == '\n')
+            .map(|(i, _)| i + 1); // utf-8 encodes '\n' as a single byte
+        iter::once(0)
+            .chain(newlines)
+            .chain(iter::once(self.text.len()))
+            .collect()
+    }
+
+    /// Find the cursor's current line.
+    ///
+    /// Returns `(line_nr, start_idx, end_idx)`.
+    fn cursor_line(&self, boundaries: &[usize]) -> (usize, usize, usize) {
+        let mut result = (0, 0, 0);
+        for (i, (start, end)) in boundaries.iter().zip(boundaries.iter().skip(1)).enumerate() {
+            if self.idx >= *start {
+                result = (i, *start, *end);
+            } else {
+                break;
+            }
+        }
+        result
+    }
+
+    fn cursor_col(&self, frame: &mut Frame, line_start: usize) -> usize {
+        frame.width(&self.text[line_start..self.idx])
+    }
+
+    fn line(&self, line: usize) -> (usize, usize) {
+        let boundaries = self.line_boundaries();
+        boundaries
+            .iter()
+            .copied()
+            .zip(boundaries.iter().copied().skip(1))
+            .nth(line)
+            .expect("line exists")
+    }
+
+    fn move_cursor_to_line_col(&mut self, frame: &mut Frame, line: usize, col: usize) {
+        let (start, end) = self.line(line);
+        let line = &self.text[start..end];
+
+        self.idx = start;
+        let mut width = 0;
+        for (gi, g) in line.grapheme_indices(true) {
+            self.idx = start + gi;
+            if col > width {
+                width += frame.grapheme_width(g, width) as usize;
+            } else {
+                break;
+            }
+        }
+    }
+
+    fn record_cursor_col(&mut self, frame: &mut Frame) {
+        let boundaries = self.line_boundaries();
+        let (_, start, _) = self.cursor_line(&boundaries);
+        self.col = self.cursor_col(frame, start);
+    }
+
+    /////////////
+    // Editing //
+    /////////////
+
+    fn clear(&mut self) {
+        self.text = String::new();
+        self.idx = 0;
+        self.col = 0;
+    }
+
+    fn set_text(&mut self, frame: &mut Frame, text: String) {
         self.text = text;
-        self.idx = self.idx.min(self.text.len());
         self.move_cursor_to_grapheme_boundary();
+        self.record_cursor_col(frame);
     }
 
     /// Insert a character at the current cursor position and move the cursor
     /// accordingly.
-    fn insert_char(&mut self, ch: char) {
+    fn insert_char(&mut self, frame: &mut Frame, ch: char) {
         self.text.insert(self.idx, ch);
         self.idx += 1;
         self.move_cursor_to_grapheme_boundary();
+        self.record_cursor_col(frame);
     }
 
     /// Delete the grapheme before the cursor position.
-    fn backspace(&mut self) {
+    fn backspace(&mut self, frame: &mut Frame) {
         let boundaries = self.grapheme_boundaries();
         for (start, end) in boundaries.iter().zip(boundaries.iter().skip(1)) {
             if *end == self.idx {
                 self.text.replace_range(start..end, "");
                 self.idx = *start;
+                self.record_cursor_col(frame);
                 break;
             }
         }
@@ -116,23 +208,50 @@ impl InnerEditorState {
         }
     }
 
-    fn move_cursor_left(&mut self) {
+    /////////////////////
+    // Cursor movement //
+    /////////////////////
+
+    fn move_cursor_left(&mut self, frame: &mut Frame) {
         let boundaries = self.grapheme_boundaries();
         for (start, end) in boundaries.iter().zip(boundaries.iter().skip(1)) {
             if *end == self.idx {
                 self.idx = *start;
+                self.record_cursor_col(frame);
                 break;
             }
         }
     }
 
-    fn move_cursor_right(&mut self) {
+    fn move_cursor_right(&mut self, frame: &mut Frame) {
         let boundaries = self.grapheme_boundaries();
         for (start, end) in boundaries.iter().zip(boundaries.iter().skip(1)) {
             if *start == self.idx {
                 self.idx = *end;
+                self.record_cursor_col(frame);
                 break;
             }
+        }
+    }
+
+    fn move_cursor_up(&mut self, frame: &mut Frame) {
+        let boundaries = self.line_boundaries();
+        let (line, _, _) = self.cursor_line(&boundaries);
+        if line > 0 {
+            self.move_cursor_to_line_col(frame, line - 1, self.col);
+        }
+    }
+
+    fn move_cursor_down(&mut self, frame: &mut Frame) {
+        let boundaries = self.line_boundaries();
+
+        // There's always at least one line, and always at least two line
+        // boundaries at 0 and self.text.len().
+        let amount_of_lines = boundaries.len() - 1;
+
+        let (line, _, _) = self.cursor_line(&boundaries);
+        if line + 1 < amount_of_lines {
+            self.move_cursor_to_line_col(frame, line + 1, self.col);
         }
     }
 }
@@ -163,21 +282,21 @@ impl EditorState {
         self.0.lock().text.clone()
     }
 
-    pub fn set_text(&self, text: String) {
-        self.0.lock().set_text(text);
-    }
-
     pub fn clear(&self) {
-        self.set_text(String::new());
+        self.0.lock().clear();
     }
 
-    pub fn insert_char(&self, ch: char) {
-        self.0.lock().insert_char(ch);
+    pub fn set_text(&self, frame: &mut Frame, text: String) {
+        self.0.lock().set_text(frame, text);
+    }
+
+    pub fn insert_char(&self, frame: &mut Frame, ch: char) {
+        self.0.lock().insert_char(frame, ch);
     }
 
     /// Delete the grapheme before the cursor position.
-    pub fn backspace(&self) {
-        self.0.lock().backspace();
+    pub fn backspace(&self, frame: &mut Frame) {
+        self.0.lock().backspace(frame);
     }
 
     /// Delete the grapheme after the cursor position.
@@ -185,18 +304,26 @@ impl EditorState {
         self.0.lock().delete();
     }
 
-    pub fn move_cursor_left(&self) {
-        self.0.lock().move_cursor_left();
+    pub fn move_cursor_left(&self, frame: &mut Frame) {
+        self.0.lock().move_cursor_left(frame);
     }
 
-    pub fn move_cursor_right(&self) {
-        self.0.lock().move_cursor_right();
+    pub fn move_cursor_right(&self, frame: &mut Frame) {
+        self.0.lock().move_cursor_right(frame);
+    }
+
+    pub fn move_cursor_up(&self, frame: &mut Frame) {
+        self.0.lock().move_cursor_up(frame);
+    }
+
+    pub fn move_cursor_down(&self, frame: &mut Frame) {
+        self.0.lock().move_cursor_down(frame);
     }
 
     pub fn edit_externally(&self, terminal: &mut Terminal, crossterm_lock: &Arc<FairMutex<()>>) {
         let mut guard = self.0.lock();
         if let Some(text) = util::prompt(terminal, crossterm_lock, &guard.text) {
-            guard.set_text(text);
+            guard.set_text(terminal.frame(), text);
         }
     }
 

@@ -191,12 +191,14 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             KeyEvent {
                 code: KeyCode::Enter,
                 ..
-            } => self.editor.insert_char('\n'),
+            } => self.editor.insert_char(terminal.frame(), '\n'),
 
-            key!(Char ch) => self.editor.insert_char(ch),
-            key!(Left) => self.editor.move_cursor_left(),
-            key!(Right) => self.editor.move_cursor_right(),
-            key!(Backspace) => self.editor.backspace(),
+            key!(Char ch) => self.editor.insert_char(terminal.frame(), ch),
+            key!(Left) => self.editor.move_cursor_left(terminal.frame()),
+            key!(Right) => self.editor.move_cursor_right(terminal.frame()),
+            key!(Up) => self.editor.move_cursor_up(terminal.frame()),
+            key!(Down) => self.editor.move_cursor_down(terminal.frame()),
+            key!(Backspace) => self.editor.backspace(terminal.frame()),
             key!(Delete) => self.editor.delete(),
             key!(Ctrl + 'e') => self.editor.edit_externally(terminal, crossterm_lock),
             key!(Ctrl + 'l') => self.editor.clear(),

@@ -385,10 +385,10 @@ impl EuphRoom {
                         }
                         self.state = State::Normal;
                     }
-                    key!(Char ch) => ed.insert_char(ch),
-                    key!(Backspace) => ed.backspace(),
-                    key!(Left) => ed.move_cursor_left(),
-                    key!(Right) => ed.move_cursor_right(),
+                    key!(Char ch) => ed.insert_char(terminal.frame(), ch),
+                    key!(Backspace) => ed.backspace(terminal.frame()),
+                    key!(Left) => ed.move_cursor_left(terminal.frame()),
+                    key!(Right) => ed.move_cursor_right(terminal.frame()),
                     key!(Delete) => ed.delete(),
                     _ => return false,
                 }
