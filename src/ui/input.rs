@@ -67,6 +67,9 @@ pub(crate) use key;
 pub struct KeyBindingsList(List<Infallible>);
 
 impl KeyBindingsList {
+    /// Width of the left column of key bindings.
+    const BINDING_WIDTH: u16 = 20;
+
     pub fn new(state: &ListState<Infallible>) -> Self {
         Self(state.widget())
     }
@@ -109,7 +112,7 @@ impl KeyBindingsList {
         let widget = HJoin::new(vec![
             Segment::new(
                 Resize::new(Padding::new(Text::new((binding, Self::binding_style()))).right(1))
-                    .min_width(16),
+                    .min_width(Self::BINDING_WIDTH),
             ),
             Segment::new(Text::new(description)),
         ]);
@@ -118,7 +121,7 @@ impl KeyBindingsList {
 
     pub fn binding_ctd(&mut self, description: &str) {
         let widget = HJoin::new(vec![
-            Segment::new(Resize::new(Empty::new()).min_width(16)),
+            Segment::new(Resize::new(Empty::new()).min_width(Self::BINDING_WIDTH)),
             Segment::new(Text::new(description)),
         ]);
         self.0.add_unsel(widget);
