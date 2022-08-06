@@ -103,16 +103,16 @@ impl Rooms {
                 let room_style = ContentStyle::default().bold().blue();
                 Layer::new(vec![
                     self.rooms_widget().await,
-                    Float::new(Border::new(Background::new(
-                        Padding::new(VJoin::new(vec![
-                            Segment::new(Text::new("Connect to ")),
-                            Segment::new(HJoin::new(vec![
+                    Float::new(Border::new(Background::new(VJoin::new(vec![
+                        Segment::new(Padding::new(Text::new("Connect to")).horizontal(1)),
+                        Segment::new(
+                            Padding::new(HJoin::new(vec![
                                 Segment::new(Text::new(("&", room_style))),
                                 Segment::new(ed.widget().highlight(|s| Styled::new(s, room_style))),
-                            ])),
-                        ]))
-                        .left(1),
-                    )))
+                            ]))
+                            .left(1),
+                        ),
+                    ]))))
                     .horizontal(0.5)
                     .vertical(0.5)
                     .into(),

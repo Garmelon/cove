@@ -119,16 +119,16 @@ impl EuphRoom {
             State::Normal => chat,
             State::ChooseNick(ed) => Layer::new(vec![
                 chat,
-                Float::new(Border::new(Background::new(
-                    Padding::new(VJoin::new(vec![
-                        Segment::new(Text::new("Choose nick ")),
-                        Segment::new(
+                Float::new(Border::new(Background::new(VJoin::new(vec![
+                    Segment::new(Padding::new(Text::new("Choose nick")).horizontal(1)),
+                    Segment::new(
+                        Padding::new(
                             ed.widget()
                                 .highlight(|s| Styled::new(s, euph::nick_style(s))),
-                        ),
-                    ]))
-                    .left(1),
-                )))
+                        )
+                        .left(1),
+                    ),
+                ]))))
                 .horizontal(0.5)
                 .vertical(0.5)
                 .into(),
