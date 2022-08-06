@@ -4,7 +4,6 @@ pub fn prepare(conn: &mut Connection) -> rusqlite::Result<()> {
     println!("Opening vault");
     // This temporary table has no foreign key constraint on euph_rooms since
     // cross-schema constraints like that are not supported by SQLite.
-    // TODO Remove entries from this table whenever a room is deleted
     conn.execute_batch(
         "
         CREATE TEMPORARY TABLE euph_trees (

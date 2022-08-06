@@ -472,13 +472,25 @@ impl EuphRequest {
     }
 
     fn delete(conn: &mut Connection, room: String) -> rusqlite::Result<()> {
-        conn.execute(
+        let tx = conn.transaction()?;
+
+        tx.execute(
             "
             DELETE FROM euph_rooms
             WHERE room = ?
             ",
-            [room],
+            [&room],
         )?;
+
+        tx.execute(
+            "
+            DELETE FROM euph_trees
+            WHERE room = ?
+            ",
+            [&room],
+        )?;
+
+        tx.commit()?;
         Ok(())
     }
 
