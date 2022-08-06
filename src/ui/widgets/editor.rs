@@ -141,15 +141,18 @@ impl InnerEditorState {
         let (start, end) = self.line(line);
         let line = &self.text[start..end];
 
-        self.idx = start;
         let mut width = 0;
         for (gi, g) in line.grapheme_indices(true) {
             self.idx = start + gi;
             if col > width {
                 width += frame.grapheme_width(g, width) as usize;
             } else {
-                break;
+                return;
             }
+        }
+
+        if !line.ends_with('\n') {
+            self.idx = end;
         }
     }
 
