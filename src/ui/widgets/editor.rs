@@ -234,6 +234,20 @@ impl InnerEditorState {
         }
     }
 
+    fn move_cursor_to_start_of_line(&mut self, frame: &mut Frame) {
+        let boundaries = self.line_boundaries();
+        let (line, _, _) = self.cursor_line(&boundaries);
+        self.move_cursor_to_line_col(frame, line, 0);
+        self.record_cursor_col(frame);
+    }
+
+    fn move_cursor_to_end_of_line(&mut self, frame: &mut Frame) {
+        let boundaries = self.line_boundaries();
+        let (line, _, _) = self.cursor_line(&boundaries);
+        self.move_cursor_to_line_col(frame, line, usize::MAX);
+        self.record_cursor_col(frame);
+    }
+
     fn move_cursor_up(&mut self, frame: &mut Frame) {
         let boundaries = self.line_boundaries();
         let (line, _, _) = self.cursor_line(&boundaries);
@@ -310,6 +324,14 @@ impl EditorState {
 
     pub fn move_cursor_right(&self, frame: &mut Frame) {
         self.0.lock().move_cursor_right(frame);
+    }
+
+    pub fn move_cursor_to_start_of_line(&self, frame: &mut Frame) {
+        self.0.lock().move_cursor_to_start_of_line(frame);
+    }
+
+    pub fn move_cursor_to_end_of_line(&self, frame: &mut Frame) {
+        self.0.lock().move_cursor_to_end_of_line(frame);
     }
 
     pub fn move_cursor_up(&self, frame: &mut Frame) {

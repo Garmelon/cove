@@ -54,6 +54,8 @@ pub fn list_editor_key_bindings(
     // Cursor movement
     bindings.binding("ctrl+b, ←", "move cursor left");
     bindings.binding("ctrl+f, →", "move cursor right");
+    bindings.binding("ctrl+a, home", "move cursor to start of line");
+    bindings.binding("ctrl+e, end", "move cursor to end of line");
     bindings.binding("↑/↓", "move cursor up/down");
 }
 
@@ -84,6 +86,8 @@ pub fn handle_editor_key_event(
         // Cursor movement
         key!(Ctrl + 'b') | key!(Left) => editor.move_cursor_left(terminal.frame()),
         key!(Ctrl + 'f') | key!(Right) => editor.move_cursor_right(terminal.frame()),
+        key!(Ctrl + 'a') | key!(Home) => editor.move_cursor_to_start_of_line(terminal.frame()),
+        key!(Ctrl + 'e') | key!(End) => editor.move_cursor_to_end_of_line(terminal.frame()),
         key!(Up) => editor.move_cursor_up(terminal.frame()),
         key!(Down) => editor.move_cursor_down(terminal.frame()),
 
