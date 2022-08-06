@@ -40,13 +40,21 @@ pub fn list_editor_key_bindings(
     if char_filter('\n') {
         bindings.binding("enter+<any modifier>", "insert newline");
     }
-    bindings.binding("backspace", "delete before cursor");
-    bindings.binding("delete", "delete after cursor");
+
+    // Editing
+    bindings.binding("ctrl+h, backspace", "delete before cursor");
+    bindings.binding("ctrl+d, delete", "delete after cursor");
     bindings.binding("ctrl+l", "clear editor contents");
     if can_edit_externally {
         bindings.binding("ctrl+e", "edit in $EDITOR");
     }
-    bindings.binding("arrow keys", "move cursor");
+
+    bindings.empty();
+
+    // Cursor movement
+    bindings.binding("ctrl+b, ←", "move cursor left");
+    bindings.binding("ctrl+f, →", "move cursor right");
+    bindings.binding("↑/↓", "move cursor up/down");
 }
 
 pub fn handle_editor_key_event(
@@ -68,14 +76,14 @@ pub fn handle_editor_key_event(
 
         // Editing
         key!(Char ch) if char_filter(ch) => editor.insert_char(terminal.frame(), ch),
-        key!(Backspace) => editor.backspace(terminal.frame()),
-        key!(Delete) => editor.delete(),
+        key!(Ctrl + 'h') | key!(Backspace) => editor.backspace(terminal.frame()),
+        key!(Ctrl + 'd') | key!(Delete) => editor.delete(),
         key!(Ctrl + 'l') => editor.clear(),
-        key!(Ctrl + 'e') if can_edit_externally => editor.edit_externally(terminal, crossterm_lock),
+        key!(Ctrl + 'e') if can_edit_externally => editor.edit_externally(terminal, crossterm_lock), // TODO Change to some other binding
 
         // Cursor movement
-        key!(Left) => editor.move_cursor_left(terminal.frame()),
-        key!(Right) => editor.move_cursor_right(terminal.frame()),
+        key!(Ctrl + 'b') | key!(Left) => editor.move_cursor_left(terminal.frame()),
+        key!(Ctrl + 'f') | key!(Right) => editor.move_cursor_right(terminal.frame()),
         key!(Up) => editor.move_cursor_up(terminal.frame()),
         key!(Down) => editor.move_cursor_down(terminal.frame()),
 
