@@ -237,6 +237,42 @@ impl InnerEditorState {
         }
     }
 
+    fn move_cursor_left_a_word(&mut self, frame: &mut Frame) {
+        let boundaries = self.grapheme_boundaries();
+        let mut encountered_word = false;
+        for (start, end) in boundaries.iter().zip(boundaries.iter().skip(1)).rev() {
+            if *end == self.idx {
+                let g = &self.text[*start..*end];
+                let whitespace = g.chars().all(|c| c.is_whitespace());
+                if encountered_word && whitespace {
+                    break;
+                } else if !whitespace {
+                    encountered_word = true;
+                }
+                self.idx = *start;
+            }
+        }
+        self.record_cursor_col(frame);
+    }
+
+    fn move_cursor_right_a_word(&mut self, frame: &mut Frame) {
+        let boundaries = self.grapheme_boundaries();
+        let mut encountered_word = false;
+        for (start, end) in boundaries.iter().zip(boundaries.iter().skip(1)) {
+            if *start == self.idx {
+                let g = &self.text[*start..*end];
+                let whitespace = g.chars().all(|c| c.is_whitespace());
+                if encountered_word && whitespace {
+                    break;
+                } else if !whitespace {
+                    encountered_word = true;
+                }
+                self.idx = *end;
+            }
+        }
+        self.record_cursor_col(frame);
+    }
+
     fn move_cursor_to_start_of_line(&mut self, frame: &mut Frame) {
         let boundaries = self.line_boundaries();
         let (line, _, _) = self.cursor_line(&boundaries);
@@ -327,6 +363,14 @@ impl EditorState {
 
     pub fn move_cursor_right(&self, frame: &mut Frame) {
         self.0.lock().move_cursor_right(frame);
+    }
+
+    pub fn move_cursor_left_a_word(&self, frame: &mut Frame) {
+        self.0.lock().move_cursor_left_a_word(frame);
+    }
+
+    pub fn move_cursor_right_a_word(&self, frame: &mut Frame) {
+        self.0.lock().move_cursor_right_a_word(frame);
     }
 
     pub fn move_cursor_to_start_of_line(&self, frame: &mut Frame) {
