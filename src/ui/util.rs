@@ -30,8 +30,6 @@ pub fn prompt(
     }
 }
 
-// TODO Support more of the emacs-y bindings, see bash as example
-
 pub fn list_editor_key_bindings(
     bindings: &mut KeyBindingsList,
     char_filter: impl Fn(char) -> bool,
