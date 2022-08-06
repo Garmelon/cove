@@ -323,7 +323,11 @@ impl EditorState {
     pub fn edit_externally(&self, terminal: &mut Terminal, crossterm_lock: &Arc<FairMutex<()>>) {
         let mut guard = self.0.lock();
         if let Some(text) = util::prompt(terminal, crossterm_lock, &guard.text) {
-            guard.set_text(terminal.frame(), text);
+            if let Some(text) = text.strip_suffix('\n') {
+                guard.set_text(terminal.frame(), text.to_string());
+            } else {
+                guard.set_text(terminal.frame(), text);
+            }
         }
     }
 
