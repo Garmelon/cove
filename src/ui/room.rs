@@ -26,7 +26,7 @@ use super::widgets::list::{List, ListState};
 use super::widgets::padding::Padding;
 use super::widgets::text::Text;
 use super::widgets::BoxedWidget;
-use super::UiEvent;
+use super::{util, UiEvent};
 
 enum State {
     Normal,
@@ -302,6 +302,10 @@ impl EuphRoom {
         list.into()
     }
 
+    fn nick_char(c: char) -> bool {
+        c != '\n'
+    }
+
     pub async fn list_key_bindings(&self, bindings: &mut KeyBindingsList) {
         bindings.heading("Room");
 
@@ -326,9 +330,7 @@ impl EuphRoom {
             State::ChooseNick(_) => {
                 bindings.binding("esc", "abort");
                 bindings.binding("enter", "set nick");
-                bindings.binding("←/→", "move cursor left/right");
-                bindings.binding("backspace", "delete before cursor");
-                bindings.binding("delete", "delete after cursor");
+                util::list_editor_key_bindings(bindings, Self::nick_char, false);
             }
         }
     }
@@ -376,24 +378,27 @@ impl EuphRoom {
                     .await
                     .handled()
             }
-            State::ChooseNick(ed) => {
-                match event {
-                    key!(Esc) => self.state = State::Normal,
-                    key!(Enter) => {
-                        if let Some(room) = &self.room {
-                            let _ = room.nick(ed.text());
-                        }
-                        self.state = State::Normal;
-                    }
-                    key!(Char ch) => ed.insert_char(terminal.frame(), ch),
-                    key!(Backspace) => ed.backspace(terminal.frame()),
-                    key!(Left) => ed.move_cursor_left(terminal.frame()),
-                    key!(Right) => ed.move_cursor_right(terminal.frame()),
-                    key!(Delete) => ed.delete(),
-                    _ => return false,
+            State::ChooseNick(ed) => match event {
+                key!(Esc) => {
+                    self.state = State::Normal;
+                    true
                 }
-                true
-            }
+                key!(Enter) => {
+                    if let Some(room) = &self.room {
+                        let _ = room.nick(ed.text());
+                    }
+                    self.state = State::Normal;
+                    true
+                }
+                _ => util::handle_editor_key_event(
+                    ed,
+                    terminal,
+                    crossterm_lock,
+                    event,
+                    Self::nick_char,
+                    false,
+                ),
+            },
         }
     }
 }

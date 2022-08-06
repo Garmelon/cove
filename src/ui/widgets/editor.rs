@@ -330,9 +330,6 @@ impl EditorState {
             }
         }
     }
-
-    // TODO Share key binding code
-    // TODO Support more of the emacs-y bindings, see bash as example
 }
 
 ////////////

@@ -107,7 +107,10 @@ impl KeyBindingsList {
 
     pub fn binding(&mut self, binding: &str, description: &str) {
         let widget = HJoin::new(vec![
-            Segment::new(Resize::new(Text::new((binding, Self::binding_style()))).min_width(16)),
+            Segment::new(
+                Resize::new(Padding::new(Text::new((binding, Self::binding_style()))).right(1))
+                    .min_width(16),
+            ),
             Segment::new(Text::new(description)),
         ]);
         self.0.add_unsel(widget);

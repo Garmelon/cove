@@ -14,6 +14,7 @@ use toss::terminal::Terminal;
 
 use crate::store::{Msg, MsgStore};
 use crate::ui::input::{key, KeyBindingsList, KeyEvent};
+use crate::ui::util;
 use crate::ui::widgets::editor::EditorState;
 use crate::ui::widgets::Widget;
 
@@ -150,14 +151,10 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         }
     }
 
-    pub fn list_editor_key_bindings(&self, bindings: &mut KeyBindingsList) {
+    fn list_editor_key_bindings(&self, bindings: &mut KeyBindingsList) {
         bindings.binding("esc", "close editor");
         bindings.binding("enter", "send message");
-        bindings.binding("←/→", "move cursor left/right");
-        bindings.binding("backspace", "delete before cursor");
-        bindings.binding("delete", "delete after cursor");
-        bindings.binding("ctrl+e", "edit in $EDITOR");
-        bindings.binding("ctrl+l", "clear editor contents");
+        util::list_editor_key_bindings(bindings, |_| true, true);
     }
 
     fn handle_editor_key_event(
@@ -186,23 +183,19 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                 }
             }
 
-            // Enter with *any* modifier pressed - if ctrl and shift don't
-            // work, maybe alt does
-            KeyEvent {
-                code: KeyCode::Enter,
-                ..
-            } => self.editor.insert_char(terminal.frame(), '\n'),
-
-            key!(Char ch) => self.editor.insert_char(terminal.frame(), ch),
-            key!(Left) => self.editor.move_cursor_left(terminal.frame()),
-            key!(Right) => self.editor.move_cursor_right(terminal.frame()),
-            key!(Up) => self.editor.move_cursor_up(terminal.frame()),
-            key!(Down) => self.editor.move_cursor_down(terminal.frame()),
-            key!(Backspace) => self.editor.backspace(terminal.frame()),
-            key!(Delete) => self.editor.delete(),
-            key!(Ctrl + 'e') => self.editor.edit_externally(terminal, crossterm_lock),
-            key!(Ctrl + 'l') => self.editor.clear(),
-            _ => return Reaction::NotHandled,
+            _ => {
+                let handled = util::handle_editor_key_event(
+                    &self.editor,
+                    terminal,
+                    crossterm_lock,
+                    event,
+                    |_| true,
+                    true,
+                );
+                if !handled {
+                    return Reaction::NotHandled;
+                }
+            }
         }
 
         self.correction = Some(Correction::MakeCursorVisible);

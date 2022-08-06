@@ -25,7 +25,7 @@ use super::widgets::list::{List, ListState};
 use super::widgets::padding::Padding;
 use super::widgets::text::Text;
 use super::widgets::BoxedWidget;
-use super::UiEvent;
+use super::{util, UiEvent};
 
 enum State {
     ShowList,
@@ -206,6 +206,10 @@ impl Rooms {
         list.into()
     }
 
+    fn room_char(c: char) -> bool {
+        c.is_ascii_alphanumeric() || c == '_'
+    }
+
     pub async fn list_key_bindings(&self, bindings: &mut KeyBindingsList) {
         match &self.state {
             State::ShowList => {
@@ -239,9 +243,7 @@ impl Rooms {
                 bindings.heading("Rooms");
                 bindings.binding("esc", "abort");
                 bindings.binding("enter", "connect to room");
-                bindings.binding("←/→", "move cursor left/right");
-                bindings.binding("backspace", "delete before cursor");
-                bindings.binding("delete", "delete after cursor");
+                util::list_editor_key_bindings(bindings, Self::room_char, false);
             }
         }
     }
@@ -311,14 +313,16 @@ impl Rooms {
                         self.state = State::ShowRoom(name);
                     }
                 }
-                key!(Char ch) if ch.is_ascii_alphanumeric() || ch == '_' => {
-                    ed.insert_char(terminal.frame(), ch)
+                _ => {
+                    return util::handle_editor_key_event(
+                        ed,
+                        terminal,
+                        crossterm_lock,
+                        event,
+                        Self::room_char,
+                        false,
+                    )
                 }
-                key!(Left) => ed.move_cursor_left(terminal.frame()),
-                key!(Right) => ed.move_cursor_right(terminal.frame()),
-                key!(Backspace) => ed.backspace(terminal.frame()),
-                key!(Delete) => ed.delete(),
-                _ => return false,
             },
         }
 
