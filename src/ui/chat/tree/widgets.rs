@@ -1,6 +1,7 @@
 // TODO Remove mut in &mut Frame wherever applicable in this entire module
 
 mod indent;
+mod seen;
 mod time;
 
 use crossterm::style::{ContentStyle, Stylize};
@@ -50,6 +51,7 @@ fn style_pseudo_highlight() -> ContentStyle {
 pub fn msg<M: Msg + ChatMsg>(highlighted: bool, indent: usize, msg: &M) -> BoxedWidget {
     let (nick, content) = msg.styled();
     HJoin::new(vec![
+        Segment::new(seen::widget(msg.seen())),
         Segment::new(
             Padding::new(time::widget(Some(msg.time()), style_time(highlighted)))
                 .stretch(true)
@@ -69,6 +71,7 @@ pub fn msg<M: Msg + ChatMsg>(highlighted: bool, indent: usize, msg: &M) -> Boxed
 
 pub fn msg_placeholder(highlighted: bool, indent: usize) -> BoxedWidget {
     HJoin::new(vec![
+        Segment::new(seen::widget(true)),
         Segment::new(
             Padding::new(time::widget(None, style_time(highlighted)))
                 .stretch(true)
@@ -91,6 +94,7 @@ pub fn editor<M: ChatMsg>(
     let cursor_row = editor.cursor_row(frame);
 
     let widget = HJoin::new(vec![
+        Segment::new(seen::widget(true)),
         Segment::new(
             Padding::new(time::widget(None, style_editor_highlight()))
                 .stretch(true)
@@ -112,6 +116,7 @@ pub fn pseudo<M: ChatMsg>(indent: usize, nick: &str, editor: &EditorState) -> Bo
     let (nick, content) = M::edit(nick, &editor.text());
 
     HJoin::new(vec![
+        Segment::new(seen::widget(true)),
         Segment::new(
             Padding::new(time::widget(None, style_pseudo_highlight()))
                 .stretch(true)
