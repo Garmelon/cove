@@ -65,9 +65,7 @@ pub fn prepare(conn: &mut Connection) -> rusqlite::Result<()> {
         ",
     )?;
 
-    // Cache amount of unseen messages per room because counting them takes far
-    // too long. Uses triggers to move as much of the updating logic as possible
-    // into SQLite.
+    // Cache amount of unseen messages per room.
     conn.execute_batch(
         "
         CREATE TEMPORARY TABLE euph_unseen_counts (
@@ -118,15 +116,6 @@ pub fn prepare(conn: &mut Connection) -> rusqlite::Result<()> {
             UPDATE euph_unseen_counts
             SET amount = CASE WHEN new.seen THEN amount - 1 ELSE amount + 1 END
             WHERE room = new.room;
-        END;
-
-        CREATE TEMPORARY TRIGGER euc_delete_msg
-        AFTER DELETE ON main.euph_msgs
-        WHEN NOT old.seen
-        BEGIN
-            UPDATE euph_unseen_counts
-            SET amount = amount - 1
-            WHERE room = old.room;
         END;
         ",
     )?;
