@@ -139,6 +139,10 @@ impl MsgStore<LogMsg> for Logger {
         None
     }
 
+    async fn unseen_msgs_count(&self) -> usize {
+        0
+    }
+
     async fn set_seen(&self, _id: &usize, _seen: bool) {}
 
     async fn set_older_seen(&self, _id: &usize, _seen: bool) {}

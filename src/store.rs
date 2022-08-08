@@ -133,6 +133,7 @@ pub trait MsgStore<M: Msg> {
     async fn newest_unseen_msg_id(&self) -> Option<M::Id>;
     async fn older_unseen_msg_id(&self, id: &M::Id) -> Option<M::Id>;
     async fn newer_unseen_msg_id(&self, id: &M::Id) -> Option<M::Id>;
+    async fn unseen_msgs_count(&self) -> usize;
     async fn set_seen(&self, id: &M::Id, seen: bool);
     async fn set_older_seen(&self, id: &M::Id, seen: bool);
 }

@@ -305,6 +305,17 @@ impl MsgStore<SmallMessage> for EuphVault {
         rx.await.unwrap()
     }
 
+    async fn unseen_msgs_count(&self) -> usize {
+        // TODO vault::Error
+        let (tx, rx) = oneshot::channel();
+        let request = EuphRequest::GetUnseenMsgsCount {
+            room: self.room.clone(),
+            result: tx,
+        };
+        let _ = self.vault.tx.send(request.into());
+        rx.await.unwrap()
+    }
+
     async fn set_seen(&self, id: &Snowflake, seen: bool) {
         let request = EuphRequest::SetSeen {
             room: self.room.clone(),
@@ -432,6 +443,10 @@ pub(super) enum EuphRequest {
         id: Snowflake,
         result: oneshot::Sender<Option<Snowflake>>,
     },
+    GetUnseenMsgsCount {
+        room: String,
+        result: oneshot::Sender<usize>,
+    },
     SetSeen {
         room: String,
         id: Snowflake,
@@ -502,6 +517,9 @@ impl EuphRequest {
             }
             EuphRequest::GetNewerUnseenMsgId { room, id, result } => {
                 Self::get_newer_unseen_msg_id(conn, room, id, result)
+            }
+            EuphRequest::GetUnseenMsgsCount { room, result } => {
+                Self::get_unseen_msgs_count(conn, room, result)
             }
             EuphRequest::SetSeen { room, id, seen } => Self::set_seen(conn, room, id, seen),
             EuphRequest::SetOlderSeen { room, id, seen } => {
@@ -1195,6 +1213,25 @@ impl EuphRequest {
             .query_row(params![room, id], |row| row.get(0))
             .optional()?;
         let _ = result.send(tree);
+        Ok(())
+    }
+
+    fn get_unseen_msgs_count(
+        conn: &Connection,
+        room: String,
+        result: oneshot::Sender<usize>,
+    ) -> rusqlite::Result<()> {
+        let amount = conn
+            .prepare(
+                "
+                SELECT COUNT(*)
+                FROM euph_msgs
+                WHERE room = ?
+                AND NOT seen
+                ",
+            )?
+            .query_row(params![room], |row| row.get(0))?;
+        let _ = result.send(amount);
         Ok(())
     }
 

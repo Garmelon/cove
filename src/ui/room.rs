@@ -11,6 +11,7 @@ use toss::terminal::Terminal;
 
 use crate::euph::api::{SessionType, SessionView, Snowflake};
 use crate::euph::{self, Joined, Status};
+use crate::store::MsgStore;
 use crate::vault::EuphVault;
 
 use super::chat::{ChatState, Reaction};
@@ -36,6 +37,7 @@ enum State {
 pub struct EuphRoom {
     ui_event_tx: mpsc::UnboundedSender<UiEvent>,
 
+    vault: EuphVault,
     room: Option<euph::Room>,
 
     state: State,
@@ -50,6 +52,7 @@ impl EuphRoom {
     pub fn new(vault: EuphVault, ui_event_tx: mpsc::UnboundedSender<UiEvent>) -> Self {
         Self {
             ui_event_tx,
+            vault: vault.clone(),
             room: None,
             state: State::Normal,
             chat: ChatState::new(vault),
@@ -89,6 +92,10 @@ impl EuphRoom {
                 self.room = None;
             }
         }
+    }
+
+    pub async fn unseen_msgs_count(&self) -> usize {
+        self.vault.unseen_msgs_count().await
     }
 
     async fn stabilize_pseudo_msg(&mut self) {
@@ -169,6 +176,7 @@ impl EuphRoom {
     }
 
     fn status_widget(&self, status: &Option<Option<Status>>) -> BoxedWidget {
+        // TODO Include unread message count
         let room = self.chat.store().room();
         let room_style = ContentStyle::default().bold().blue();
         let mut info = Styled::new(format!("&{room}"), room_style);

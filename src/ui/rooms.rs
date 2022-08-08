@@ -154,12 +154,44 @@ impl Rooms {
         result.join(" ")
     }
 
-    fn format_status(status: &Option<Status>) -> String {
-        match status {
-            None => " (connecting)".to_string(),
-            Some(Status::Joining(j)) if j.bounce.is_some() => " (auth required)".to_string(),
-            Some(Status::Joining(_)) => " (joining)".to_string(),
-            Some(Status::Joined(j)) => format!(" ({})", Self::format_pbln(j)),
+    async fn format_status(room: &EuphRoom) -> Option<String> {
+        match room.status().await {
+            None => None,
+            Some(None) => Some("connecting".to_string()),
+            Some(Some(Status::Joining(j))) if j.bounce.is_some() => {
+                Some("auth required".to_string())
+            }
+            Some(Some(Status::Joining(_))) => Some("joining".to_string()),
+            Some(Some(Status::Joined(joined))) => Some(Self::format_pbln(&joined)),
+        }
+    }
+
+    async fn format_unseen_msgs(room: &EuphRoom) -> Option<String> {
+        let unseen = room.unseen_msgs_count().await;
+        if unseen == 0 {
+            None
+        } else {
+            Some(format!("{unseen}"))
+        }
+    }
+
+    async fn format_room_info(room: &EuphRoom) -> Styled {
+        let unseen_style = ContentStyle::default().bold().green();
+
+        let status = Self::format_status(room).await;
+        let unseen = Self::format_unseen_msgs(room).await;
+
+        match (status, unseen) {
+            (None, None) => Styled::default(),
+            (None, Some(u)) => Styled::new_plain(" (")
+                .then(&u, unseen_style)
+                .then_plain(")"),
+            (Some(s), None) => Styled::new_plain(" (").then_plain(&s).then_plain(")"),
+            (Some(s), Some(u)) => Styled::new_plain(" (")
+                .then_plain(&s)
+                .then_plain(", ")
+                .then(&u, unseen_style)
+                .then_plain(")"),
         }
     }
 
@@ -176,26 +208,18 @@ impl Rooms {
         }
 
         for room in rooms {
-            let bg_style = ContentStyle::default();
-            let bg_sel_style = ContentStyle::default().black().on_white();
             let room_style = ContentStyle::default().bold().blue();
             let room_sel_style = ContentStyle::default().bold().black().on_white();
 
             let mut normal = Styled::new(format!("&{room}"), room_style);
             let mut selected = Styled::new(format!("&{room}"), room_sel_style);
             if let Some(room) = self.euph_rooms.get(&room) {
-                if let Some(status) = room.status().await {
-                    let status = Self::format_status(&status);
-                    normal = normal.then(status.clone(), bg_style);
-                    selected = selected.then(status, bg_sel_style);
-                }
+                let info = Self::format_room_info(room).await;
+                normal = normal.and_then(info.clone());
+                selected = selected.and_then(info);
             };
 
-            list.add_sel(
-                room,
-                Text::new(normal),
-                Background::new(Text::new(selected)).style(bg_sel_style),
-            );
+            list.add_sel(room, Text::new(normal), Text::new(selected));
         }
     }
 
