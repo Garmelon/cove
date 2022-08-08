@@ -731,9 +731,9 @@ impl EuphRequest {
 
             if let Some(parent) = msg.parent {
                 delete_trees.execute(params![room, msg.id])?;
-                insert_trees.execute(named_params! {":room": room,":id": parent})?;
+                insert_trees.execute(named_params! {":room": room, ":id": parent})?;
             } else {
-                insert_trees.execute(named_params! {":room": room,":id": msg.id})?;
+                insert_trees.execute(named_params! {":room": room, ":id": msg.id})?;
             }
         }
 
