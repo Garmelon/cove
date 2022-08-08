@@ -36,6 +36,7 @@ struct InnerTreeViewState<M: Msg, S: MsgStore<M>> {
 
     last_cursor: Cursor<M::Id>,
     last_cursor_line: i32,
+    last_visible_msgs: Vec<M::Id>,
 
     cursor: Cursor<M::Id>,
 
@@ -53,6 +54,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             store,
             last_cursor: Cursor::Bottom,
             last_cursor_line: 0,
+            last_visible_msgs: vec![],
             cursor: Cursor::Bottom,
             scroll: 0,
             correction: None,
@@ -94,24 +96,29 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
 
     pub fn list_action_key_bindings(&self, bindings: &mut KeyBindingsList) {
         bindings.binding("s", "toggle current message's seen status");
-        // bindings.binding("S", "mark all visible messages as seen");
+        bindings.binding("S", "mark all visible messages as seen");
         // bindings.binding("ctrl+S", "mark all messages as seen");
     }
 
     async fn handle_action_key_event(&mut self, event: KeyEvent, id: Option<&M::Id>) -> bool {
-        if let Some(id) = id {
-            match event {
-                key!('s') => {
+        match event {
+            key!('s') => {
+                if let Some(id) = id {
                     if let Some(msg) = self.store.tree(id).await.msg(id) {
                         self.store.set_seen(id, !msg.seen()).await;
                     }
-                    true
+                    return true;
                 }
-                _ => false,
             }
-        } else {
-            false
+            key!('S') => {
+                for id in &self.last_visible_msgs {
+                    self.store.set_seen(id, true).await;
+                }
+                return true;
+            }
+            _ => {}
         }
+        false
     }
 
     pub fn list_edit_initiating_key_bindings(&self, bindings: &mut KeyBindingsList) {

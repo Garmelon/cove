@@ -420,6 +420,23 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         }
     }
 
+    fn visible_msgs(frame: &Frame, blocks: &TreeBlocks<M::Id>) -> Vec<M::Id> {
+        let height: i32 = frame.size().height.into();
+        let first_line = 0;
+        let last_line = first_line + height - 1;
+
+        let mut result = vec![];
+        for block in blocks.blocks().iter() {
+            if Self::visible(block, first_line, last_line) {
+                if let BlockId::Msg(id) = &block.id {
+                    result.push(id.clone());
+                }
+            }
+        }
+
+        result
+    }
+
     pub async fn relayout(&mut self, nick: &str, frame: &mut Frame) -> TreeBlocks<M::Id> {
         // The basic idea is this:
         //
@@ -472,6 +489,7 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
 
                     self.last_cursor = self.cursor.clone();
                     self.last_cursor_line = self.cursor_line(&blocks);
+                    self.last_visible_msgs = Self::visible_msgs(frame, &blocks);
                     self.scroll = 0;
                     self.correction = None;
 
@@ -488,6 +506,7 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
 
         self.last_cursor = self.cursor.clone();
         self.last_cursor_line = self.cursor_line(&blocks);
+        self.last_visible_msgs = Self::visible_msgs(frame, &blocks);
         self.scroll = 0;
         self.correction = None;
 
