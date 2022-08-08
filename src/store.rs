@@ -9,6 +9,7 @@ pub trait Msg {
     type Id: Clone + Debug + Hash + Eq + Ord;
     fn id(&self) -> Self::Id;
     fn parent(&self) -> Option<Self::Id>;
+    fn seen(&self) -> bool;
 
     fn last_possible_id() -> Self::Id;
 }
@@ -128,4 +129,5 @@ pub trait MsgStore<M: Msg> {
     async fn newest_msg_id(&self) -> Option<M::Id>;
     async fn older_msg_id(&self, id: &M::Id) -> Option<M::Id>;
     async fn newer_msg_id(&self, id: &M::Id) -> Option<M::Id>;
+    async fn set_seen(&self, id: &M::Id, seen: bool);
 }

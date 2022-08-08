@@ -258,6 +258,15 @@ impl MsgStore<SmallMessage> for EuphVault {
         let _ = self.vault.tx.send(request.into());
         rx.await.unwrap()
     }
+
+    async fn set_seen(&self, id: &Snowflake, seen: bool) {
+        let request = EuphRequest::SetSeen {
+            room: self.room.clone(),
+            id: *id,
+            seen,
+        };
+        let _ = self.vault.tx.send(request.into());
+    }
 }
 
 pub(super) enum EuphRequest {
@@ -350,6 +359,11 @@ pub(super) enum EuphRequest {
         id: Snowflake,
         result: oneshot::Sender<Option<Snowflake>>,
     },
+    SetSeen {
+        room: String,
+        id: Snowflake,
+        seen: bool,
+    },
 }
 
 impl EuphRequest {
@@ -399,6 +413,7 @@ impl EuphRequest {
             EuphRequest::GetNewerMsgId { room, id, result } => {
                 Self::get_newer_msg_id(conn, room, id, result)
             }
+            EuphRequest::SetSeen { room, id, seen } => Self::set_seen(conn, room, id, seen),
         };
         if let Err(e) = result {
             // If an error occurs here, the rest of the UI will likely panic and
@@ -778,7 +793,7 @@ impl EuphRequest {
                         ON tree.room = euph_msgs.room
                         AND tree.id = euph_msgs.parent
                 )
-                SELECT id, parent, time, name, content
+                SELECT id, parent, time, name, content, seen
                 FROM euph_msgs
                 JOIN tree USING (room, id)
                 ORDER BY id ASC
@@ -791,6 +806,7 @@ impl EuphRequest {
                     time: row.get(2)?,
                     nick: row.get(3)?,
                     content: row.get(4)?,
+                    seen: row.get(5)?,
                 })
             })?
             .collect::<rusqlite::Result<_>>()?;
@@ -972,6 +988,24 @@ impl EuphRequest {
             .query_row(params![room, id], |row| row.get(0))
             .optional()?;
         let _ = result.send(tree);
+        Ok(())
+    }
+
+    fn set_seen(
+        conn: &Connection,
+        room: String,
+        id: Snowflake,
+        seen: bool,
+    ) -> rusqlite::Result<()> {
+        conn.execute(
+            "
+            UPDATE euph_msgs
+            SET seen = :seen
+            WHERE room = :room
+            AND id = :id
+            ",
+            named_params! {":room": room, ":id": id, ":seen": seen},
+        )?;
         Ok(())
     }
 }

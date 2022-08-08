@@ -31,6 +31,10 @@ impl Msg for LogMsg {
         None
     }
 
+    fn seen(&self) -> bool {
+        true
+    }
+
     fn last_possible_id() -> Self::Id {
         Self::Id::MAX
     }
@@ -118,6 +122,8 @@ impl MsgStore<LogMsg> for Logger {
     async fn newer_msg_id(&self, id: &usize) -> Option<usize> {
         self.next_tree_id(id).await
     }
+
+    async fn set_seen(&self, _id: &usize, _seen: bool) {}
 }
 
 impl Log for Logger {

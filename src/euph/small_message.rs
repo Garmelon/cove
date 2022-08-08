@@ -94,6 +94,7 @@ pub struct SmallMessage {
     pub time: Time,
     pub nick: String,
     pub content: String,
+    pub seen: bool,
 }
 
 fn as_me(content: &str) -> Option<&str> {
@@ -142,6 +143,10 @@ impl Msg for SmallMessage {
 
     fn parent(&self) -> Option<Self::Id> {
         self.parent
+    }
+
+    fn seen(&self) -> bool {
+        self.seen
     }
 
     fn last_possible_id() -> Self::Id {
