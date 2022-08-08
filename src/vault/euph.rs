@@ -259,6 +259,52 @@ impl MsgStore<SmallMessage> for EuphVault {
         rx.await.unwrap()
     }
 
+    async fn oldest_unseen_msg_id(&self) -> Option<Snowflake> {
+        // TODO vault::Error
+        let (tx, rx) = oneshot::channel();
+        let request = EuphRequest::GetOldestUnseenMsgId {
+            room: self.room.clone(),
+            result: tx,
+        };
+        let _ = self.vault.tx.send(request.into());
+        rx.await.unwrap()
+    }
+
+    async fn newest_unseen_msg_id(&self) -> Option<Snowflake> {
+        // TODO vault::Error
+        let (tx, rx) = oneshot::channel();
+        let request = EuphRequest::GetNewestUnseenMsgId {
+            room: self.room.clone(),
+            result: tx,
+        };
+        let _ = self.vault.tx.send(request.into());
+        rx.await.unwrap()
+    }
+
+    async fn older_unseen_msg_id(&self, id: &Snowflake) -> Option<Snowflake> {
+        // TODO vault::Error
+        let (tx, rx) = oneshot::channel();
+        let request = EuphRequest::GetOlderUnseenMsgId {
+            room: self.room.clone(),
+            id: *id,
+            result: tx,
+        };
+        let _ = self.vault.tx.send(request.into());
+        rx.await.unwrap()
+    }
+
+    async fn newer_unseen_msg_id(&self, id: &Snowflake) -> Option<Snowflake> {
+        // TODO vault::Error
+        let (tx, rx) = oneshot::channel();
+        let request = EuphRequest::GetNewerUnseenMsgId {
+            room: self.room.clone(),
+            id: *id,
+            result: tx,
+        };
+        let _ = self.vault.tx.send(request.into());
+        rx.await.unwrap()
+    }
+
     async fn set_seen(&self, id: &Snowflake, seen: bool) {
         let request = EuphRequest::SetSeen {
             room: self.room.clone(),
@@ -368,6 +414,24 @@ pub(super) enum EuphRequest {
         id: Snowflake,
         result: oneshot::Sender<Option<Snowflake>>,
     },
+    GetOlderUnseenMsgId {
+        room: String,
+        id: Snowflake,
+        result: oneshot::Sender<Option<Snowflake>>,
+    },
+    GetOldestUnseenMsgId {
+        room: String,
+        result: oneshot::Sender<Option<Snowflake>>,
+    },
+    GetNewestUnseenMsgId {
+        room: String,
+        result: oneshot::Sender<Option<Snowflake>>,
+    },
+    GetNewerUnseenMsgId {
+        room: String,
+        id: Snowflake,
+        result: oneshot::Sender<Option<Snowflake>>,
+    },
     SetSeen {
         room: String,
         id: Snowflake,
@@ -426,6 +490,18 @@ impl EuphRequest {
             }
             EuphRequest::GetNewerMsgId { room, id, result } => {
                 Self::get_newer_msg_id(conn, room, id, result)
+            }
+            EuphRequest::GetOldestUnseenMsgId { room, result } => {
+                Self::get_oldest_unseen_msg_id(conn, room, result)
+            }
+            EuphRequest::GetNewestUnseenMsgId { room, result } => {
+                Self::get_newest_unseen_msg_id(conn, room, result)
+            }
+            EuphRequest::GetOlderUnseenMsgId { room, id, result } => {
+                Self::get_older_unseen_msg_id(conn, room, id, result)
+            }
+            EuphRequest::GetNewerUnseenMsgId { room, id, result } => {
+                Self::get_newer_unseen_msg_id(conn, room, id, result)
             }
             EuphRequest::SetSeen { room, id, seen } => Self::set_seen(conn, room, id, seen),
             EuphRequest::SetOlderSeen { room, id, seen } => {
@@ -1019,6 +1095,98 @@ impl EuphRequest {
                 SELECT id
                 FROM euph_msgs
                 WHERE room = ?
+                AND id > ?
+                ORDER BY id ASC
+                LIMIT 1
+                ",
+            )?
+            .query_row(params![room, id], |row| row.get(0))
+            .optional()?;
+        let _ = result.send(tree);
+        Ok(())
+    }
+
+    fn get_oldest_unseen_msg_id(
+        conn: &Connection,
+        room: String,
+        result: oneshot::Sender<Option<Snowflake>>,
+    ) -> rusqlite::Result<()> {
+        let tree = conn
+            .prepare(
+                "
+                SELECT id
+                FROM euph_msgs
+                WHERE room = ?
+                AND NOT seen
+                ORDER BY id ASC
+                LIMIT 1
+                ",
+            )?
+            .query_row([room], |row| row.get(0))
+            .optional()?;
+        let _ = result.send(tree);
+        Ok(())
+    }
+
+    fn get_newest_unseen_msg_id(
+        conn: &Connection,
+        room: String,
+        result: oneshot::Sender<Option<Snowflake>>,
+    ) -> rusqlite::Result<()> {
+        let tree = conn
+            .prepare(
+                "
+                SELECT id
+                FROM euph_msgs
+                WHERE room = ?
+                AND NOT seen
+                ORDER BY id DESC
+                LIMIT 1
+                ",
+            )?
+            .query_row([room], |row| row.get(0))
+            .optional()?;
+        let _ = result.send(tree);
+        Ok(())
+    }
+
+    fn get_older_unseen_msg_id(
+        conn: &Connection,
+        room: String,
+        id: Snowflake,
+        result: oneshot::Sender<Option<Snowflake>>,
+    ) -> rusqlite::Result<()> {
+        let tree = conn
+            .prepare(
+                "
+                SELECT id
+                FROM euph_msgs
+                WHERE room = ?
+                AND NOT seen
+                AND id < ?
+                ORDER BY id DESC
+                LIMIT 1
+                ",
+            )?
+            .query_row(params![room, id], |row| row.get(0))
+            .optional()?;
+        let _ = result.send(tree);
+        Ok(())
+    }
+
+    fn get_newer_unseen_msg_id(
+        conn: &Connection,
+        room: String,
+        id: Snowflake,
+        result: oneshot::Sender<Option<Snowflake>>,
+    ) -> rusqlite::Result<()> {
+        let tree = conn
+            .prepare(
+                "
+                SELECT id
+                FROM euph_msgs
+                WHERE room = ?
+                AND NOT seen
                 AND id > ?
                 ORDER BY id ASC
                 LIMIT 1

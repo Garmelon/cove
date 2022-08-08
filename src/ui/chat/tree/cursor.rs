@@ -254,6 +254,40 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         self.correction = Some(Correction::MakeCursorVisible);
     }
 
+    pub async fn move_cursor_older_unseen(&mut self) {
+        match &mut self.cursor {
+            Cursor::Msg(id) => {
+                if let Some(prev_id) = self.store.older_unseen_msg_id(id).await {
+                    *id = prev_id;
+                }
+            }
+            Cursor::Bottom | Cursor::Pseudo { .. } => {
+                if let Some(id) = self.store.newest_unseen_msg_id().await {
+                    self.cursor = Cursor::Msg(id);
+                }
+            }
+            _ => {}
+        }
+        self.correction = Some(Correction::MakeCursorVisible);
+    }
+
+    pub async fn move_cursor_newer_unseen(&mut self) {
+        match &mut self.cursor {
+            Cursor::Msg(id) => {
+                if let Some(prev_id) = self.store.newer_unseen_msg_id(id).await {
+                    *id = prev_id;
+                } else {
+                    self.cursor = Cursor::Bottom;
+                }
+            }
+            Cursor::Pseudo { .. } => {
+                self.cursor = Cursor::Bottom;
+            }
+            _ => {}
+        }
+        self.correction = Some(Correction::MakeCursorVisible);
+    }
+
     pub async fn move_cursor_to_top(&mut self) {
         if let Some(first_tree_id) = self.store.first_tree_id().await {
             self.cursor = Cursor::Msg(first_tree_id);

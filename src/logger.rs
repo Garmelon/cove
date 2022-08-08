@@ -123,6 +123,22 @@ impl MsgStore<LogMsg> for Logger {
         self.next_tree_id(id).await
     }
 
+    async fn oldest_unseen_msg_id(&self) -> Option<usize> {
+        None
+    }
+
+    async fn newest_unseen_msg_id(&self) -> Option<usize> {
+        None
+    }
+
+    async fn older_unseen_msg_id(&self, _id: &usize) -> Option<usize> {
+        None
+    }
+
+    async fn newer_unseen_msg_id(&self, _id: &usize) -> Option<usize> {
+        None
+    }
+
     async fn set_seen(&self, _id: &usize, _seen: bool) {}
 
     async fn set_older_seen(&self, _id: &usize, _seen: bool) {}
