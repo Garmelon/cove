@@ -92,6 +92,28 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         true
     }
 
+    pub fn list_action_key_bindings(&self, bindings: &mut KeyBindingsList) {
+        bindings.binding("s", "toggle current message's seen status");
+        // bindings.binding("S", "mark all visible messages as seen");
+        // bindings.binding("ctrl+S", "mark all messages as seen");
+    }
+
+    async fn handle_action_key_event(&mut self, event: KeyEvent, id: Option<&M::Id>) -> bool {
+        if let Some(id) = id {
+            match event {
+                key!('s') => {
+                    if let Some(msg) = self.store.tree(id).await.msg(id) {
+                        self.store.set_seen(id, !msg.seen()).await;
+                    }
+                    true
+                }
+                _ => false,
+            }
+        } else {
+            false
+        }
+    }
+
     pub fn list_edit_initiating_key_bindings(&self, bindings: &mut KeyBindingsList) {
         bindings.empty();
         bindings.binding("r", "reply to message");
@@ -130,6 +152,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
 
     pub fn list_normal_key_bindings(&self, bindings: &mut KeyBindingsList, can_compose: bool) {
         self.list_movement_key_bindings(bindings);
+        self.list_action_key_bindings(bindings);
         if can_compose {
             self.list_edit_initiating_key_bindings(bindings);
         }
@@ -142,7 +165,10 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         can_compose: bool,
         id: Option<M::Id>,
     ) -> bool {
+        #[allow(clippy::if_same_then_else)]
         if self.handle_movement_key_event(frame, event).await {
+            true
+        } else if self.handle_action_key_event(event, id.as_ref()).await {
             true
         } else if can_compose {
             self.handle_edit_initiating_key_event(event, id).await
@@ -210,7 +236,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             }
             Cursor::Editor { .. } => self.list_editor_key_bindings(bindings),
             Cursor::Pseudo { .. } => {
-                self.list_movement_key_bindings(bindings);
+                self.list_normal_key_bindings(bindings, false);
             }
         }
     }
