@@ -1222,15 +1222,13 @@ impl EuphRequest {
         id: Snowflake,
         seen: bool,
     ) -> rusqlite::Result<()> {
-        // TODO Speed up this update
-        // Maybe with an index on (room, id, seen) and a filter to only set seen
-        // where it isn't already set correctly?
         conn.execute(
             "
             UPDATE euph_msgs
             SET seen = :seen
             WHERE room = :room
             AND id <= :id
+            AND seen != :seen
             ",
             named_params! { ":room": room, ":id": id, ":seen": seen },
         )?;
