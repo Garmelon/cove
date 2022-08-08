@@ -33,19 +33,25 @@ $ rustup update
 ### Installing cove
 
 To install or update to the latest release of cove, run the following command:
+
 ```bash
 $ cargo install --force --git https://github.com/Garmelon/cove --branch latest
 ```
 
 If you like to live dangerously and want to install or update to the latest,
 bleeding-edge, possibly-broken commit from the repo's main branch, run the
-following command:
+following command.
+
+**Warning:** This could corrupt your vault. Make sure to make a backup before
+running the command.
+
 ```bash
 $ cargo install --force --git https://github.com/Garmelon/cove
 ```
 
 To install a specific version of cove, run the following command and substitute
 in the full version you want to install:
+
 ```bash
 $ cargo install --force --git https://github.com/Garmelon/cove --tag v0.1.0
 ```
