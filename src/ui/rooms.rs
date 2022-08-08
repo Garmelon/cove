@@ -54,7 +54,14 @@ impl Rooms {
         }
     }
 
+    fn get_or_insert_room(&mut self, name: String) -> &mut EuphRoom {
+        self.euph_rooms
+            .entry(name.clone())
+            .or_insert_with(|| EuphRoom::new(self.vault.euph(name), self.ui_event_tx.clone()))
+    }
+
     /// Remove rooms that are not running any more and can't be found in the db.
+    /// Insert rooms that are in the db but not yet in in the hash map.
     ///
     /// These kinds of rooms are either
     /// - failed connection attempts, or
@@ -69,25 +76,9 @@ impl Rooms {
         self.euph_rooms
             .retain(|n, r| !r.stopped() || rooms_set.contains(n));
 
-        for room in self.euph_rooms.values_mut() {
-            room.retain();
+        for room in rooms_set {
+            self.get_or_insert_room(room).retain();
         }
-    }
-
-    async fn room_names(&self) -> Vec<String> {
-        let mut rooms = self.vault.euph_rooms().await;
-        for room in self.euph_rooms.keys() {
-            rooms.push(room.clone());
-        }
-        rooms.sort_unstable();
-        rooms.dedup();
-        rooms
-    }
-
-    fn get_or_insert_room(&mut self, name: String) -> &mut EuphRoom {
-        self.euph_rooms
-            .entry(name.clone())
-            .or_insert_with(|| EuphRoom::new(self.vault.euph(name), self.ui_event_tx.clone()))
     }
 
     pub async fn widget(&mut self) -> BoxedWidget {
@@ -98,7 +89,13 @@ impl Rooms {
 
         match &self.state {
             State::ShowList => self.rooms_widget().await,
-            State::ShowRoom(name) => self.get_or_insert_room(name.clone()).widget().await,
+            State::ShowRoom(name) => {
+                self.euph_rooms
+                    .get_mut(name)
+                    .expect("room exists after stabilization")
+                    .widget()
+                    .await
+            }
             State::Connect(ed) => {
                 let room_style = ContentStyle::default().bold().blue();
                 Layer::new(vec![
@@ -195,38 +192,39 @@ impl Rooms {
         }
     }
 
-    async fn render_rows(&self, list: &mut List<String>, rooms: Vec<String>) {
+    async fn render_rows(&self, list: &mut List<String>) {
         let heading_style = ContentStyle::default().bold();
-        let heading = Styled::new("Rooms", heading_style).then_plain(format!(" ({})", rooms.len()));
+        let amount = self.euph_rooms.len();
+        let heading = Styled::new("Rooms", heading_style).then_plain(format!(" ({amount})"));
         list.add_unsel(Text::new(heading));
 
-        if rooms.is_empty() {
+        if self.euph_rooms.is_empty() {
             list.add_unsel(Text::new((
                 "Press F1 for key bindings",
                 ContentStyle::default().grey().italic(),
             )))
         }
 
-        for room in rooms {
+        let mut rooms = self.euph_rooms.iter().collect::<Vec<_>>();
+        rooms.sort_by_key(|(n, _)| *n);
+        for (name, room) in rooms {
             let room_style = ContentStyle::default().bold().blue();
             let room_sel_style = ContentStyle::default().bold().black().on_white();
 
-            let mut normal = Styled::new(format!("&{room}"), room_style);
-            let mut selected = Styled::new(format!("&{room}"), room_sel_style);
-            if let Some(room) = self.euph_rooms.get(&room) {
-                let info = Self::format_room_info(room).await;
-                normal = normal.and_then(info.clone());
-                selected = selected.and_then(info);
-            };
+            let mut normal = Styled::new(format!("&{name}"), room_style);
+            let mut selected = Styled::new(format!("&{name}"), room_sel_style);
 
-            list.add_sel(room, Text::new(normal), Text::new(selected));
+            let info = Self::format_room_info(room).await;
+            normal = normal.and_then(info.clone());
+            selected = selected.and_then(info);
+
+            list.add_sel(name.clone(), Text::new(normal), Text::new(selected));
         }
     }
 
     async fn rooms_widget(&self) -> BoxedWidget {
-        let rooms = self.room_names().await;
         let mut list = self.list.widget().focus(true);
-        self.render_rows(&mut list, rooms).await;
+        self.render_rows(&mut list).await;
         list.into()
     }
 
@@ -278,6 +276,8 @@ impl Rooms {
         crossterm_lock: &Arc<FairMutex<()>>,
         event: KeyEvent,
     ) -> bool {
+        self.stabilize_rooms().await;
+
         match &self.state {
             State::ShowList => match event {
                 key!('k') | key!(Up) => self.list.move_cursor_up(),
@@ -294,13 +294,17 @@ impl Rooms {
                 }
                 key!('c') => {
                     if let Some(name) = self.list.cursor() {
-                        self.get_or_insert_room(name).connect();
+                        if let Some(room) = self.euph_rooms.get_mut(&name) {
+                            room.connect();
+                        }
                     }
                 }
                 key!('C') => self.state = State::Connect(EditorState::new()),
                 key!('d') => {
                     if let Some(name) = self.list.cursor() {
-                        self.get_or_insert_room(name).disconnect();
+                        if let Some(room) = self.euph_rooms.get_mut(&name) {
+                            room.disconnect();
+                        }
                     }
                 }
                 key!('D') => {
@@ -313,17 +317,15 @@ impl Rooms {
                 _ => return false,
             },
             State::ShowRoom(name) => {
-                if self
-                    .get_or_insert_room(name.clone())
-                    .handle_key_event(terminal, crossterm_lock, event)
-                    .await
-                {
-                    return true;
-                }
+                if let Some(room) = self.euph_rooms.get_mut(name) {
+                    if room.handle_key_event(terminal, crossterm_lock, event).await {
+                        return true;
+                    }
 
-                if let key!(Esc) = event {
-                    self.state = State::ShowList;
-                    return true;
+                    if let key!(Esc) = event {
+                        self.state = State::ShowList;
+                        return true;
+                    }
                 }
 
                 return false;
