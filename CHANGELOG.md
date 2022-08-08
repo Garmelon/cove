@@ -14,6 +14,11 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Added
+- New messages are now marked as unseen
+- Key bindings for navigating unseen messages
+- Key bindings for marking messages as seen/unseen
+
 ### Changed
 - Improved editor key bindings
 - Slowed down room history download speed
