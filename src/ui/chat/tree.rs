@@ -97,7 +97,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     pub fn list_action_key_bindings(&self, bindings: &mut KeyBindingsList) {
         bindings.binding("s", "toggle current message's seen status");
         bindings.binding("S", "mark all visible messages as seen");
-        bindings.binding("ctrl+S", "mark all messages as seen");
+        bindings.binding("ctrl+s", "mark all older messages as seen");
     }
 
     async fn handle_action_key_event(&mut self, event: KeyEvent, id: Option<&M::Id>) -> bool {
@@ -116,9 +116,14 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                 }
                 return true;
             }
-            key!(Ctrl + 'S') => {
-                // Ctrl + Shift + s, extra hard to hit accidentally
-                self.store.set_all_seen(true).await;
+            key!(Ctrl + 's') => {
+                if let Some(id) = id {
+                    self.store.set_older_seen(id, true).await;
+                } else {
+                    self.store
+                        .set_older_seen(&M::last_possible_id(), true)
+                        .await;
+                }
                 return true;
             }
             _ => {}

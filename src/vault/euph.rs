@@ -268,9 +268,10 @@ impl MsgStore<SmallMessage> for EuphVault {
         let _ = self.vault.tx.send(request.into());
     }
 
-    async fn set_all_seen(&self, seen: bool) {
-        let request = EuphRequest::SetAllSeen {
+    async fn set_older_seen(&self, id: &Snowflake, seen: bool) {
+        let request = EuphRequest::SetOlderSeen {
             room: self.room.clone(),
+            id: *id,
             seen,
         };
         let _ = self.vault.tx.send(request.into());
@@ -372,8 +373,9 @@ pub(super) enum EuphRequest {
         id: Snowflake,
         seen: bool,
     },
-    SetAllSeen {
+    SetOlderSeen {
         room: String,
+        id: Snowflake,
         seen: bool,
     },
 }
@@ -426,7 +428,9 @@ impl EuphRequest {
                 Self::get_newer_msg_id(conn, room, id, result)
             }
             EuphRequest::SetSeen { room, id, seen } => Self::set_seen(conn, room, id, seen),
-            EuphRequest::SetAllSeen { room, seen } => Self::set_all_seen(conn, room, seen),
+            EuphRequest::SetOlderSeen { room, id, seen } => {
+                Self::set_older_seen(conn, room, id, seen)
+            }
         };
         if let Err(e) = result {
             // If an error occurs here, the rest of the UI will likely panic and
@@ -1022,14 +1026,23 @@ impl EuphRequest {
         Ok(())
     }
 
-    fn set_all_seen(conn: &Connection, room: String, seen: bool) -> rusqlite::Result<()> {
+    fn set_older_seen(
+        conn: &Connection,
+        room: String,
+        id: Snowflake,
+        seen: bool,
+    ) -> rusqlite::Result<()> {
+        // TODO Speed up this update
+        // Maybe with an index on (room, id, seen) and a filter to only set seen
+        // where it isn't already set correctly?
         conn.execute(
             "
             UPDATE euph_msgs
             SET seen = :seen
             WHERE room = :room
+            AND id <= :id
             ",
-            named_params! { ":room": room, ":seen": seen },
+            named_params! { ":room": room, ":id": id, ":seen": seen },
         )?;
         Ok(())
     }

@@ -130,5 +130,5 @@ pub trait MsgStore<M: Msg> {
     async fn older_msg_id(&self, id: &M::Id) -> Option<M::Id>;
     async fn newer_msg_id(&self, id: &M::Id) -> Option<M::Id>;
     async fn set_seen(&self, id: &M::Id, seen: bool);
-    async fn set_all_seen(&self, seen: bool);
+    async fn set_older_seen(&self, id: &M::Id, seen: bool);
 }
