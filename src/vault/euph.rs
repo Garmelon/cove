@@ -550,7 +550,7 @@ impl EuphRequest {
     ) -> rusqlite::Result<()> {
         let mut insert_msg = tx.prepare(
             "
-            INSERT OR REPLACE INTO euph_msgs (
+            INSERT INTO euph_msgs (
                 room, id, parent, previous_edit_id, time, content, encryption_key_id, edited, deleted, truncated,
                 user_id, name, server_id, server_era, session_id, is_staff, is_manager, client_address, real_client_address,
                 seen
@@ -565,6 +565,28 @@ impl EuphRequest {
                     AND :time < first_joined
                 ))
             )
+            ON CONFLICT (room, id) DO UPDATE
+            SET
+                room = :room,
+                id = :id,
+                parent = :parent,
+                previous_edit_id = :previous_edit_id,
+                time = :time,
+                content = :content,
+                encryption_key_id = :encryption_key_id,
+                edited = :edited,
+                deleted = :deleted,
+                truncated = :truncated,
+
+                user_id = :user_id,
+                name = :name,
+                server_id = :server_id,
+                server_era = :server_era,
+                session_id = :session_id,
+                is_staff = :is_staff,
+                is_manager = :is_manager,
+                client_address = :client_address,
+                real_client_address = :real_client_address
             "
         )?;
         let mut delete_trees = tx.prepare(
