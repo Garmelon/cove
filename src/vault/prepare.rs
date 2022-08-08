@@ -55,21 +55,21 @@ pub fn prepare(conn: &mut Connection) -> rusqlite::Result<()> {
         GROUP BY room;
 
         CREATE TEMPORARY TRIGGER euc_insert_room
-        AFTER INSERT ON euph_rooms
+        AFTER INSERT ON main.euph_rooms
         BEGIN
             INSERT INTO euph_unseen_counts (room, amount)
             VALUES (new.room, 0);
         END;
 
         CREATE TEMPORARY TRIGGER euc_delete_room
-        AFTER DELETE ON euph_rooms
+        AFTER DELETE ON main.euph_rooms
         BEGIN
             DELETE FROM euph_unseen_counts
             WHERE room = old.room;
         END;
 
         CREATE TEMPORARY TRIGGER euc_insert_msg
-        AFTER INSERT ON euph_msgs
+        AFTER INSERT ON main.euph_msgs
         WHEN NOT new.seen
         BEGIN
             UPDATE euph_unseen_counts
@@ -78,7 +78,7 @@ pub fn prepare(conn: &mut Connection) -> rusqlite::Result<()> {
         END;
 
         CREATE TEMPORARY TRIGGER euc_update_msg
-        AFTER UPDATE OF seen ON euph_msgs
+        AFTER UPDATE OF seen ON main.euph_msgs
         WHEN old.seen != new.seen
         BEGIN
             UPDATE euph_unseen_counts
@@ -87,7 +87,7 @@ pub fn prepare(conn: &mut Connection) -> rusqlite::Result<()> {
         END;
 
         CREATE TEMPORARY TRIGGER euc_delete_msg
-        AFTER DELETE ON euph_msgs
+        AFTER DELETE ON main.euph_msgs
         WHEN NOT old.seen
         BEGIN
             UPDATE euph_unseen_counts
