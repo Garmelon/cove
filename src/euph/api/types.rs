@@ -285,7 +285,20 @@ pub struct SessionView {
 pub struct Snowflake(pub u64);
 
 impl Snowflake {
-    pub const MAX: Self = Snowflake(u64::MAX);
+    /// Maximum possible snowflake that can be safely handled by all of cove's
+    /// parts.
+    ///
+    /// In theory, euphoria's snowflakes are 64-bit values and can take
+    /// advantage of the full range. However, sqlite always stores integers as
+    /// signed, and uses a maximum of 8 bytes (64 bits). Because of this, using
+    /// [`u64::MAX`] here would lead to errors in some database interactions.
+    ///
+    /// For this reason, I'm limiting snowflakes to the range from `0` to
+    /// [`i64::MAX`]. The euphoria backend isn't likely to change its
+    /// representation of message ids to suddenly use the upper parts of the
+    /// range, and since message ids mostly consist of a timestamp, this
+    /// approach should last until at least 2075.
+    pub const MAX: Self = Snowflake(i64::MAX as u64);
 }
 
 impl Serialize for Snowflake {
