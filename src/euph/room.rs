@@ -19,8 +19,9 @@ use crate::macros::ok_or_return;
 use crate::ui::UiEvent;
 use crate::vault::{EuphVault, Vault};
 
-use super::api::{Data, Log, Nick, Send, Snowflake};
+use super::api::{Data, Log, Nick, Send, Snowflake, UserId};
 use super::conn::{self, ConnRx, ConnTx, Status};
+use super::Joining;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -170,6 +171,13 @@ impl State {
         Ok(())
     }
 
+    async fn own_user_id(&self) -> Option<UserId> {
+        Some(match self.conn_tx.as_ref()?.status().await.ok()? {
+            Status::Joining(Joining { hello, .. }) => hello?.session.id,
+            Status::Joined(joined) => joined.session.id,
+        })
+    }
+
     async fn on_data(&mut self, data: Data) -> anyhow::Result<()> {
         match data {
             Data::BounceEvent(_) => {}
@@ -202,9 +210,10 @@ impl State {
                 );
             }
             Data::SendEvent(d) => {
+                let own_user_id = self.own_user_id().await;
                 if let Some(last_msg_id) = &mut self.last_msg_id {
                     let id = d.0.id;
-                    self.vault.add_message(d.0, *last_msg_id);
+                    self.vault.add_message(d.0, *last_msg_id, own_user_id);
                     *last_msg_id = Some(id);
                 } else {
                     bail!("send event before snapshot event");
@@ -214,15 +223,18 @@ impl State {
                 info!("e&{}: successfully joined", self.name);
                 self.vault.join(Time::now());
                 self.last_msg_id = Some(d.log.last().map(|m| m.id));
-                self.vault.add_messages(d.log, None);
+                let own_user_id = self.own_user_id().await;
+                self.vault.add_messages(d.log, None, own_user_id);
             }
             Data::LogReply(d) => {
-                self.vault.add_messages(d.log, d.before);
+                let own_user_id = self.own_user_id().await;
+                self.vault.add_messages(d.log, d.before, own_user_id);
             }
             Data::SendReply(d) => {
+                let own_user_id = self.own_user_id().await;
                 if let Some(last_msg_id) = &mut self.last_msg_id {
                     let id = d.0.id;
-                    self.vault.add_message(d.0, *last_msg_id);
+                    self.vault.add_message(d.0, *last_msg_id, own_user_id);
                     *last_msg_id = Some(id);
                 } else {
                     bail!("send reply before snapshot event");

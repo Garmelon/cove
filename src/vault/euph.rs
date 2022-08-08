@@ -8,7 +8,7 @@ use rusqlite::{named_params, params, Connection, OptionalExtension, ToSql, Trans
 use time::OffsetDateTime;
 use tokio::sync::oneshot;
 
-use crate::euph::api::{Message, Snowflake, Time};
+use crate::euph::api::{Message, Snowflake, Time, UserId};
 use crate::euph::SmallMessage;
 use crate::store::{MsgStore, Path, Tree};
 
@@ -99,20 +99,32 @@ impl EuphVault {
         let _ = self.vault.tx.send(request.into());
     }
 
-    pub fn add_message(&self, msg: Message, prev_msg: Option<Snowflake>) {
+    pub fn add_message(
+        &self,
+        msg: Message,
+        prev_msg: Option<Snowflake>,
+        own_user_id: Option<UserId>,
+    ) {
         let request = EuphRequest::AddMsg {
             room: self.room.clone(),
             msg: Box::new(msg),
             prev_msg,
+            own_user_id,
         };
         let _ = self.vault.tx.send(request.into());
     }
 
-    pub fn add_messages(&self, msgs: Vec<Message>, next_msg: Option<Snowflake>) {
+    pub fn add_messages(
+        &self,
+        msgs: Vec<Message>,
+        next_msg: Option<Snowflake>,
+        own_user_id: Option<UserId>,
+    ) {
         let request = EuphRequest::AddMsgs {
             room: self.room.clone(),
             msgs,
             next_msg,
+            own_user_id,
         };
         let _ = self.vault.tx.send(request.into());
     }
@@ -280,11 +292,13 @@ pub(super) enum EuphRequest {
         room: String,
         msg: Box<Message>,
         prev_msg: Option<Snowflake>,
+        own_user_id: Option<UserId>,
     },
     AddMsgs {
         room: String,
         msgs: Vec<Message>,
         next_msg: Option<Snowflake>,
+        own_user_id: Option<UserId>,
     },
     GetLastSpan {
         room: String,
@@ -350,12 +364,14 @@ impl EuphRequest {
                 room,
                 msg,
                 prev_msg,
-            } => Self::add_msg(conn, room, *msg, prev_msg),
+                own_user_id,
+            } => Self::add_msg(conn, room, *msg, prev_msg, own_user_id),
             EuphRequest::AddMsgs {
                 room,
                 msgs,
                 next_msg,
-            } => Self::add_msgs(conn, room, msgs, next_msg),
+                own_user_id,
+            } => Self::add_msgs(conn, room, msgs, next_msg, own_user_id),
             EuphRequest::GetLastSpan { room, result } => Self::get_last_span(conn, room, result),
             EuphRequest::GetPath { room, id, result } => Self::get_path(conn, room, id, result),
             EuphRequest::GetTree { room, root, result } => Self::get_tree(conn, room, root, result),
@@ -494,16 +510,28 @@ impl EuphRequest {
         Ok(())
     }
 
-    fn insert_msgs(tx: &Transaction<'_>, room: &str, msgs: Vec<Message>) -> rusqlite::Result<()> {
+    fn insert_msgs(
+        tx: &Transaction<'_>,
+        room: &str,
+        own_user_id: &Option<UserId>,
+        msgs: Vec<Message>,
+    ) -> rusqlite::Result<()> {
         let mut insert_msg = tx.prepare(
             "
             INSERT OR REPLACE INTO euph_msgs (
                 room, id, parent, previous_edit_id, time, content, encryption_key_id, edited, deleted, truncated,
-                user_id, name, server_id, server_era, session_id, is_staff, is_manager, client_address, real_client_address
+                user_id, name, server_id, server_era, session_id, is_staff, is_manager, client_address, real_client_address,
+                seen
             )
             VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?, ?, ?, ?, ?
+                :room, :id, :parent, :previous_edit_id, :time, :content, :encryption_key_id, :edited, :deleted, :truncated,
+                :user_id, :name, :server_id, :server_era, :session_id, :is_staff, :is_manager, :client_address, :real_client_address,
+                (:user_id == :own_user_id OR EXISTS(
+                    SELECT 1
+                    FROM euph_rooms
+                    WHERE room = :room
+                    AND :time < first_joined
+                ))
             )
             "
         )?;
@@ -528,28 +556,30 @@ impl EuphRequest {
             ",
         )?;
 
+        let own_user_id = own_user_id.as_ref().map(|u| &u.0);
         for msg in msgs {
-            insert_msg.execute(params![
-                room,
-                msg.id,
-                msg.parent,
-                msg.previous_edit_id,
-                msg.time,
-                msg.content,
-                msg.encryption_key_id,
-                msg.edited,
-                msg.deleted,
-                msg.truncated,
-                msg.sender.id.0,
-                msg.sender.name,
-                msg.sender.server_id,
-                msg.sender.server_era,
-                msg.sender.session_id,
-                msg.sender.is_staff,
-                msg.sender.is_manager,
-                msg.sender.client_address,
-                msg.sender.real_client_address,
-            ])?;
+            insert_msg.execute(named_params! {
+                ":room": room,
+                ":id": msg.id,
+                ":parent": msg.parent,
+                ":previous_edit_id": msg.previous_edit_id,
+                ":time": msg.time,
+                ":content": msg.content,
+                ":encryption_key_id": msg.encryption_key_id,
+                ":edited": msg.edited,
+                ":deleted": msg.deleted,
+                ":truncated": msg.truncated,
+                ":user_id": msg.sender.id.0,
+                ":name": msg.sender.name,
+                ":server_id": msg.sender.server_id,
+                ":server_era": msg.sender.server_era,
+                ":session_id": msg.sender.session_id,
+                ":is_staff": msg.sender.is_staff,
+                ":is_manager": msg.sender.is_manager,
+                ":client_address": msg.sender.client_address,
+                ":real_client_address": msg.sender.real_client_address,
+                ":own_user_id": own_user_id, // May be NULL
+            })?;
 
             if let Some(parent) = msg.parent {
                 delete_trees.execute(params![room, msg.id])?;
@@ -641,11 +671,12 @@ impl EuphRequest {
         room: String,
         msg: Message,
         prev_msg: Option<Snowflake>,
+        own_user_id: Option<UserId>,
     ) -> rusqlite::Result<()> {
         let tx = conn.transaction()?;
 
         let end = msg.id;
-        Self::insert_msgs(&tx, &room, vec![msg])?;
+        Self::insert_msgs(&tx, &room, &own_user_id, vec![msg])?;
         Self::add_span(&tx, &room, prev_msg, Some(end))?;
 
         tx.commit()?;
@@ -657,6 +688,7 @@ impl EuphRequest {
         room: String,
         msgs: Vec<Message>,
         next_msg_id: Option<Snowflake>,
+        own_user_id: Option<UserId>,
     ) -> rusqlite::Result<()> {
         let tx = conn.transaction()?;
 
@@ -666,7 +698,7 @@ impl EuphRequest {
             let first_msg_id = msgs.first().unwrap().id;
             let last_msg_id = msgs.last().unwrap().id;
 
-            Self::insert_msgs(&tx, &room, msgs)?;
+            Self::insert_msgs(&tx, &room, &own_user_id, msgs)?;
 
             let end = next_msg_id.unwrap_or(last_msg_id);
             Self::add_span(&tx, &room, Some(first_msg_id), Some(end))?;
