@@ -85,7 +85,10 @@ fn m2(tx: &mut Transaction<'_>) -> rusqlite::Result<()> {
     tx.execute_batch(
         "
         ALTER TABLE euph_msgs
-        ADD COLUMN seen INTEGER NOT NULL DEFAULT TRUE
+        ADD COLUMN seen INTEGER NOT NULL DEFAULT TRUE;
+
+        CREATE INDEX euph_idx_msgs_room_id_seen
+        ON euph_msgs (room, id, seen);
         ",
     )
 }
