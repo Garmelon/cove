@@ -267,6 +267,14 @@ impl MsgStore<SmallMessage> for EuphVault {
         };
         let _ = self.vault.tx.send(request.into());
     }
+
+    async fn set_all_seen(&self, seen: bool) {
+        let request = EuphRequest::SetAllSeen {
+            room: self.room.clone(),
+            seen,
+        };
+        let _ = self.vault.tx.send(request.into());
+    }
 }
 
 pub(super) enum EuphRequest {
@@ -364,6 +372,10 @@ pub(super) enum EuphRequest {
         id: Snowflake,
         seen: bool,
     },
+    SetAllSeen {
+        room: String,
+        seen: bool,
+    },
 }
 
 impl EuphRequest {
@@ -414,6 +426,7 @@ impl EuphRequest {
                 Self::get_newer_msg_id(conn, room, id, result)
             }
             EuphRequest::SetSeen { room, id, seen } => Self::set_seen(conn, room, id, seen),
+            EuphRequest::SetAllSeen { room, seen } => Self::set_all_seen(conn, room, seen),
         };
         if let Err(e) = result {
             // If an error occurs here, the rest of the UI will likely panic and
@@ -1004,7 +1017,19 @@ impl EuphRequest {
             WHERE room = :room
             AND id = :id
             ",
-            named_params! {":room": room, ":id": id, ":seen": seen},
+            named_params! { ":room": room, ":id": id, ":seen": seen },
+        )?;
+        Ok(())
+    }
+
+    fn set_all_seen(conn: &Connection, room: String, seen: bool) -> rusqlite::Result<()> {
+        conn.execute(
+            "
+            UPDATE euph_msgs
+            SET seen = :seen
+            WHERE room = :room
+            ",
+            named_params! { ":room": room, ":seen": seen },
         )?;
         Ok(())
     }

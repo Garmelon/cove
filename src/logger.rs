@@ -124,6 +124,8 @@ impl MsgStore<LogMsg> for Logger {
     }
 
     async fn set_seen(&self, _id: &usize, _seen: bool) {}
+
+    async fn set_all_seen(&self, _seen: bool) {}
 }
 
 impl Log for Logger {
