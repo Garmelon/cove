@@ -119,8 +119,8 @@ impl EuphRoom {
 
         let status = self.status().await;
         let chat = match &status {
-            Some(Some(Status::Joined(joined))) => self.widget_with_nick_list(&status, joined),
-            _ => self.widget_without_nick_list(&status),
+            Some(Some(Status::Joined(joined))) => self.widget_with_nick_list(&status, joined).await,
+            _ => self.widget_without_nick_list(&status).await,
         };
         match &self.state {
             State::Normal => chat,
@@ -144,10 +144,10 @@ impl EuphRoom {
         }
     }
 
-    fn widget_without_nick_list(&self, status: &Option<Option<Status>>) -> BoxedWidget {
+    async fn widget_without_nick_list(&self, status: &Option<Option<Status>>) -> BoxedWidget {
         VJoin::new(vec![
             Segment::new(Border::new(
-                Padding::new(self.status_widget(status)).horizontal(1),
+                Padding::new(self.status_widget(status).await).horizontal(1),
             )),
             // TODO Use last known nick?
             Segment::new(self.chat.widget(String::new())).expanding(true),
@@ -155,7 +155,7 @@ impl EuphRoom {
         .into()
     }
 
-    fn widget_with_nick_list(
+    async fn widget_with_nick_list(
         &self,
         status: &Option<Option<Status>>,
         joined: &Joined,
@@ -163,7 +163,7 @@ impl EuphRoom {
         HJoin::new(vec![
             Segment::new(VJoin::new(vec![
                 Segment::new(Border::new(
-                    Padding::new(self.status_widget(status)).horizontal(1),
+                    Padding::new(self.status_widget(status).await).horizontal(1),
                 )),
                 Segment::new(self.chat.widget(joined.session.name.clone())).expanding(true),
             ]))
@@ -175,11 +175,12 @@ impl EuphRoom {
         .into()
     }
 
-    fn status_widget(&self, status: &Option<Option<Status>>) -> BoxedWidget {
+    async fn status_widget(&self, status: &Option<Option<Status>>) -> BoxedWidget {
         // TODO Include unread message count
         let room = self.chat.store().room();
         let room_style = ContentStyle::default().bold().blue();
         let mut info = Styled::new(format!("&{room}"), room_style);
+
         info = match status {
             None => info.then_plain(", archive"),
             Some(None) => info.then_plain(", connecting..."),
@@ -197,6 +198,15 @@ impl EuphRoom {
                 }
             }
         };
+
+        let unseen = self.unseen_msgs_count().await;
+        if unseen > 0 {
+            info = info
+                .then_plain(" (")
+                .then(format!("{unseen}"), ContentStyle::default().bold().green())
+                .then_plain(")");
+        }
+
         Text::new(info).into()
     }
 
