@@ -3,8 +3,7 @@ use rusqlite::Connection;
 pub fn prepare(conn: &mut Connection) -> rusqlite::Result<()> {
     println!("Opening vault");
 
-    // This temporary table has no foreign key constraint on euph_rooms since
-    // cross-schema constraints like that are not supported by SQLite.
+    // Cache ids of tree roots.
     conn.execute_batch(
         "
         CREATE TEMPORARY TABLE euph_trees (
@@ -28,6 +27,41 @@ pub fn prepare(conn: &mut Connection) -> rusqlite::Result<()> {
             WHERE parents.room = euph_msgs.room
             AND parents.id = euph_msgs.parent
         );
+
+        CREATE TEMPORARY TRIGGER et_delete_room
+        AFTER DELETE ON main.euph_rooms
+        BEGIN
+            DELETE FROM euph_trees
+            WHERE room = old.room;
+        END;
+
+        CREATE TEMPORARY TRIGGER et_insert_msg_without_parent
+        AFTER INSERT ON main.euph_msgs
+        WHEN new.parent IS NULL
+        BEGIN
+            INSERT OR IGNORE INTO euph_trees (room, id)
+            VALUES (new.room, new.id);
+        END;
+
+        CREATE TEMPORARY TRIGGER et_insert_msg_with_parent
+        AFTER INSERT ON main.euph_msgs
+        WHEN new.parent IS NOT NULL
+        BEGIN
+            DELETE FROM euph_trees
+            WHERE room = new.room
+            AND id = new.id;
+
+            INSERT OR IGNORE INTO euph_trees (room, id)
+            SELECT *
+            FROM (VALUES (new.room, new.parent))
+            WHERE NOT EXISTS(
+                SELECT *
+                FROM euph_msgs
+                WHERE room = new.room
+                AND id = new.parent
+                AND parent IS NOT NULL
+            );
+        END;
         ",
     )?;
 

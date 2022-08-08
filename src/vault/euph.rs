@@ -624,14 +624,6 @@ impl EuphRequest {
             [&room],
         )?;
 
-        tx.execute(
-            "
-            DELETE FROM euph_trees
-            WHERE room = ?
-            ",
-            [&room],
-        )?;
-
         tx.commit()?;
         Ok(())
     }
@@ -683,26 +675,6 @@ impl EuphRequest {
                 real_client_address = :real_client_address
             "
         )?;
-        let mut delete_trees = tx.prepare(
-            "
-            DELETE FROM euph_trees
-            WHERE room = ? AND id = ?
-            ",
-        )?;
-        let mut insert_trees = tx.prepare(
-            "
-            INSERT OR IGNORE INTO euph_trees (room, id)
-            SELECT *
-            FROM (VALUES (:room, :id))
-            WHERE NOT EXISTS(
-                SELECT *
-                FROM euph_msgs
-                WHERE room = :room
-                AND id = :id
-                AND parent IS NOT NULL
-            )
-            ",
-        )?;
 
         let own_user_id = own_user_id.as_ref().map(|u| &u.0);
         for msg in msgs {
@@ -728,13 +700,6 @@ impl EuphRequest {
                 ":real_client_address": msg.sender.real_client_address,
                 ":own_user_id": own_user_id, // May be NULL
             })?;
-
-            if let Some(parent) = msg.parent {
-                delete_trees.execute(params![room, msg.id])?;
-                insert_trees.execute(named_params! {":room": room, ":id": parent})?;
-            } else {
-                insert_trees.execute(named_params! {":room": room, ":id": msg.id})?;
-            }
         }
 
         Ok(())
