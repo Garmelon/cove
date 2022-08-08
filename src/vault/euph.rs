@@ -1224,10 +1224,9 @@ impl EuphRequest {
         let amount = conn
             .prepare(
                 "
-                SELECT COUNT(*)
-                FROM euph_msgs
+                SELECT amount
+                FROM euph_unseen_counts
                 WHERE room = ?
-                AND NOT seen
                 ",
             )?
             .query_row(params![room], |row| row.get(0))?;
