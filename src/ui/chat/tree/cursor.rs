@@ -240,6 +240,54 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         self.correction = Some(Correction::MakeCursorVisible);
     }
 
+    pub async fn move_cursor_up_sibling(&mut self) {
+        match &mut self.cursor {
+            Cursor::Bottom | Cursor::Pseudo { parent: None, .. } => {
+                if let Some(last_tree_id) = self.store.last_tree_id().await {
+                    self.cursor = Cursor::Msg(last_tree_id);
+                }
+            }
+            Cursor::Msg(ref mut msg) => {
+                let path = self.store.path(msg).await;
+                let mut tree = self.store.tree(path.first()).await;
+                Self::find_prev_sibling(&self.store, &mut tree, msg).await;
+            }
+            Cursor::Editor { .. } => {}
+            Cursor::Pseudo {
+                parent: Some(parent),
+                ..
+            } => {
+                let path = self.store.path(parent).await;
+                let tree = self.store.tree(path.first()).await;
+                if let Some(children) = tree.children(parent) {
+                    if let Some(last_child) = children.last() {
+                        self.cursor = Cursor::Msg(last_child.clone());
+                    }
+                }
+            }
+        }
+        self.correction = Some(Correction::MakeCursorVisible);
+    }
+
+    pub async fn move_cursor_down_sibling(&mut self) {
+        match &mut self.cursor {
+            Cursor::Msg(ref mut msg) => {
+                let path = self.store.path(msg).await;
+                let mut tree = self.store.tree(path.first()).await;
+                if !Self::find_next_sibling(&self.store, &mut tree, msg).await
+                    && tree.parent(msg).is_none()
+                {
+                    self.cursor = Cursor::Bottom;
+                }
+            }
+            Cursor::Pseudo { parent: None, .. } => {
+                self.cursor = Cursor::Bottom;
+            }
+            _ => {}
+        }
+        self.correction = Some(Correction::MakeCursorVisible);
+    }
+
     pub async fn move_cursor_older(&mut self) {
         match &mut self.cursor {
             Cursor::Msg(id) => {
@@ -385,68 +433,6 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
 }
 
 /*
-    pub async fn move_up_sibling<S: MsgStore<M>>(
-        &mut self,
-        store: &S,
-        cursor: &mut Option<Cursor<M::Id>>,
-        frame: &mut Frame,
-        size: Size,
-    ) {
-        let old_blocks = self
-            .layout_blocks(store, cursor.as_ref(), frame, size)
-            .await;
-        let old_cursor_id = cursor.as_ref().map(|c| c.id.clone());
-
-        if let Some(cursor) = cursor {
-            let path = store.path(&cursor.id).await;
-            let mut tree = store.tree(path.first()).await;
-            self.find_prev_sibling(store, &mut tree, &mut cursor.id)
-                .await;
-        } else if let Some(last_tree) = store.last_tree().await {
-            // I think moving to the root of the last tree makes the most sense
-            // here. Alternatively, we could just not move the cursor, but that
-            // wouldn't be very useful.
-            *cursor = Some(Cursor::new(last_tree));
-        }
-        // If neither condition holds, we can't set a cursor because there's no
-        // message to move to.
-
-        if let Some(cursor) = cursor {
-            self.correct_cursor_offset(store, frame, size, &old_blocks, &old_cursor_id, cursor)
-                .await;
-        }
-    }
-
-    pub async fn move_down_sibling<S: MsgStore<M>>(
-        &mut self,
-        store: &S,
-        cursor: &mut Option<Cursor<M::Id>>,
-        frame: &mut Frame,
-        size: Size,
-    ) {
-        let old_blocks = self
-            .layout_blocks(store, cursor.as_ref(), frame, size)
-            .await;
-        let old_cursor_id = cursor.as_ref().map(|c| c.id.clone());
-
-        if let Some(cursor) = cursor {
-            let path = store.path(&cursor.id).await;
-            let mut tree = store.tree(path.first()).await;
-            self.find_next_sibling(store, &mut tree, &mut cursor.id)
-                .await;
-        }
-        // If that condition doesn't hold, we're already at the bottom in
-        // cursor-less mode and can't move further down anyways.
-
-        if let Some(cursor) = cursor {
-            self.correct_cursor_offset(store, frame, size, &old_blocks, &old_cursor_id, cursor)
-                .await;
-        }
-    }
-
-    // TODO move_older[_unseen]
-    // TODO move_newer[_unseen]
-
     pub async fn center_cursor<S: MsgStore<M>>(
         &mut self,
         store: &S,
