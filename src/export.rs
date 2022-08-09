@@ -39,6 +39,7 @@ pub async fn export(vault: &Vault, room: String, file: &Path) -> anyhow::Result<
     }
     println!("Exported {exported_trees} trees, {exported_msgs} messages in total");
 
+    file.flush()?;
     Ok(())
 }
 
