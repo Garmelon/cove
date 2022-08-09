@@ -16,8 +16,7 @@ Procedure when bumping the version number:
 
 ### Added
 - New messages are now marked as unseen
-- Key bindings for navigating unseen messages
-- Key bindings for marking messages as seen/unseen
+- Sub-trees can now be folded
 
 ### Changed
 - Improved editor key bindings
