@@ -57,6 +57,7 @@ impl Default for Command {
 }
 
 #[derive(Debug, clap::Parser)]
+#[clap(version)]
 struct Args {
     /// Path to a directory for cove to store its data in.
     #[clap(long, short)]
