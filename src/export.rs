@@ -1,96 +1,115 @@
 //! Export logs from the vault to plain text files.
 
+mod text;
+
 use std::fs::File;
 use std::io::{BufWriter, Write};
-use std::path::Path;
 
-use time::format_description::FormatItem;
-use time::macros::format_description;
-use unicode_width::UnicodeWidthStr;
-
-use crate::euph::api::Snowflake;
-use crate::euph::SmallMessage;
-use crate::store::{MsgStore, Tree};
 use crate::vault::Vault;
 
-const TIME_FORMAT: &[FormatItem<'_>] =
-    format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
-const TIME_EMPTY: &str = "                   ";
-
-pub async fn export(vault: &Vault, room: String, file: &Path) -> anyhow::Result<()> {
-    println!("Exporting &{room} to {}", file.to_string_lossy());
-    let mut file = BufWriter::new(File::create(file)?);
-    let vault = vault.euph(room);
-
-    let mut exported_trees = 0;
-    let mut exported_msgs = 0;
-    let mut tree_id = vault.first_tree_id().await;
-    while let Some(some_tree_id) = tree_id {
-        let tree = vault.tree(&some_tree_id).await;
-        write_tree(&mut file, &tree, some_tree_id, 0)?;
-        tree_id = vault.next_tree_id(&some_tree_id).await;
-
-        exported_trees += 1;
-        exported_msgs += tree.len();
-
-        if exported_trees % 10000 == 0 {
-            println!("Exported {exported_trees} trees, {exported_msgs} messages")
-        }
-    }
-    println!("Exported {exported_trees} trees, {exported_msgs} messages in total");
-
-    file.flush()?;
-    Ok(())
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+pub enum Format {
+    /// Human-readable tree-structured messages.
+    Text,
 }
 
-fn write_tree(
-    file: &mut BufWriter<File>,
-    tree: &Tree<SmallMessage>,
-    id: Snowflake,
-    indent: usize,
-) -> anyhow::Result<()> {
-    let indent_string = "| ".repeat(indent);
+impl Format {
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Text => "text",
+        }
+    }
 
-    if let Some(msg) = tree.msg(&id) {
-        write_msg(file, &indent_string, msg)?;
+    fn extension(&self) -> &'static str {
+        match self {
+            Self::Text => "txt",
+        }
+    }
+}
+
+#[derive(Debug, clap::Parser)]
+pub struct Args {
+    rooms: Vec<String>,
+
+    /// Export all rooms.
+    #[clap(long, short)]
+    all: bool,
+
+    /// Format of the output file.
+    #[clap(long, short, value_enum, default_value_t = Format::Text)]
+    format: Format,
+
+    /// Location of the output file
+    ///
+    /// May include the following placeholders:
+    /// `%r` - room name
+    /// `%e` - format extension
+    /// A literal `%` can be written as `%%`.
+    ///
+    /// If the value ends with a `/`, it is assumed to point to a directory and
+    /// `%r.%e` will be appended.
+    ///
+    /// Must be a valid utf-8 encoded string.
+    #[clap(long, short, default_value_t = Into::into("%r.%e"))]
+    #[clap(verbatim_doc_comment)]
+    out: String,
+}
+
+pub async fn export(vault: &Vault, mut args: Args) -> anyhow::Result<()> {
+    if args.out.ends_with('/') {
+        args.out.push_str("%r.%e");
+    }
+
+    let rooms = if args.all {
+        let mut rooms = vault.euph_rooms().await;
+        rooms.sort_unstable();
+        rooms
     } else {
-        write_placeholder(file, &indent_string)?;
+        let mut rooms = args.rooms.clone();
+        rooms.dedup();
+        rooms
+    };
+
+    if rooms.is_empty() {
+        println!("No rooms to export");
     }
 
-    if let Some(children) = tree.children(&id) {
-        for child in children {
-            write_tree(file, tree, *child, indent + 1)?;
+    for room in rooms {
+        let out = format_out(&args.out, &room, args.format);
+        println!("Exporting &{room} as {} to {out}", args.format.name());
+
+        let mut file = BufWriter::new(File::create(out)?);
+        match args.format {
+            Format::Text => text::export_to_file(vault, room, &mut file).await?,
         }
+        file.flush()?;
     }
 
     Ok(())
 }
 
-fn write_msg(
-    file: &mut BufWriter<File>,
-    indent_string: &str,
-    msg: &SmallMessage,
-) -> anyhow::Result<()> {
-    let nick = &msg.nick;
-    let nick_empty = " ".repeat(nick.width());
+fn format_out(out: &str, room: &str, format: Format) -> String {
+    let mut result = String::new();
 
-    for (i, line) in msg.content.lines().enumerate() {
-        if i == 0 {
-            let time = msg
-                .time
-                .0
-                .format(TIME_FORMAT)
-                .expect("time can be formatted");
-            writeln!(file, "{time} {indent_string}[{nick}] {line}")?;
+    let mut special = false;
+    for char in out.chars() {
+        if special {
+            match char {
+                'r' => result.push_str(room),
+                'e' => result.push_str(format.extension()),
+                '%' => result.push('%'),
+                _ => {
+                    result.push('%');
+                    result.push(char);
+                }
+            }
+            special = false;
+        } else if char == '%' {
+            special = true;
         } else {
-            writeln!(file, "{TIME_EMPTY} {indent_string}| {nick_empty} {line}")?;
+            result.push(char);
         }
     }
 
-    Ok(())
-}
-
-fn write_placeholder(file: &mut BufWriter<File>, indent_string: &str) -> anyhow::Result<()> {
-    writeln!(file, "{TIME_EMPTY} {indent_string}[...]")?;
-    Ok(())
+    result
 }

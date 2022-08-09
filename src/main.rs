@@ -43,7 +43,7 @@ enum Command {
     /// Run the client interactively (default).
     Run,
     /// Export logs for a single room as a plain text file.
-    Export { room: String, file: PathBuf },
+    Export(export::Args),
     /// Compact and clean up vault.
     Gc,
     /// Clear euphoria session cookies.
@@ -87,7 +87,7 @@ async fn main() -> anyhow::Result<()> {
 
     match args.command.unwrap_or_default() {
         Command::Run => run(&vault, args.measure_widths).await?,
-        Command::Export { room, file } => export::export(&vault, room, &file).await?,
+        Command::Export(args) => export::export(&vault, args).await?,
         Command::Gc => {
             println!("Cleaning up and compacting vault");
             println!("This may take a while...");
