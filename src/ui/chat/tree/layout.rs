@@ -38,6 +38,12 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         }
     }
 
+    fn make_path_visible(&mut self, path: &Path<M::Id>) {
+        for segment in path.parent_segments() {
+            self.folded.remove(segment);
+        }
+    }
+
     fn cursor_line(&self, blocks: &TreeBlocks<M::Id>) -> i32 {
         if let Cursor::Bottom = self.cursor {
             // The value doesn't matter as it will always be ignored.
@@ -84,18 +90,25 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             blocks.blocks_mut().push_back(block);
         }
 
+        let folded = self.folded.contains(id);
+        let children = tree.children(id);
+        let folded_info = children
+            .filter(|_| folded)
+            .map(|c| c.len())
+            .filter(|c| *c > 0);
+
         // Main message body
         let highlighted = self.cursor.refers_to(id);
         let widget = if let Some(msg) = tree.msg(id) {
-            widgets::msg(highlighted, indent, msg)
+            widgets::msg(highlighted, indent, msg, folded_info)
         } else {
-            widgets::msg_placeholder(highlighted, indent)
+            widgets::msg_placeholder(highlighted, indent, folded_info)
         };
         let block = Block::new(frame, BlockId::Msg(id.clone()), widget);
         blocks.blocks_mut().push_back(block);
 
-        // Children, recursively
-        if let Some(children) = tree.children(id) {
+        // Children recursively (if not folded)
+        if let Some(children) = children.filter(|_| !folded) {
             for child in children {
                 self.layout_subtree(nick, frame, tree, indent + 1, child, blocks);
             }
@@ -458,6 +471,7 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
 
         let last_cursor_path = self.cursor_path(&self.last_cursor).await;
         let cursor_path = self.cursor_path(&self.cursor).await;
+        self.make_path_visible(&cursor_path);
 
         let mut blocks = self
             .layout_initial_seed(nick, frame, &last_cursor_path, &cursor_path)

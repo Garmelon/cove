@@ -3,6 +3,7 @@ mod layout;
 mod tree_blocks;
 mod widgets;
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -39,13 +40,14 @@ struct InnerTreeViewState<M: Msg, S: MsgStore<M>> {
     last_visible_msgs: Vec<M::Id>,
 
     cursor: Cursor<M::Id>,
+    editor: EditorState,
 
     /// Scroll the view on the next render. Positive values scroll up and
     /// negative values scroll down.
     scroll: i32,
     correction: Option<Correction>,
 
-    editor: EditorState,
+    folded: HashSet<M::Id>,
 }
 
 impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
@@ -56,9 +58,10 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             last_cursor_line: 0,
             last_visible_msgs: vec![],
             cursor: Cursor::Bottom,
+            editor: EditorState::new(),
             scroll: 0,
             correction: None,
-            editor: EditorState::new(),
+            folded: HashSet::new(),
         }
     }
 
@@ -98,6 +101,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     }
 
     pub fn list_action_key_bindings(&self, bindings: &mut KeyBindingsList) {
+        bindings.binding("space", "fold current message's subtree");
         bindings.binding("s", "toggle current message's seen status");
         bindings.binding("S", "mark all visible messages as seen");
         bindings.binding("ctrl+s", "mark all older messages as seen");
@@ -105,6 +109,14 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
 
     async fn handle_action_key_event(&mut self, event: KeyEvent, id: Option<&M::Id>) -> bool {
         match event {
+            key!(' ') => {
+                if let Some(id) = id {
+                    if !self.folded.remove(id) {
+                        self.folded.insert(id.clone());
+                    }
+                    return true;
+                }
+            }
             key!('s') => {
                 if let Some(id) = id {
                     if let Some(msg) = self.store.tree(id).await.msg(id) {

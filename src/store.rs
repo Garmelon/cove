@@ -23,6 +23,10 @@ impl<I> Path<I> {
         Self(segments)
     }
 
+    pub fn parent_segments(&self) -> impl Iterator<Item = &I> {
+        self.0.iter().take(self.0.len() - 1)
+    }
+
     pub fn push(&mut self, segment: I) {
         self.0.push(segment)
     }

@@ -6,6 +6,7 @@ mod time;
 
 use crossterm::style::{ContentStyle, Stylize};
 use toss::frame::Frame;
+use toss::styled::Styled;
 
 use super::super::ChatMsg;
 use crate::store::Msg;
@@ -40,6 +41,10 @@ fn style_indent(highlighted: bool) -> ContentStyle {
     }
 }
 
+fn style_info() -> ContentStyle {
+    ContentStyle::default().italic().dark_grey()
+}
+
 fn style_editor_highlight() -> ContentStyle {
     ContentStyle::default().black().on_cyan()
 }
@@ -48,8 +53,20 @@ fn style_pseudo_highlight() -> ContentStyle {
     ContentStyle::default().black().on_yellow()
 }
 
-pub fn msg<M: Msg + ChatMsg>(highlighted: bool, indent: usize, msg: &M) -> BoxedWidget {
-    let (nick, content) = msg.styled();
+pub fn msg<M: Msg + ChatMsg>(
+    highlighted: bool,
+    indent: usize,
+    msg: &M,
+    folded_info: Option<usize>,
+) -> BoxedWidget {
+    let (nick, mut content) = msg.styled();
+
+    if let Some(amount) = folded_info {
+        content = content
+            .then_plain("\n")
+            .then(format!("[{amount} more]"), style_info());
+    }
+
     HJoin::new(vec![
         Segment::new(seen::widget(msg.seen())),
         Segment::new(
@@ -69,7 +86,19 @@ pub fn msg<M: Msg + ChatMsg>(highlighted: bool, indent: usize, msg: &M) -> Boxed
     .into()
 }
 
-pub fn msg_placeholder(highlighted: bool, indent: usize) -> BoxedWidget {
+pub fn msg_placeholder(
+    highlighted: bool,
+    indent: usize,
+    folded_info: Option<usize>,
+) -> BoxedWidget {
+    let mut content = Styled::new(PLACEHOLDER, style_placeholder());
+
+    if let Some(amount) = folded_info {
+        content = content
+            .then_plain("\n")
+            .then(format!("[{amount} more]"), style_info());
+    }
+
     HJoin::new(vec![
         Segment::new(seen::widget(true)),
         Segment::new(
@@ -78,7 +107,7 @@ pub fn msg_placeholder(highlighted: bool, indent: usize) -> BoxedWidget {
                 .right(1),
         ),
         Segment::new(Indent::new(indent, style_indent(highlighted))),
-        Segment::new(Text::new((PLACEHOLDER, style_placeholder()))),
+        Segment::new(Text::new(content)),
     ])
     .into()
 }
