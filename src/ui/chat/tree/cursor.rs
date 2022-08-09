@@ -1,5 +1,7 @@
 //! Moving the cursor around.
 
+use std::collections::HashSet;
+
 use crate::store::{Msg, MsgStore, Tree};
 
 use super::{Correction, InnerTreeViewState};
@@ -63,7 +65,11 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         }
     }
 
-    fn find_first_child(tree: &Tree<M>, id: &mut M::Id) -> bool {
+    fn find_first_child(folded: &HashSet<M::Id>, tree: &Tree<M>, id: &mut M::Id) -> bool {
+        if folded.contains(id) {
+            return false;
+        }
+
         if let Some(child) = tree.children(id).and_then(|c| c.first()) {
             *id = child.clone();
             true
@@ -72,7 +78,11 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         }
     }
 
-    fn find_last_child(tree: &Tree<M>, id: &mut M::Id) -> bool {
+    fn find_last_child(folded: &HashSet<M::Id>, tree: &Tree<M>, id: &mut M::Id) -> bool {
+        if folded.contains(id) {
+            return false;
+        }
+
         if let Some(child) = tree.children(id).and_then(|c| c.last()) {
             *id = child.clone();
             true
@@ -126,11 +136,16 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     }
 
     /// Move to the previous message, or don't move if this is not possible.
-    async fn find_prev_msg(store: &S, tree: &mut Tree<M>, id: &mut M::Id) -> bool {
+    async fn find_prev_msg(
+        store: &S,
+        folded: &HashSet<M::Id>,
+        tree: &mut Tree<M>,
+        id: &mut M::Id,
+    ) -> bool {
         // Move to previous sibling, then to its last child
         // If not possible, move to parent
         if Self::find_prev_sibling(store, tree, id).await {
-            while Self::find_last_child(tree, id) {}
+            while Self::find_last_child(folded, tree, id) {}
             true
         } else {
             Self::find_parent(tree, id)
@@ -138,8 +153,13 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     }
 
     /// Move to the next message, or don't move if this is not possible.
-    async fn find_next_msg(store: &S, tree: &mut Tree<M>, id: &mut M::Id) -> bool {
-        if Self::find_first_child(tree, id) {
+    async fn find_next_msg(
+        store: &S,
+        folded: &HashSet<M::Id>,
+        tree: &mut Tree<M>,
+        id: &mut M::Id,
+    ) -> bool {
+        if Self::find_first_child(folded, tree, id) {
             return true;
         }
 
@@ -166,14 +186,14 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                 if let Some(last_tree_id) = self.store.last_tree_id().await {
                     let tree = self.store.tree(&last_tree_id).await;
                     let mut id = last_tree_id;
-                    while Self::find_last_child(&tree, &mut id) {}
+                    while Self::find_last_child(&self.folded, &tree, &mut id) {}
                     self.cursor = Cursor::Msg(id);
                 }
             }
             Cursor::Msg(ref mut msg) => {
                 let path = self.store.path(msg).await;
                 let mut tree = self.store.tree(path.first()).await;
-                Self::find_prev_msg(&self.store, &mut tree, msg).await;
+                Self::find_prev_msg(&self.store, &self.folded, &mut tree, msg).await;
             }
             Cursor::Editor { .. } => {}
             Cursor::Pseudo {
@@ -182,7 +202,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             } => {
                 let tree = self.store.tree(parent).await;
                 let mut id = parent.clone();
-                while Self::find_last_child(&tree, &mut id) {}
+                while Self::find_last_child(&self.folded, &tree, &mut id) {}
                 self.cursor = Cursor::Msg(id);
             }
         }
@@ -194,7 +214,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             Cursor::Msg(ref mut msg) => {
                 let path = self.store.path(msg).await;
                 let mut tree = self.store.tree(path.first()).await;
-                if !Self::find_next_msg(&self.store, &mut tree, msg).await {
+                if !Self::find_next_msg(&self.store, &self.folded, &mut tree, msg).await {
                     self.cursor = Cursor::Bottom;
                 }
             }
@@ -207,9 +227,9 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             } => {
                 let mut tree = self.store.tree(parent).await;
                 let mut id = parent.clone();
-                while Self::find_last_child(&tree, &mut id) {}
+                while Self::find_last_child(&self.folded, &tree, &mut id) {}
                 // Now we're at the previous message
-                if Self::find_next_msg(&self.store, &mut tree, &mut id).await {
+                if Self::find_next_msg(&self.store, &self.folded, &mut tree, &mut id).await {
                     self.cursor = Cursor::Msg(id);
                 } else {
                     self.cursor = Cursor::Bottom;
