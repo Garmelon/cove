@@ -368,6 +368,33 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         }
     }
 
+    fn scroll_so_cursor_is_centered(&self, frame: &mut Frame, blocks: &mut TreeBlocks<M::Id>) {
+        if matches!(self.cursor, Cursor::Bottom) {
+            return; // Cursor is locked to bottom
+        }
+
+        let block = blocks
+            .blocks()
+            .find(&BlockId::from_cursor(&self.cursor))
+            .expect("no cursor found");
+
+        let height = frame.size().height as i32;
+        let scrolloff = scrolloff(height);
+
+        let min_line = -block.focus.start + scrolloff;
+        let max_line = height - block.focus.end - scrolloff;
+
+        // If the message is higher than the available space, the top of the
+        // message should always be visible. I'm not using top_line.clamp(...)
+        // because the order of the min and max matters.
+        let top_line = block.top_line;
+        let new_top_line = (height - block.height) / 2;
+        let new_top_line = new_top_line.min(max_line).max(min_line);
+        if new_top_line != top_line {
+            blocks.blocks_mut().offset(new_top_line - top_line);
+        }
+    }
+
     /// Try to obtain a [`Cursor::Msg`] pointing to the block.
     fn msg_id(block: &Block<BlockId<M::Id>>) -> Option<M::Id> {
         match &block.id {
@@ -517,6 +544,11 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                     self.fill_screen_and_clamp_scrolling(nick, frame, &mut blocks)
                         .await;
                 }
+            }
+            Some(Correction::CenterCursor) => {
+                self.scroll_so_cursor_is_centered(frame, &mut blocks);
+                self.fill_screen_and_clamp_scrolling(nick, frame, &mut blocks)
+                    .await;
             }
             None => {}
         }

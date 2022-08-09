@@ -379,6 +379,10 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         self.correction = Some(Correction::MoveCursorToVisibleArea);
     }
 
+    pub fn center_cursor(&mut self) {
+        self.correction = Some(Correction::CenterCursor);
+    }
+
     pub async fn parent_for_normal_reply(&self) -> Option<Option<M::Id>> {
         match &self.cursor {
             Cursor::Bottom => Some(None),

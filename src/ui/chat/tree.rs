@@ -30,6 +30,7 @@ use super::{ChatMsg, Reaction};
 enum Correction {
     MakeCursorVisible,
     MoveCursorToVisibleArea,
+    CenterCursor,
 }
 
 struct InnerTreeViewState<M: Msg, S: MsgStore<M>> {
@@ -75,6 +76,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         bindings.binding("ctrl+y/e", "scroll up/down a line");
         bindings.binding("ctrl+u/d", "scroll up/down half a screen");
         bindings.binding("ctrl+b/f", "scroll up/down one screen");
+        bindings.binding("z", "center cursor on screen");
     }
 
     async fn handle_movement_key_event(&mut self, frame: &mut Frame, event: KeyEvent) -> bool {
@@ -97,6 +99,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             key!(Ctrl + 'd') => self.scroll_down((chat_height / 2).into()),
             key!(Ctrl + 'b') => self.scroll_up(chat_height.saturating_sub(1).into()),
             key!(Ctrl + 'f') => self.scroll_down(chat_height.saturating_sub(1).into()),
+            key!('z') => self.center_cursor(),
             _ => return false,
         }
 

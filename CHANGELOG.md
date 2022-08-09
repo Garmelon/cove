@@ -17,10 +17,11 @@ Procedure when bumping the version number:
 ### Added
 - New messages are now marked as unseen
 - Sub-trees can now be folded
+- More readline-esque editor key bindings
 - Key bindings to move to prev/next sibling
+- Key binding to center cursor on screen
 
 ### Changed
-- Improved editor key bindings
 - Slowed down room history download speed
 
 ### Fixed
