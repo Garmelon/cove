@@ -94,6 +94,15 @@ impl<M: Msg> Tree<M> {
         self.children.get(id).map(|c| c as &[M::Id])
     }
 
+    pub fn subtree_size(&self, id: &M::Id) -> usize {
+        let children = self.children(id).unwrap_or_default();
+        let mut result = children.len();
+        for child in children {
+            result += self.subtree_size(child);
+        }
+        result
+    }
+
     pub fn siblings(&self, id: &M::Id) -> Option<&[M::Id]> {
         if let Some(parent) = self.parent(id) {
             self.children(&parent)

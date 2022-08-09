@@ -90,12 +90,13 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             blocks.blocks_mut().push_back(block);
         }
 
+        // Last part of message body if message is folded
         let folded = self.folded.contains(id);
-        let children = tree.children(id);
-        let folded_info = children
-            .filter(|_| folded)
-            .map(|c| c.len())
-            .filter(|c| *c > 0);
+        let folded_info = if folded {
+            Some(tree.subtree_size(id)).filter(|s| *s > 0)
+        } else {
+            None
+        };
 
         // Main message body
         let highlighted = self.cursor.refers_to(id);
@@ -107,10 +108,12 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         let block = Block::new(frame, BlockId::Msg(id.clone()), widget);
         blocks.blocks_mut().push_back(block);
 
-        // Children recursively (if not folded)
-        if let Some(children) = children.filter(|_| !folded) {
-            for child in children {
-                self.layout_subtree(nick, frame, tree, indent + 1, child, blocks);
+        // Children, recursively
+        if !folded {
+            if let Some(children) = tree.children(id) {
+                for child in children {
+                    self.layout_subtree(nick, frame, tree, indent + 1, child, blocks);
+                }
             }
         }
 
