@@ -20,6 +20,7 @@ Procedure when bumping the version number:
 - More readline-esque editor key bindings
 - Key bindings to move to prev/next sibling
 - Key binding to center cursor on screen
+- More scrolling key bindings
 - JSON message export
 - Export output path templating
 - Support for exporting multiple/all rooms at once

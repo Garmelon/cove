@@ -75,7 +75,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         bindings.binding("G, end", "move cursor to bottom");
         bindings.binding("ctrl+y/e", "scroll up/down a line");
         bindings.binding("ctrl+u/d", "scroll up/down half a screen");
-        bindings.binding("ctrl+b/f", "scroll up/down one screen");
+        bindings.binding("ctrl+b/f, page up/down", "scroll up/down one screen");
         bindings.binding("z", "center cursor on screen");
     }
 
@@ -97,8 +97,10 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             key!(Ctrl + 'e') => self.scroll_down(1),
             key!(Ctrl + 'u') => self.scroll_up((chat_height / 2).into()),
             key!(Ctrl + 'd') => self.scroll_down((chat_height / 2).into()),
-            key!(Ctrl + 'b') => self.scroll_up(chat_height.saturating_sub(1).into()),
-            key!(Ctrl + 'f') => self.scroll_down(chat_height.saturating_sub(1).into()),
+            key!(Ctrl + 'b') | key!(PageUp) => self.scroll_up(chat_height.saturating_sub(1).into()),
+            key!(Ctrl + 'f') | key!(PageDown) => {
+                self.scroll_down(chat_height.saturating_sub(1).into())
+            }
             key!('z') => self.center_cursor(),
             _ => return false,
         }
