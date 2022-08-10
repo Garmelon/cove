@@ -20,8 +20,12 @@ Procedure when bumping the version number:
 - More readline-esque editor key bindings
 - Key bindings to move to prev/next sibling
 - Key binding to center cursor on screen
+- JSON message export
+- Export output path templating
+- Support for exporting multiple/all rooms at once
 
 ### Changed
+- Reorganized export command
 - Slowed down room history download speed
 
 ### Fixed
