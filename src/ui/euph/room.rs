@@ -13,7 +13,7 @@ use crate::euph::api::{SessionType, SessionView, Snowflake};
 use crate::euph::{self, Joined, Status};
 use crate::store::MsgStore;
 use crate::ui::chat::{ChatState, Reaction};
-use crate::ui::input::{key, KeyBindingsList, KeyEvent};
+use crate::ui::input::{key, InputEvent, KeyBindingsList, KeyEvent};
 use crate::ui::widgets::background::Background;
 use crate::ui::widgets::border::Border;
 use crate::ui::widgets::editor::EditorState;
@@ -352,11 +352,11 @@ impl EuphRoom {
         }
     }
 
-    pub async fn handle_key_event(
+    pub async fn handle_event(
         &mut self,
         terminal: &mut Terminal,
         crossterm_lock: &Arc<FairMutex<()>>,
-        event: KeyEvent,
+        event: &InputEvent,
     ) -> bool {
         match &self.state {
             State::Normal => {
@@ -365,7 +365,7 @@ impl EuphRoom {
                     if let Ok(Some(Status::Joined(joined))) = room.status().await {
                         match self
                             .chat
-                            .handle_key_event(terminal, crossterm_lock, event, true)
+                            .handle_event(terminal, crossterm_lock, event, true)
                             .await
                         {
                             Reaction::NotHandled => {}
@@ -391,7 +391,7 @@ impl EuphRoom {
                 }
 
                 self.chat
-                    .handle_key_event(terminal, crossterm_lock, event, false)
+                    .handle_event(terminal, crossterm_lock, event, false)
                     .await
                     .handled()
             }
@@ -407,7 +407,7 @@ impl EuphRoom {
                     self.state = State::Normal;
                     true
                 }
-                _ => util::handle_editor_key_event(
+                _ => util::handle_editor_event(
                     ed,
                     terminal,
                     crossterm_lock,

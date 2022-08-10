@@ -14,7 +14,7 @@ use toss::frame::{Frame, Pos, Size};
 use toss::terminal::Terminal;
 
 use crate::store::{Msg, MsgStore};
-use crate::ui::input::{key, KeyBindingsList, KeyEvent};
+use crate::ui::input::{key, InputEvent, KeyBindingsList, KeyEvent};
 use crate::ui::util;
 use crate::ui::widgets::editor::EditorState;
 use crate::ui::widgets::Widget;
@@ -79,7 +79,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         bindings.binding("z", "center cursor on screen");
     }
 
-    async fn handle_movement_key_event(&mut self, frame: &mut Frame, event: KeyEvent) -> bool {
+    async fn handle_movement_event(&mut self, frame: &mut Frame, event: &InputEvent) -> bool {
         let chat_height = frame.size().height - 3;
 
         match event {
@@ -115,7 +115,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         bindings.binding("ctrl+s", "mark all older messages as seen");
     }
 
-    async fn handle_action_key_event(&mut self, event: KeyEvent, id: Option<&M::Id>) -> bool {
+    async fn handle_action_event(&mut self, event: &InputEvent, id: Option<&M::Id>) -> bool {
         match event {
             key!(' ') => {
                 if let Some(id) = id {
@@ -162,9 +162,9 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         bindings.binding("t", "start a new thread");
     }
 
-    async fn handle_edit_initiating_key_event(
+    async fn handle_edit_initiating_event(
         &mut self,
-        event: KeyEvent,
+        event: &InputEvent,
         id: Option<M::Id>,
     ) -> bool {
         match event {
@@ -198,20 +198,20 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         }
     }
 
-    async fn handle_normal_key_event(
+    async fn handle_normal_event(
         &mut self,
         frame: &mut Frame,
-        event: KeyEvent,
+        event: &InputEvent,
         can_compose: bool,
         id: Option<M::Id>,
     ) -> bool {
         #[allow(clippy::if_same_then_else)]
-        if self.handle_movement_key_event(frame, event).await {
+        if self.handle_movement_event(frame, event).await {
             true
-        } else if self.handle_action_key_event(event, id.as_ref()).await {
+        } else if self.handle_action_event(event, id.as_ref()).await {
             true
         } else if can_compose {
-            self.handle_edit_initiating_key_event(event, id).await
+            self.handle_edit_initiating_event(event, id).await
         } else {
             false
         }
@@ -223,11 +223,11 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         util::list_editor_key_bindings(bindings, |_| true, true);
     }
 
-    fn handle_editor_key_event(
+    fn handle_editor_event(
         &mut self,
         terminal: &mut Terminal,
         crossterm_lock: &Arc<FairMutex<()>>,
-        event: KeyEvent,
+        event: &InputEvent,
         coming_from: Option<M::Id>,
         parent: Option<M::Id>,
     ) -> Reaction<M> {
@@ -250,7 +250,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             }
 
             _ => {
-                let handled = util::handle_editor_key_event(
+                let handled = util::handle_editor_event(
                     &self.editor,
                     terminal,
                     crossterm_lock,
@@ -281,17 +281,17 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         }
     }
 
-    async fn handle_key_event(
+    async fn handle_event(
         &mut self,
         terminal: &mut Terminal,
         crossterm_lock: &Arc<FairMutex<()>>,
-        event: KeyEvent,
+        event: &InputEvent,
         can_compose: bool,
     ) -> Reaction<M> {
         match &self.cursor {
             Cursor::Bottom => {
                 if self
-                    .handle_normal_key_event(terminal.frame(), event, can_compose, None)
+                    .handle_normal_event(terminal.frame(), event, can_compose, None)
                     .await
                 {
                     Reaction::Handled
@@ -302,7 +302,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             Cursor::Msg(id) => {
                 let id = id.clone();
                 if self
-                    .handle_normal_key_event(terminal.frame(), event, can_compose, Some(id))
+                    .handle_normal_event(terminal.frame(), event, can_compose, Some(id))
                     .await
                 {
                     Reaction::Handled
@@ -313,7 +313,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             Cursor::Editor {
                 coming_from,
                 parent,
-            } => self.handle_editor_key_event(
+            } => self.handle_editor_event(
                 terminal,
                 crossterm_lock,
                 event,
@@ -321,10 +321,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                 parent.clone(),
             ),
             Cursor::Pseudo { .. } => {
-                if self
-                    .handle_movement_key_event(terminal.frame(), event)
-                    .await
-                {
+                if self.handle_movement_event(terminal.frame(), event).await {
                     Reaction::Handled
                 } else {
                     Reaction::NotHandled
@@ -367,17 +364,17 @@ impl<M: Msg, S: MsgStore<M>> TreeViewState<M, S> {
         self.0.lock().await.list_key_bindings(bindings, can_compose);
     }
 
-    pub async fn handle_key_event(
+    pub async fn handle_event(
         &mut self,
         terminal: &mut Terminal,
         crossterm_lock: &Arc<FairMutex<()>>,
-        event: KeyEvent,
+        event: &InputEvent,
         can_compose: bool,
     ) -> Reaction<M> {
         self.0
             .lock()
             .await
-            .handle_key_event(terminal, crossterm_lock, event, can_compose)
+            .handle_event(terminal, crossterm_lock, event, can_compose)
             .await
     }
 

@@ -14,7 +14,7 @@ use crate::store::{Msg, MsgStore};
 
 use self::tree::{TreeView, TreeViewState};
 
-use super::input::{KeyBindingsList, KeyEvent};
+use super::input::{InputEvent, KeyBindingsList};
 use super::widgets::Widget;
 
 ///////////
@@ -90,17 +90,17 @@ impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
         }
     }
 
-    pub async fn handle_key_event(
+    pub async fn handle_event(
         &mut self,
         terminal: &mut Terminal,
         crossterm_lock: &Arc<FairMutex<()>>,
-        event: KeyEvent,
+        event: &InputEvent,
         can_compose: bool,
     ) -> Reaction<M> {
         match self.mode {
             Mode::Tree => {
                 self.tree
-                    .handle_key_event(terminal, crossterm_lock, event, can_compose)
+                    .handle_event(terminal, crossterm_lock, event, can_compose)
                     .await
             }
         }

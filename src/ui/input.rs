@@ -1,6 +1,6 @@
 use std::convert::Infallible;
 
-use crossterm::event::{KeyCode, KeyModifiers};
+use crossterm::event::{Event, KeyCode, KeyModifiers};
 use crossterm::style::{ContentStyle, Stylize};
 use toss::styled::Styled;
 
@@ -15,6 +15,22 @@ use super::widgets::padding::Padding;
 use super::widgets::resize::Resize;
 use super::widgets::text::Text;
 use super::widgets::BoxedWidget;
+
+#[derive(Debug, Clone)]
+pub enum InputEvent {
+    Key(KeyEvent),
+    Paste(String),
+}
+
+impl InputEvent {
+    pub fn from_event(event: Event) -> Option<Self> {
+        match event {
+            crossterm::event::Event::Key(key) => Some(Self::Key(key.into())),
+            crossterm::event::Event::Paste(text) => Some(Self::Paste(text)),
+            _ => None,
+        }
+    }
+}
 
 /// A key event data type that is a bit easier to pattern match on than
 /// [`crossterm::event::KeyEvent`].
@@ -39,27 +55,30 @@ impl From<crossterm::event::KeyEvent> for KeyEvent {
 
 #[rustfmt::skip]
 macro_rules! key {
+    // key!(Paste text)
+    ( Paste $text:ident ) => { InputEvent::Paste($text) };
+
     // key!('a')
-    (        $key:literal ) => { KeyEvent { code: KeyCode::Char($key), shift: _, ctrl: false, alt: false, } };
-    ( Ctrl + $key:literal ) => { KeyEvent { code: KeyCode::Char($key), shift: _, ctrl: true,  alt: false, } };
-    (  Alt + $key:literal ) => { KeyEvent { code: KeyCode::Char($key), shift: _, ctrl: false, alt: true,  } };
+    (        $key:literal ) => { InputEvent::Key(KeyEvent { code: KeyCode::Char($key), shift: _, ctrl: false, alt: false, }) };
+    ( Ctrl + $key:literal ) => { InputEvent::Key(KeyEvent { code: KeyCode::Char($key), shift: _, ctrl: true,  alt: false, }) };
+    (  Alt + $key:literal ) => { InputEvent::Key(KeyEvent { code: KeyCode::Char($key), shift: _, ctrl: false, alt: true,  }) };
 
-    // key!(Char(xyz))
-    (        Char $key:pat ) => { KeyEvent { code: KeyCode::Char($key), shift: _, ctrl: false, alt: false, } };
-    ( Ctrl + Char $key:pat ) => { KeyEvent { code: KeyCode::Char($key), shift: _, ctrl: true,  alt: false, } };
-    (  Alt + Char $key:pat ) => { KeyEvent { code: KeyCode::Char($key), shift: _, ctrl: false, alt: true,  } };
+    // key!(Char c)
+    (        Char $key:pat ) => { InputEvent::Key(KeyEvent { code: KeyCode::Char($key), shift: _, ctrl: false, alt: false, }) };
+    ( Ctrl + Char $key:pat ) => { InputEvent::Key(KeyEvent { code: KeyCode::Char($key), shift: _, ctrl: true,  alt: false, }) };
+    (  Alt + Char $key:pat ) => { InputEvent::Key(KeyEvent { code: KeyCode::Char($key), shift: _, ctrl: false, alt: true,  }) };
 
-    // key!(F(n))
-    (         F $key:pat ) => { KeyEvent { code: KeyCode::F($key), shift: false, ctrl: false, alt: false, } };
-    ( Shift + F $key:pat ) => { KeyEvent { code: KeyCode::F($key), shift: true,  ctrl: false, alt: false, } };
-    (  Ctrl + F $key:pat ) => { KeyEvent { code: KeyCode::F($key), shift: false, ctrl: true,  alt: false, } };
-    (   Alt + F $key:pat ) => { KeyEvent { code: KeyCode::F($key), shift: false, ctrl: false, alt: true,  } };
+    // key!(F n)
+    (         F $key:pat ) => { InputEvent::Key(KeyEvent { code: KeyCode::F($key), shift: false, ctrl: false, alt: false, }) };
+    ( Shift + F $key:pat ) => { InputEvent::Key(KeyEvent { code: KeyCode::F($key), shift: true,  ctrl: false, alt: false, }) };
+    (  Ctrl + F $key:pat ) => { InputEvent::Key(KeyEvent { code: KeyCode::F($key), shift: false, ctrl: true,  alt: false, }) };
+    (   Alt + F $key:pat ) => { InputEvent::Key(KeyEvent { code: KeyCode::F($key), shift: false, ctrl: false, alt: true,  }) };
 
     // key!(other)
-    (         $key:ident ) => { KeyEvent { code: KeyCode::$key, shift: false, ctrl: false, alt: false, } };
-    ( Shift + $key:ident ) => { KeyEvent { code: KeyCode::$key, shift: true,  ctrl: false, alt: false, } };
-    (  Ctrl + $key:ident ) => { KeyEvent { code: KeyCode::$key, shift: false, ctrl: true,  alt: false, } };
-    (   Alt + $key:ident ) => { KeyEvent { code: KeyCode::$key, shift: false, ctrl: false, alt: true,  } };
+    (         $key:ident ) => { InputEvent::Key(KeyEvent { code: KeyCode::$key, shift: false, ctrl: false, alt: false, }) };
+    ( Shift + $key:ident ) => { InputEvent::Key(KeyEvent { code: KeyCode::$key, shift: true,  ctrl: false, alt: false, }) };
+    (  Ctrl + $key:ident ) => { InputEvent::Key(KeyEvent { code: KeyCode::$key, shift: false, ctrl: true,  alt: false, }) };
+    (   Alt + $key:ident ) => { InputEvent::Key(KeyEvent { code: KeyCode::$key, shift: false, ctrl: false, alt: true,  }) };
 }
 pub(crate) use key;
 

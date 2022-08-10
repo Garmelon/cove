@@ -14,7 +14,7 @@ use crate::euph::{Joined, Status};
 use crate::vault::Vault;
 
 use super::euph::room::EuphRoom;
-use super::input::{key, KeyBindingsList, KeyEvent};
+use super::input::{key, InputEvent, KeyBindingsList, KeyEvent};
 use super::widgets::background::Background;
 use super::widgets::border::Border;
 use super::widgets::editor::EditorState;
@@ -270,11 +270,11 @@ impl Rooms {
         }
     }
 
-    pub async fn handle_key_event(
+    pub async fn handle_event(
         &mut self,
         terminal: &mut Terminal,
         crossterm_lock: &Arc<FairMutex<()>>,
-        event: KeyEvent,
+        event: &InputEvent,
     ) -> bool {
         self.stabilize_rooms().await;
 
@@ -318,7 +318,7 @@ impl Rooms {
             },
             State::ShowRoom(name) => {
                 if let Some(room) = self.euph_rooms.get_mut(name) {
-                    if room.handle_key_event(terminal, crossterm_lock, event).await {
+                    if room.handle_event(terminal, crossterm_lock, event).await {
                         return true;
                     }
 
@@ -340,7 +340,7 @@ impl Rooms {
                     }
                 }
                 _ => {
-                    return util::handle_editor_key_event(
+                    return util::handle_editor_event(
                         ed,
                         terminal,
                         crossterm_lock,

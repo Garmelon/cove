@@ -9,7 +9,7 @@ use std::convert::Infallible;
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 
-use crossterm::event::{Event, KeyCode, MouseEvent};
+use crossterm::event::{Event, KeyCode};
 use parking_lot::FairMutex;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -21,7 +21,7 @@ use crate::vault::Vault;
 
 pub use self::chat::ChatMsg;
 use self::chat::ChatState;
-use self::input::{key, KeyBindingsList, KeyEvent};
+use self::input::{key, InputEvent, KeyBindingsList, KeyEvent};
 use self::rooms::Rooms;
 use self::widgets::layer::Layer;
 use self::widgets::list::ListState;
@@ -158,12 +158,13 @@ impl Ui {
 
                 let result = match event {
                     UiEvent::Redraw => EventHandleResult::Continue,
-                    UiEvent::Term(Event::Key(event)) => {
-                        self.handle_key_event(event.into(), terminal, &crossterm_lock)
-                            .await
+                    UiEvent::Term(event) => {
+                        if let Some(event) = InputEvent::from_event(event) {
+                            self.handle_event(terminal, &crossterm_lock, &event).await
+                        } else {
+                            EventHandleResult::Continue
+                        }
                     }
-                    UiEvent::Term(Event::Mouse(event)) => self.handle_mouse_event(event).await?,
-                    UiEvent::Term(_) => EventHandleResult::Continue,
                 };
                 match result {
                     EventHandleResult::Continue => {}
@@ -219,11 +220,11 @@ impl Ui {
         }
     }
 
-    async fn handle_key_event(
+    async fn handle_event(
         &mut self,
-        event: KeyEvent,
         terminal: &mut Terminal,
         crossterm_lock: &Arc<FairMutex<()>>,
+        event: &InputEvent,
     ) -> EventHandleResult {
         if let key!(Ctrl + 'c') = event {
             // Exit unconditionally on ctrl+c. Previously, shift+q would also
@@ -261,12 +262,12 @@ impl Ui {
         let handled = match self.mode {
             Mode::Main => {
                 self.rooms
-                    .handle_key_event(terminal, crossterm_lock, event)
+                    .handle_event(terminal, crossterm_lock, event)
                     .await
             }
             Mode::Log => self
                 .log_chat
-                .handle_key_event(terminal, crossterm_lock, event, false)
+                .handle_event(terminal, crossterm_lock, event, false)
                 .await
                 .handled(),
         };
@@ -281,12 +282,5 @@ impl Ui {
         }
 
         EventHandleResult::Continue
-    }
-
-    async fn handle_mouse_event(
-        &mut self,
-        _event: MouseEvent,
-    ) -> anyhow::Result<EventHandleResult> {
-        Ok(EventHandleResult::Continue)
     }
 }

@@ -4,7 +4,7 @@ use crossterm::event::KeyCode;
 use parking_lot::FairMutex;
 use toss::terminal::Terminal;
 
-use super::input::{key, KeyBindingsList, KeyEvent};
+use super::input::{key, InputEvent, KeyBindingsList, KeyEvent};
 use super::widgets::editor::EditorState;
 
 pub fn prompt(
@@ -59,11 +59,11 @@ pub fn list_editor_key_bindings(
     bindings.binding("↑/↓", "move cursor up/down");
 }
 
-pub fn handle_editor_key_event(
+pub fn handle_editor_event(
     editor: &EditorState,
     terminal: &mut Terminal,
     crossterm_lock: &Arc<FairMutex<()>>,
-    event: KeyEvent,
+    event: &InputEvent,
     char_filter: impl Fn(char) -> bool,
     can_edit_externally: bool,
 ) -> bool {
@@ -71,13 +71,13 @@ pub fn handle_editor_key_event(
         // Enter with *any* modifier pressed - if ctrl and shift don't
         // work, maybe alt does
         key!(Enter) => return false,
-        KeyEvent {
+        InputEvent::Key(KeyEvent {
             code: KeyCode::Enter,
             ..
-        } if char_filter('\n') => editor.insert_char(terminal.frame(), '\n'),
+        }) if char_filter('\n') => editor.insert_char(terminal.frame(), '\n'),
 
         // Editing
-        key!(Char ch) if char_filter(ch) => editor.insert_char(terminal.frame(), ch),
+        key!(Char ch) if char_filter(*ch) => editor.insert_char(terminal.frame(), *ch),
         key!(Ctrl + 'h') | key!(Backspace) => editor.backspace(terminal.frame()),
         key!(Ctrl + 'd') | key!(Delete) => editor.delete(),
         key!(Ctrl + 'l') => editor.clear(),
