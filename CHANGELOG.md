@@ -7,12 +7,14 @@ Procedure when bumping the version number:
 1. Update dependencies in a separate commit
 2. Set version number in `Cargo.toml`
 3. Add new section in this changelog
-4. Commit with message `Bump version to vX.Y.Z`
+4. Commit with message `Bump version to X.Y.Z`
 5. Create tag named `vX.Y.Z`
 6. Fast-forward branch `latest`
 7. Push `master`, `latest` and the new tag
 
 ## Unreleased
+
+## v0.2.0 - 2022-08-10
 
 ### Added
 - New messages are now marked as unseen
