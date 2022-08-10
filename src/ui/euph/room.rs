@@ -12,22 +12,21 @@ use toss::terminal::Terminal;
 use crate::euph::api::{SessionType, SessionView, Snowflake};
 use crate::euph::{self, Joined, Status};
 use crate::store::MsgStore;
+use crate::ui::chat::{ChatState, Reaction};
+use crate::ui::input::{key, KeyBindingsList, KeyEvent};
+use crate::ui::widgets::background::Background;
+use crate::ui::widgets::border::Border;
+use crate::ui::widgets::editor::EditorState;
+use crate::ui::widgets::empty::Empty;
+use crate::ui::widgets::float::Float;
+use crate::ui::widgets::join::{HJoin, Segment, VJoin};
+use crate::ui::widgets::layer::Layer;
+use crate::ui::widgets::list::{List, ListState};
+use crate::ui::widgets::padding::Padding;
+use crate::ui::widgets::text::Text;
+use crate::ui::widgets::BoxedWidget;
+use crate::ui::{util, UiEvent};
 use crate::vault::EuphVault;
-
-use super::chat::{ChatState, Reaction};
-use super::input::{key, KeyBindingsList, KeyEvent};
-use super::widgets::background::Background;
-use super::widgets::border::Border;
-use super::widgets::editor::EditorState;
-use super::widgets::empty::Empty;
-use super::widgets::float::Float;
-use super::widgets::join::{HJoin, Segment, VJoin};
-use super::widgets::layer::Layer;
-use super::widgets::list::{List, ListState};
-use super::widgets::padding::Padding;
-use super::widgets::text::Text;
-use super::widgets::BoxedWidget;
-use super::{util, UiEvent};
 
 enum State {
     Normal,

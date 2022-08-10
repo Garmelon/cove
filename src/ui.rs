@@ -1,6 +1,6 @@
 mod chat;
+mod euph;
 mod input;
-mod room;
 mod rooms;
 mod util;
 mod widgets;

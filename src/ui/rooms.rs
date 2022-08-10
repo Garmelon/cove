@@ -13,8 +13,8 @@ use crate::euph::api::SessionType;
 use crate::euph::{Joined, Status};
 use crate::vault::Vault;
 
+use super::euph::room::EuphRoom;
 use super::input::{key, KeyBindingsList, KeyEvent};
-use super::room::EuphRoom;
 use super::widgets::background::Background;
 use super::widgets::border::Border;
 use super::widgets::editor::EditorState;
