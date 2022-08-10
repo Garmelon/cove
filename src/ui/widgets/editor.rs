@@ -182,8 +182,15 @@ impl InnerEditorState {
     /// accordingly.
     fn insert_char(&mut self, frame: &mut Frame, ch: char) {
         self.text.insert(self.idx, ch);
-        self.idx += 1;
-        self.move_cursor_to_grapheme_boundary();
+        self.idx += ch.len_utf8();
+        self.record_cursor_col(frame);
+    }
+
+    /// Insert a string at the current cursor position and move the cursor
+    /// accordingly.
+    fn insert_str(&mut self, frame: &mut Frame, str: &str) {
+        self.text.insert_str(self.idx, str);
+        self.idx += str.len();
         self.record_cursor_col(frame);
     }
 
@@ -345,6 +352,10 @@ impl EditorState {
 
     pub fn insert_char(&self, frame: &mut Frame, ch: char) {
         self.0.lock().insert_char(frame, ch);
+    }
+
+    pub fn insert_str(&self, frame: &mut Frame, str: &str) {
+        self.0.lock().insert_str(frame, str);
     }
 
     /// Delete the grapheme before the cursor position.

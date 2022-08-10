@@ -78,6 +78,7 @@ pub fn handle_editor_event(
 
         // Editing
         key!(Char ch) if char_filter(*ch) => editor.insert_char(terminal.frame(), *ch),
+        key!(Paste str) if str.chars().all(char_filter) => editor.insert_str(terminal.frame(), str),
         key!(Ctrl + 'h') | key!(Backspace) => editor.backspace(terminal.frame()),
         key!(Ctrl + 'd') | key!(Delete) => editor.delete(),
         key!(Ctrl + 'l') => editor.clear(),

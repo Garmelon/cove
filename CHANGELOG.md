@@ -17,6 +17,7 @@ Procedure when bumping the version number:
 ### Added
 - New messages are now marked as unseen
 - Sub-trees can now be folded
+- Support for pasting text into editors
 - More readline-esque editor key bindings
 - Key bindings to move to prev/next sibling
 - Key binding to center cursor on screen
