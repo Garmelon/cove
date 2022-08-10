@@ -220,9 +220,9 @@ dependencies = [
 
 [[package]]
 name = "crossterm"
-version = "0.24.0"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab9f7409c70a38a56216480fba371ee460207dd8926ccf5b4160591759559170"
+checksum = "e64e6c0fbe2c17357405f7c758c1ef960fce08bdfb2c03d88d2a18d7e09c4b67"
 dependencies = [
  "bitflags",
  "crossterm_winapi",
@@ -1248,7 +1248,7 @@ dependencies = [
 [[package]]
 name = "toss"
 version = "0.1.0"
-source = "git+https://github.com/Garmelon/toss.git?rev=5957e8e5508a3772b2229fc9d8ac30ce4173d356#5957e8e5508a3772b2229fc9d8ac30ce4173d356"
+source = "git+https://github.com/Garmelon/toss.git?rev=fbe9e065fcc76f445c8e4feee04dcbf230586a4c#fbe9e065fcc76f445c8e4feee04dcbf230586a4c"
 dependencies = [
  "crossterm",
  "unicode-linebreak",

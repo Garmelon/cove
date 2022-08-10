@@ -7,7 +7,8 @@ edition = "2021"
 anyhow = "1.0.58"
 async-trait = "0.1.56"
 clap = { version = "3.2.14", features = ["derive"] }
-crossterm = "0.24.0"
+cookie = "0.16.0"
+crossterm = "0.25.0"
 directories = "4.0.1"
 edit = "0.1.4"
 futures = "0.3.21"
@@ -22,7 +23,6 @@ thiserror = "1.0.31"
 tokio = { version = "1.20.0", features = ["full"] }
 unicode-segmentation = "1.9.0"
 unicode-width = "0.1.9"
-cookie = "0.16.0"
 
 [dependencies.time]
 version = "0.3.11"
@@ -34,7 +34,7 @@ features = ["rustls-tls-native-roots"]
 
 [dependencies.toss]
 git = "https://github.com/Garmelon/toss.git"
-rev = "5957e8e5508a3772b2229fc9d8ac30ce4173d356"
+rev = "fbe9e065fcc76f445c8e4feee04dcbf230586a4c"
 
 # [patch."https://github.com/Garmelon/toss.git"]
 # toss = { path = "../toss/" }

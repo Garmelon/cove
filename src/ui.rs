@@ -163,7 +163,7 @@ impl Ui {
                             .await
                     }
                     UiEvent::Term(Event::Mouse(event)) => self.handle_mouse_event(event).await?,
-                    UiEvent::Term(Event::Resize(_, _)) => EventHandleResult::Continue,
+                    UiEvent::Term(_) => EventHandleResult::Continue,
                 };
                 match result {
                     EventHandleResult::Continue => {}
