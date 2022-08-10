@@ -8,7 +8,7 @@ use rusqlite::{named_params, params, Connection, OptionalExtension, ToSql, Trans
 use time::OffsetDateTime;
 use tokio::sync::oneshot;
 
-use crate::euph::api::{Message, Snowflake, Time, UserId};
+use crate::euph::api::{Message, SessionView, Snowflake, Time, UserId};
 use crate::euph::SmallMessage;
 use crate::store::{MsgStore, Path, Tree};
 
@@ -134,6 +134,19 @@ impl EuphVault {
         let (tx, rx) = oneshot::channel();
         let request = EuphRequest::GetLastSpan {
             room: self.room.clone(),
+            result: tx,
+        };
+        let _ = self.vault.tx.send(request.into());
+        rx.await.unwrap()
+    }
+
+    pub async fn chunk_at_offset(&self, amount: usize, offset: usize) -> Vec<Message> {
+        // TODO vault::Error
+        let (tx, rx) = oneshot::channel();
+        let request = EuphRequest::GetChunkAtOffset {
+            room: self.room.clone(),
+            amount,
+            offset,
             result: tx,
         };
         let _ = self.vault.tx.send(request.into());
@@ -457,6 +470,12 @@ pub(super) enum EuphRequest {
         id: Snowflake,
         seen: bool,
     },
+    GetChunkAtOffset {
+        room: String,
+        amount: usize,
+        offset: usize,
+        result: oneshot::Sender<Vec<Message>>,
+    },
 }
 
 impl EuphRequest {
@@ -525,6 +544,12 @@ impl EuphRequest {
             EuphRequest::SetOlderSeen { room, id, seen } => {
                 Self::set_older_seen(conn, room, id, seen)
             }
+            EuphRequest::GetChunkAtOffset {
+                room,
+                amount,
+                offset,
+                result,
+            } => Self::get_chunk_at_offset(conn, room, amount, offset, result),
         };
         if let Err(e) = result {
             // If an error occurs here, the rest of the UI will likely panic and
@@ -1233,6 +1258,56 @@ impl EuphRequest {
             ",
             named_params! { ":room": room, ":id": id, ":seen": seen },
         )?;
+        Ok(())
+    }
+
+    fn get_chunk_at_offset(
+        conn: &Connection,
+        room: String,
+        amount: usize,
+        offset: usize,
+        result: oneshot::Sender<Vec<Message>>,
+    ) -> rusqlite::Result<()> {
+        let mut query = conn.prepare(
+            "
+            SELECT
+                id, parent, previous_edit_id, time, content, encryption_key_id, edited, deleted, truncated,
+                user_id, name, server_id, server_era, session_id, is_staff, is_manager, client_address, real_client_address
+            FROM euph_msgs
+            WHERE room = ?
+            ORDER BY id ASC
+            LIMIT ?
+            OFFSET ?
+            ",
+        )?;
+
+        let messages = query
+            .query_map(params![room, amount, offset], |row| {
+                Ok(Message {
+                    id: row.get(0)?,
+                    parent: row.get(1)?,
+                    previous_edit_id: row.get(2)?,
+                    time: row.get(3)?,
+                    content: row.get(4)?,
+                    encryption_key_id: row.get(5)?,
+                    edited: row.get(6)?,
+                    deleted: row.get(7)?,
+                    truncated: row.get(8)?,
+                    sender: SessionView {
+                        id: UserId(row.get(9)?),
+                        name: row.get(10)?,
+                        server_id: row.get(11)?,
+                        server_era: row.get(12)?,
+                        session_id: row.get(13)?,
+                        is_staff: row.get(14)?,
+                        is_manager: row.get(15)?,
+                        client_address: row.get(16)?,
+                        real_client_address: row.get(17)?,
+                    },
+                })
+            })?
+            .collect::<rusqlite::Result<_>>()?;
+        let _ = result.send(messages);
         Ok(())
     }
 }

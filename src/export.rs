@@ -1,5 +1,6 @@
 //! Export logs from the vault to plain text files.
 
+mod json;
 mod text;
 
 use std::fs::File;
@@ -11,18 +12,22 @@ use crate::vault::Vault;
 pub enum Format {
     /// Human-readable tree-structured messages.
     Text,
+    /// List of message objects in the same format as the euphoria API uses.
+    Json,
 }
 
 impl Format {
     fn name(&self) -> &'static str {
         match self {
             Self::Text => "text",
+            Self::Json => "json",
         }
     }
 
     fn extension(&self) -> &'static str {
         match self {
             Self::Text => "txt",
+            Self::Json => "json",
         }
     }
 }
@@ -81,6 +86,7 @@ pub async fn export(vault: &Vault, mut args: Args) -> anyhow::Result<()> {
         let mut file = BufWriter::new(File::create(out)?);
         match args.format {
             Format::Text => text::export_to_file(vault, room, &mut file).await?,
+            Format::Json => json::export_to_file(vault, room, &mut file).await?,
         }
         file.flush()?;
     }

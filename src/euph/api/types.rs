@@ -39,9 +39,11 @@ pub struct Message {
     /// The id of the message (unique within a room).
     pub id: Snowflake,
     /// The id of the message's parent, or null if top-level.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub parent: Option<Snowflake>,
     /// The edit id of the most recent edit of this message, or null if it's
     /// never been edited.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub previous_edit_id: Option<Snowflake>,
     /// The unix timestamp of when the message was posted.
     pub time: Time,
@@ -50,15 +52,18 @@ pub struct Message {
     /// The content of the message (client-defined).
     pub content: String,
     /// The id of the key that encrypts the message in storage.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub encryption_key_id: Option<String>,
     /// The unix timestamp of when the message was last edited.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub edited: Option<Time>,
     /// The unix timestamp of when the message was deleted.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub deleted: Option<Time>,
     /// If true, then the full content of this message is not included (see
     /// [`GetMessage`](super::GetMessage) to obtain the message with full
     /// content).
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub truncated: bool,
 }
 
@@ -267,14 +272,16 @@ pub struct SessionView {
     /// Id of the session, unique across all sessions globally.
     pub session_id: String,
     /// If true, this session belongs to a member of staff.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub is_staff: bool,
     /// If true, this session belongs to a manager of the room.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub is_manager: bool,
     /// For hosts and staff, the virtual address of the client.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub client_address: Option<String>,
     /// For staff, the real address of the client.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub real_client_address: Option<String>,
 }
 
