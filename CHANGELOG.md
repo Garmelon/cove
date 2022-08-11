@@ -14,6 +14,9 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Added
+- Support for modifiers on special keys via the [kitty keyboard protocol](https://sw.kovidgoyal.net/kitty/keyboard-protocol/)
+
 ### Fixed
 - Joining new rooms no longer crashes cove
 - Scrolling when exiting message editor
