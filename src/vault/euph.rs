@@ -1219,7 +1219,9 @@ impl EuphRequest {
                 WHERE room = ?
                 ",
             )?
-            .query_row(params![room], |row| row.get(0))?;
+            .query_row(params![room], |row| row.get(0))
+            .optional()?
+            .unwrap_or(0);
         let _ = result.send(amount);
         Ok(())
     }
