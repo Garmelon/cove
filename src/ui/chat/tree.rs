@@ -235,6 +235,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         match event {
             key!(Esc) => {
                 self.cursor = coming_from.map(Cursor::Msg).unwrap_or(Cursor::Bottom);
+                self.correction = Some(Correction::MakeCursorVisible);
                 return Reaction::Handled;
             }
 

@@ -14,6 +14,9 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Fixed
+- Scrolling when exiting message editor
+
 ## v0.2.0 - 2022-08-10
 
 ### Added
