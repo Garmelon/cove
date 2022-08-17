@@ -481,70 +481,60 @@ pub(super) enum EuphRequest {
 impl EuphRequest {
     pub(super) fn perform(self, conn: &mut Connection) {
         let result = match self {
-            EuphRequest::GetCookies { result } => Self::get_cookies(conn, result),
-            EuphRequest::SetCookies { cookies } => Self::set_cookies(conn, cookies),
-            EuphRequest::GetRooms { result } => Self::get_rooms(conn, result),
-            EuphRequest::Join { room, time } => Self::join(conn, room, time),
-            EuphRequest::Delete { room } => Self::delete(conn, room),
-            EuphRequest::AddMsg {
+            Self::GetCookies { result } => Self::get_cookies(conn, result),
+            Self::SetCookies { cookies } => Self::set_cookies(conn, cookies),
+            Self::GetRooms { result } => Self::get_rooms(conn, result),
+            Self::Join { room, time } => Self::join(conn, room, time),
+            Self::Delete { room } => Self::delete(conn, room),
+            Self::AddMsg {
                 room,
                 msg,
                 prev_msg,
                 own_user_id,
             } => Self::add_msg(conn, room, *msg, prev_msg, own_user_id),
-            EuphRequest::AddMsgs {
+            Self::AddMsgs {
                 room,
                 msgs,
                 next_msg,
                 own_user_id,
             } => Self::add_msgs(conn, room, msgs, next_msg, own_user_id),
-            EuphRequest::GetLastSpan { room, result } => Self::get_last_span(conn, room, result),
-            EuphRequest::GetPath { room, id, result } => Self::get_path(conn, room, id, result),
-            EuphRequest::GetTree { room, root, result } => Self::get_tree(conn, room, root, result),
-            EuphRequest::GetFirstTreeId { room, result } => {
-                Self::get_first_tree_id(conn, room, result)
-            }
-            EuphRequest::GetLastTreeId { room, result } => {
-                Self::get_last_tree_id(conn, room, result)
-            }
-            EuphRequest::GetPrevTreeId { room, root, result } => {
+            Self::GetLastSpan { room, result } => Self::get_last_span(conn, room, result),
+            Self::GetPath { room, id, result } => Self::get_path(conn, room, id, result),
+            Self::GetTree { room, root, result } => Self::get_tree(conn, room, root, result),
+            Self::GetFirstTreeId { room, result } => Self::get_first_tree_id(conn, room, result),
+            Self::GetLastTreeId { room, result } => Self::get_last_tree_id(conn, room, result),
+            Self::GetPrevTreeId { room, root, result } => {
                 Self::get_prev_tree_id(conn, room, root, result)
             }
-            EuphRequest::GetNextTreeId { room, root, result } => {
+            Self::GetNextTreeId { room, root, result } => {
                 Self::get_next_tree_id(conn, room, root, result)
             }
-            EuphRequest::GetOldestMsgId { room, result } => {
-                Self::get_oldest_msg_id(conn, room, result)
-            }
-            EuphRequest::GetNewestMsgId { room, result } => {
-                Self::get_newest_msg_id(conn, room, result)
-            }
-            EuphRequest::GetOlderMsgId { room, id, result } => {
+            Self::GetOldestMsgId { room, result } => Self::get_oldest_msg_id(conn, room, result),
+            Self::GetNewestMsgId { room, result } => Self::get_newest_msg_id(conn, room, result),
+            Self::GetOlderMsgId { room, id, result } => {
                 Self::get_older_msg_id(conn, room, id, result)
             }
-            EuphRequest::GetNewerMsgId { room, id, result } => {
+            Self::GetNewerMsgId { room, id, result } => {
                 Self::get_newer_msg_id(conn, room, id, result)
             }
-            EuphRequest::GetOldestUnseenMsgId { room, result } => {
+            Self::GetOldestUnseenMsgId { room, result } => {
                 Self::get_oldest_unseen_msg_id(conn, room, result)
             }
-            EuphRequest::GetNewestUnseenMsgId { room, result } => {
+            Self::GetNewestUnseenMsgId { room, result } => {
                 Self::get_newest_unseen_msg_id(conn, room, result)
             }
-            EuphRequest::GetOlderUnseenMsgId { room, id, result } => {
+            Self::GetOlderUnseenMsgId { room, id, result } => {
                 Self::get_older_unseen_msg_id(conn, room, id, result)
             }
-            EuphRequest::GetNewerUnseenMsgId { room, id, result } => {
+            Self::GetNewerUnseenMsgId { room, id, result } => {
                 Self::get_newer_unseen_msg_id(conn, room, id, result)
             }
-            EuphRequest::GetUnseenMsgsCount { room, result } => {
+            Self::GetUnseenMsgsCount { room, result } => {
                 Self::get_unseen_msgs_count(conn, room, result)
             }
-            EuphRequest::SetSeen { room, id, seen } => Self::set_seen(conn, room, id, seen),
-            EuphRequest::SetOlderSeen { room, id, seen } => {
-                Self::set_older_seen(conn, room, id, seen)
-            }
-            EuphRequest::GetChunkAtOffset {
+            Self::SetSeen { room, id, seen } => Self::set_seen(conn, room, id, seen),
+            Self::SetOlderSeen { room, id, seen } => Self::set_older_seen(conn, room, id, seen),
+            Self::GetChunkAtOffset {
                 room,
                 amount,
                 offset,

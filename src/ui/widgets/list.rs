@@ -256,15 +256,15 @@ enum Row<Id> {
 impl<Id> Row<Id> {
     fn id(&self) -> Option<&Id> {
         match self {
-            Row::Unselectable { .. } => None,
-            Row::Selectable { id, .. } => Some(id),
+            Self::Unselectable { .. } => None,
+            Self::Selectable { id, .. } => Some(id),
         }
     }
 
     fn size(&self, frame: &mut Frame, max_width: Option<u16>, max_height: Option<u16>) -> Size {
         match self {
-            Row::Unselectable { normal } => normal.size(frame, max_width, max_height),
-            Row::Selectable {
+            Self::Unselectable { normal } => normal.size(frame, max_width, max_height),
+            Self::Selectable {
                 normal, selected, ..
             } => {
                 let normal_size = normal.size(frame, max_width, max_height);
