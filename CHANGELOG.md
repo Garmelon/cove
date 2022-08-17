@@ -14,6 +14,10 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Fixed
+- Crash when connecting to nonexistent rooms
+- Crash when connecting to rooms that require authentication
+
 ## v0.2.1 - 2022-08-11
 
 ### Added

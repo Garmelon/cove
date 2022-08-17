@@ -67,12 +67,19 @@ impl Rooms {
     /// - failed connection attempts, or
     /// - rooms that were deleted from the db.
     async fn stabilize_rooms(&mut self) {
-        let rooms_set = self
+        let mut rooms_set = self
             .vault
             .euph_rooms()
             .await
             .into_iter()
             .collect::<HashSet<_>>();
+
+        // Prevent room that is currently being shown from being removed. This
+        // could otherwise happen when connecting to a room that doesn't exist.
+        if let State::ShowRoom(name) = &self.state {
+            rooms_set.insert(name.clone());
+        }
+
         self.euph_rooms
             .retain(|n, r| !r.stopped() || rooms_set.contains(n));
 
