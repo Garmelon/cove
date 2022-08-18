@@ -32,6 +32,13 @@ features = ["macros", "formatting", "parsing", "serde"]
 version = "0.17.2"
 features = ["rustls-tls-native-roots"]
 
+[dependencies.euphoxide]
+git = "https://github.com/Garmelon/euphoxide.git"
+rev = "643da74bcc24dc2eeb8746b45fbb986d1d000f0a"
+
+# [patch."https://github.com/Garmelon/euphoxide.git"]
+# toss = { path = "../euphoxide/" }
+
 [dependencies.toss]
 git = "https://github.com/Garmelon/toss.git"
 rev = "45ece466c235cce6e998bbd404f915cad3628c8c"
