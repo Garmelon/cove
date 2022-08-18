@@ -21,7 +21,6 @@ mod euph;
 mod export;
 mod logger;
 mod macros;
-mod replies;
 mod store;
 mod ui;
 mod vault;

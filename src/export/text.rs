@@ -1,11 +1,11 @@
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
+use euphoxide::api::Snowflake;
 use time::format_description::FormatItem;
 use time::macros::format_description;
 use unicode_width::UnicodeWidthStr;
 
-use crate::euph::api::Snowflake;
 use crate::euph::SmallMessage;
 use crate::store::{MsgStore, Tree};
 use crate::vault::Vault;

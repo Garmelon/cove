@@ -3,42 +3,48 @@ use std::str::FromStr;
 
 use async_trait::async_trait;
 use cookie::{Cookie, CookieJar};
+use euphoxide::api::{Message, SessionView, Snowflake, Time, UserId};
 use rusqlite::types::{FromSql, FromSqlError, ToSqlOutput, Value, ValueRef};
 use rusqlite::{named_params, params, Connection, OptionalExtension, ToSql, Transaction};
 use time::OffsetDateTime;
 use tokio::sync::oneshot;
 
-use crate::euph::api::{Message, SessionView, Snowflake, Time, UserId};
 use crate::euph::SmallMessage;
 use crate::store::{MsgStore, Path, Tree};
 
 use super::{Request, Vault};
 
-impl ToSql for Snowflake {
+/// Wrapper for [`Snowflake`] that implements useful rusqlite traits.
+struct WSnowflake(Snowflake);
+
+impl ToSql for WSnowflake {
     fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-        self.0.to_sql()
+        self.0 .0.to_sql()
     }
 }
 
-impl FromSql for Snowflake {
+impl FromSql for WSnowflake {
     fn column_result(value: ValueRef<'_>) -> Result<Self, FromSqlError> {
-        u64::column_result(value).map(Self)
+        u64::column_result(value).map(|v| Self(Snowflake(v)))
     }
 }
 
-impl ToSql for Time {
+/// Wrapper for [`Time`] that implements useful rusqlite traits.
+struct WTime(Time);
+
+impl ToSql for WTime {
     fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-        let timestamp = self.0.unix_timestamp();
+        let timestamp = self.0 .0.unix_timestamp();
         Ok(ToSqlOutput::Owned(Value::Integer(timestamp)))
     }
 }
 
-impl FromSql for Time {
+impl FromSql for WTime {
     fn column_result(value: ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
         let timestamp = i64::column_result(value)?;
-        Ok(Self(
+        Ok(Self(Time(
             OffsetDateTime::from_unix_timestamp(timestamp).expect("timestamp in range"),
-        ))
+        )))
     }
 }
 
@@ -623,7 +629,7 @@ impl EuphRequest {
             ON CONFLICT (room) DO UPDATE
             SET last_joined = :time
             ",
-            named_params! {":room": room, ":time": time},
+            named_params! {":room": room, ":time": WTime(time)},
         )?;
         Ok(())
     }
@@ -695,14 +701,14 @@ impl EuphRequest {
         for msg in msgs {
             insert_msg.execute(named_params! {
                 ":room": room,
-                ":id": msg.id,
-                ":parent": msg.parent,
-                ":previous_edit_id": msg.previous_edit_id,
-                ":time": msg.time,
+                ":id": WSnowflake(msg.id),
+                ":parent": msg.parent.map(WSnowflake),
+                ":previous_edit_id": msg.previous_edit_id.map(WSnowflake),
+                ":time": WTime(msg.time),
                 ":content": msg.content,
                 ":encryption_key_id": msg.encryption_key_id,
-                ":edited": msg.edited,
-                ":deleted": msg.deleted,
+                ":edited": msg.edited.map(WTime),
+                ":deleted": msg.deleted.map(WTime),
                 ":truncated": msg.truncated,
                 ":user_id": msg.sender.id.0,
                 ":name": msg.sender.name,
@@ -736,8 +742,8 @@ impl EuphRequest {
                 ",
             )?
             .query_map([room], |row| {
-                let start = row.get::<_, Option<Snowflake>>(0)?;
-                let end = row.get::<_, Option<Snowflake>>(1)?;
+                let start = row.get::<_, Option<WSnowflake>>(0)?.map(|s| s.0);
+                let end = row.get::<_, Option<WSnowflake>>(1)?.map(|s| s.0);
                 Ok((start, end))
             })?
             .collect::<Result<Vec<_>, _>>()?;
@@ -788,7 +794,7 @@ impl EuphRequest {
             ",
         )?;
         for (start, end) in result {
-            stmt.execute(params![room, start, end])?;
+            stmt.execute(params![room, start.map(WSnowflake), end.map(WSnowflake)])?;
         }
 
         Ok(())
@@ -851,7 +857,12 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row([room], |row| Ok((row.get(0)?, row.get(1)?)))
+            .query_row([room], |row| {
+                Ok((
+                    row.get::<_, Option<WSnowflake>>(0)?.map(|s| s.0),
+                    row.get::<_, Option<WSnowflake>>(1)?.map(|s| s.0),
+                ))
+            })
             .optional()?;
         let _ = result.send(span);
         Ok(())
@@ -880,7 +891,9 @@ impl EuphRequest {
                 ORDER BY id ASC
                 ",
             )?
-            .query_map(params![room, id], |row| row.get(0))?
+            .query_map(params![room, WSnowflake(id)], |row| {
+                row.get::<_, WSnowflake>(0).map(|s| s.0)
+            })?
             .collect::<rusqlite::Result<_>>()?;
         let path = Path::new(path);
         let _ = result.send(path);
@@ -912,11 +925,11 @@ impl EuphRequest {
                 ORDER BY id ASC
                 ",
             )?
-            .query_map(params![room, root], |row| {
+            .query_map(params![room, WSnowflake(root)], |row| {
                 Ok(SmallMessage {
-                    id: row.get(0)?,
-                    parent: row.get(1)?,
-                    time: row.get(2)?,
+                    id: row.get::<_, WSnowflake>(0)?.0,
+                    parent: row.get::<_, Option<WSnowflake>>(1)?.map(|s| s.0),
+                    time: row.get::<_, WTime>(2)?.0,
                     nick: row.get(3)?,
                     content: row.get(4)?,
                     seen: row.get(5)?,
@@ -943,7 +956,7 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row([room], |row| row.get(0))
+            .query_row([room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
             .optional()?;
         let _ = result.send(tree);
         Ok(())
@@ -964,7 +977,7 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row([room], |row| row.get(0))
+            .query_row([room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
             .optional()?;
         let _ = result.send(tree);
         Ok(())
@@ -987,7 +1000,9 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row(params![room, root], |row| row.get(0))
+            .query_row(params![room, WSnowflake(root)], |row| {
+                row.get::<_, WSnowflake>(0).map(|s| s.0)
+            })
             .optional()?;
         let _ = result.send(tree);
         Ok(())
@@ -1010,7 +1025,9 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row(params![room, root], |row| row.get(0))
+            .query_row(params![room, WSnowflake(root)], |row| {
+                row.get::<_, WSnowflake>(0).map(|s| s.0)
+            })
             .optional()?;
         let _ = result.send(tree);
         Ok(())
@@ -1031,7 +1048,7 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row([room], |row| row.get(0))
+            .query_row([room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
             .optional()?;
         let _ = result.send(tree);
         Ok(())
@@ -1052,7 +1069,7 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row([room], |row| row.get(0))
+            .query_row([room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
             .optional()?;
         let _ = result.send(tree);
         Ok(())
@@ -1075,7 +1092,9 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row(params![room, id], |row| row.get(0))
+            .query_row(params![room, WSnowflake(id)], |row| {
+                row.get::<_, WSnowflake>(0).map(|s| s.0)
+            })
             .optional()?;
         let _ = result.send(tree);
         Ok(())
@@ -1098,7 +1117,9 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row(params![room, id], |row| row.get(0))
+            .query_row(params![room, WSnowflake(id)], |row| {
+                row.get::<_, WSnowflake>(0).map(|s| s.0)
+            })
             .optional()?;
         let _ = result.send(tree);
         Ok(())
@@ -1120,7 +1141,7 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row([room], |row| row.get(0))
+            .query_row([room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
             .optional()?;
         let _ = result.send(tree);
         Ok(())
@@ -1142,7 +1163,7 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row([room], |row| row.get(0))
+            .query_row([room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
             .optional()?;
         let _ = result.send(tree);
         Ok(())
@@ -1166,7 +1187,9 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row(params![room, id], |row| row.get(0))
+            .query_row(params![room, WSnowflake(id)], |row| {
+                row.get::<_, WSnowflake>(0).map(|s| s.0)
+            })
             .optional()?;
         let _ = result.send(tree);
         Ok(())
@@ -1190,7 +1213,9 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row(params![room, id], |row| row.get(0))
+            .query_row(params![room, WSnowflake(id)], |row| {
+                row.get::<_, WSnowflake>(0).map(|s| s.0)
+            })
             .optional()?;
         let _ = result.send(tree);
         Ok(())
@@ -1229,7 +1254,7 @@ impl EuphRequest {
             WHERE room = :room
             AND id = :id
             ",
-            named_params! { ":room": room, ":id": id, ":seen": seen },
+            named_params! { ":room": room, ":id": WSnowflake(id), ":seen": seen },
         )?;
         Ok(())
     }
@@ -1248,7 +1273,7 @@ impl EuphRequest {
             AND id <= :id
             AND seen != :seen
             ",
-            named_params! { ":room": room, ":id": id, ":seen": seen },
+            named_params! { ":room": room, ":id": WSnowflake(id), ":seen": seen },
         )?;
         Ok(())
     }
@@ -1276,14 +1301,14 @@ impl EuphRequest {
         let messages = query
             .query_map(params![room, amount, offset], |row| {
                 Ok(Message {
-                    id: row.get(0)?,
-                    parent: row.get(1)?,
-                    previous_edit_id: row.get(2)?,
-                    time: row.get(3)?,
+                    id: row.get::<_, WSnowflake>(0)?.0,
+                    parent: row.get::<_, Option<WSnowflake>>(1)?.map(|s| s.0),
+                    previous_edit_id: row.get::<_, Option<WSnowflake>>(2)?.map(|s| s.0),
+                    time: row.get::<_, WTime>(3)?.0,
                     content: row.get(4)?,
                     encryption_key_id: row.get(5)?,
-                    edited: row.get(6)?,
-                    deleted: row.get(7)?,
+                    edited: row.get::<_, Option<WTime>>(6)?.map(|t| t.0),
+                    deleted: row.get::<_, Option<WTime>>(7)?.map(|t| t.0),
                     truncated: row.get(8)?,
                     sender: SessionView {
                         id: UserId(row.get(9)?),

@@ -5,6 +5,8 @@ use std::time::Duration;
 
 use anyhow::bail;
 use cookie::{Cookie, CookieJar};
+use euphoxide::api::{Data, Log, Nick, Send, Snowflake, Time, UserId};
+use euphoxide::conn::{ConnRx, ConnTx, Joining, Status};
 use log::{error, info, warn};
 use parking_lot::Mutex;
 use tokio::sync::{mpsc, oneshot};
@@ -14,14 +16,9 @@ use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::handshake::client::Response;
 use tokio_tungstenite::tungstenite::http::{header, HeaderValue};
 
-use crate::euph::api::Time;
 use crate::macros::ok_or_return;
 use crate::ui::UiEvent;
 use crate::vault::{EuphVault, Vault};
-
-use super::api::{Data, Log, Nick, Send, Snowflake, UserId};
-use super::conn::{self, ConnRx, ConnTx, Status};
-use super::Joining;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -131,7 +128,7 @@ impl State {
         match tokio_tungstenite::connect_async(request).await {
             Ok((ws, response)) => {
                 Self::update_cookies(vault.vault(), &response);
-                Ok(Some(conn::wrap(ws)))
+                Ok(Some(euphoxide::wrap(ws)))
             }
             Err(tungstenite::Error::Http(resp)) if resp.status().is_client_error() => {
                 bail!("room {name} doesn't exist");

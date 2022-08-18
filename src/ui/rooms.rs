@@ -4,13 +4,13 @@ use std::sync::Arc;
 
 use crossterm::event::KeyCode;
 use crossterm::style::{ContentStyle, Stylize};
+use euphoxide::api::SessionType;
+use euphoxide::conn::{Joined, Status};
 use parking_lot::FairMutex;
 use tokio::sync::mpsc;
 use toss::styled::Styled;
 use toss::terminal::Terminal;
 
-use crate::euph::api::SessionType;
-use crate::euph::{Joined, Status};
 use crate::vault::Vault;
 
 use super::euph::room::EuphRoom;

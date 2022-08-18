@@ -1,11 +1,11 @@
 use crossterm::style::{Color, ContentStyle, Stylize};
+use euphoxide::api::{Snowflake, Time};
 use time::OffsetDateTime;
 use toss::styled::Styled;
 
 use crate::store::Msg;
 use crate::ui::ChatMsg;
 
-use super::api::{Snowflake, Time};
 use super::util;
 
 fn nick_char(ch: char) -> bool {

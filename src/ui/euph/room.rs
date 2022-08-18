@@ -3,14 +3,15 @@ use std::sync::Arc;
 
 use crossterm::event::KeyCode;
 use crossterm::style::{Color, ContentStyle, Stylize};
+use euphoxide::api::{SessionType, SessionView, Snowflake};
+use euphoxide::conn::{Joined, Status};
 use parking_lot::FairMutex;
 use tokio::sync::oneshot::error::TryRecvError;
 use tokio::sync::{mpsc, oneshot};
 use toss::styled::Styled;
 use toss::terminal::Terminal;
 
-use crate::euph::api::{SessionType, SessionView, Snowflake};
-use crate::euph::{self, Joined, Status};
+use crate::euph;
 use crate::store::MsgStore;
 use crate::ui::chat::{ChatState, Reaction};
 use crate::ui::input::{key, InputEvent, KeyBindingsList, KeyEvent};
