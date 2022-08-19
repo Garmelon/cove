@@ -12,7 +12,6 @@ crossterm = "0.25.0"
 directories = "4.0.1"
 edit = "0.1.4"
 log = { version = "0.4.17", features = ["std"] }
-palette = { version = "0.6.1", default-features = false, features = ["std"] }
 parking_lot = "0.12.1"
 rusqlite = { version = "0.28.0", features = ["bundled", "time"] }
 serde_json = "1.0.83"
