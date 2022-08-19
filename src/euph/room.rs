@@ -152,6 +152,13 @@ impl State {
         event_rx: &mut mpsc::UnboundedReceiver<Event>,
     ) -> anyhow::Result<()> {
         while let Some(event) = event_rx.recv().await {
+            // TODO Send UI events on more occasions
+            // Example: When a room disconnects at the moment, the screen is
+            // redrawn. Why? Because tungstenite debug-logs that the connection
+            // was closed and the log then causes a full-screen redraw. This is
+            // a clear case of "works but only because mistakes cancel out". A
+            // first step towards fixing this would be to only redraw if an
+            // event affected the currently visible screen.
             match event {
                 Event::Connected(conn_tx) => self.conn_tx = Some(conn_tx),
                 Event::Disconnected => {
