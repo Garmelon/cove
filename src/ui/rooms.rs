@@ -200,11 +200,6 @@ impl Rooms {
     }
 
     async fn render_rows(&self, list: &mut List<String>) {
-        let heading_style = ContentStyle::default().bold();
-        let amount = self.euph_rooms.len();
-        let heading = Styled::new("Rooms", heading_style).then_plain(format!(" ({amount})"));
-        list.add_unsel(Text::new(heading));
-
         if self.euph_rooms.is_empty() {
             list.add_unsel(Text::new((
                 "Press F1 for key bindings",
@@ -230,9 +225,15 @@ impl Rooms {
     }
 
     async fn rooms_widget(&self) -> BoxedWidget {
+        let heading_style = ContentStyle::default().bold();
+        let amount = self.euph_rooms.len();
+        let heading =
+            Text::new(Styled::new("Rooms", heading_style).then_plain(format!(" ({amount})")));
+
         let mut list = self.list.widget().focus(true);
         self.render_rows(&mut list).await;
-        list.into()
+
+        VJoin::new(vec![Segment::new(heading), Segment::new(list).priority(0)]).into()
     }
 
     fn room_char(c: char) -> bool {
