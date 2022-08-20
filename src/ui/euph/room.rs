@@ -491,20 +491,15 @@ impl EuphRoom {
                     match status {
                         Ok(Some(Status::Joining(Joining {
                             bounce: Some(_), ..
-                        }))) => {
-                            if let key!('a') | key!('A') = event {
-                                self.state = State::Auth(EditorState::new());
-                                return true;
-                            }
-                            false
+                        }))) if matches!(event, key!('a') | key!('A')) => {
+                            self.state = State::Auth(EditorState::new());
+                            true
                         }
-                        Ok(Some(Status::Joined(joined))) => {
-                            if let key!('n') | key!('N') = event {
-                                self.state = State::Nick(EditorState::with_initial_text(
-                                    joined.session.name,
-                                ));
-                                return true;
-                            }
+                        Ok(Some(Status::Joined(joined)))
+                            if matches!(event, key!('n') | key!('N')) =>
+                        {
+                            let name = joined.session.name;
+                            self.state = State::Nick(EditorState::with_initial_text(name));
                             true
                         }
                         _ => false,
