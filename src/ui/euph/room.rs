@@ -38,6 +38,14 @@ enum State {
     ChooseNick(EditorState),
 }
 
+#[allow(clippy::large_enum_variant)]
+pub enum RoomStatus {
+    NoRoom,
+    Stopped,
+    Connecting,
+    Connected(Status),
+}
+
 pub struct EuphRoom {
     ui_event_tx: mpsc::UnboundedSender<UiEvent>,
 
@@ -102,11 +110,14 @@ impl EuphRoom {
         self.room = None;
     }
 
-    pub async fn status(&self) -> Option<Option<Status>> {
-        if let Some(room) = &self.room {
-            room.status().await.ok()
-        } else {
-            None
+    pub async fn status(&self) -> RoomStatus {
+        match &self.room {
+            Some(room) => match room.status().await {
+                Ok(Some(status)) => RoomStatus::Connected(status),
+                Ok(None) => RoomStatus::Connecting,
+                Err(_) => RoomStatus::Stopped,
+            },
+            None => RoomStatus::NoRoom,
         }
     }
 
@@ -146,9 +157,10 @@ impl EuphRoom {
         self.stabilize_pseudo_msg().await;
 
         let status = self.status().await;
-        let chat = match &status {
-            Some(Some(Status::Joined(joined))) => self.widget_with_nick_list(&status, joined).await,
-            _ => self.widget_without_nick_list(&status).await,
+        let chat = if let RoomStatus::Connected(Status::Joined(joined)) = &status {
+            self.widget_with_nick_list(&status, joined).await
+        } else {
+            self.widget_without_nick_list(&status).await
         };
 
         let mut layers = vec![chat];
@@ -175,7 +187,7 @@ impl EuphRoom {
             .build()
     }
 
-    async fn widget_without_nick_list(&self, status: &Option<Option<Status>>) -> BoxedWidget {
+    async fn widget_without_nick_list(&self, status: &RoomStatus) -> BoxedWidget {
         VJoin::new(vec![
             Segment::new(Border::new(
                 Padding::new(self.status_widget(status).await).horizontal(1),
@@ -186,11 +198,7 @@ impl EuphRoom {
         .into()
     }
 
-    async fn widget_with_nick_list(
-        &self,
-        status: &Option<Option<Status>>,
-        joined: &Joined,
-    ) -> BoxedWidget {
+    async fn widget_with_nick_list(&self, status: &RoomStatus, joined: &Joined) -> BoxedWidget {
         HJoin::new(vec![
             Segment::new(VJoin::new(vec![
                 Segment::new(Border::new(
@@ -206,20 +214,20 @@ impl EuphRoom {
         .into()
     }
 
-    async fn status_widget(&self, status: &Option<Option<Status>>) -> BoxedWidget {
+    async fn status_widget(&self, status: &RoomStatus) -> BoxedWidget {
         // TODO Include unread message count
         let room = self.chat.store().room();
         let room_style = ContentStyle::default().bold().blue();
         let mut info = Styled::new(format!("&{room}"), room_style);
 
         info = match status {
-            None => info.then_plain(", archive"),
-            Some(None) => info.then_plain(", connecting..."),
-            Some(Some(Status::Joining(j))) if j.bounce.is_some() => {
+            RoomStatus::NoRoom | RoomStatus::Stopped => info.then_plain(", archive"),
+            RoomStatus::Connecting => info.then_plain(", connecting..."),
+            RoomStatus::Connected(Status::Joining(j)) if j.bounce.is_some() => {
                 info.then_plain(", auth required")
             }
-            Some(Some(Status::Joining(_))) => info.then_plain(", joining..."),
-            Some(Some(Status::Joined(j))) => {
+            RoomStatus::Connected(Status::Joining(_)) => info.then_plain(", joining..."),
+            RoomStatus::Connected(Status::Joined(j)) => {
                 let nick = &j.session.name;
                 if nick.is_empty() {
                     info.then_plain(", present without nick")

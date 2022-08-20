@@ -14,7 +14,7 @@ use toss::terminal::Terminal;
 use crate::euph::EuphRoomEvent;
 use crate::vault::Vault;
 
-use super::euph::room::EuphRoom;
+use super::euph::room::{EuphRoom, RoomStatus};
 use super::input::{key, InputEvent, KeyBindingsList, KeyEvent};
 use super::widgets::editor::EditorState;
 use super::widgets::join::{HJoin, Segment, VJoin};
@@ -159,13 +159,13 @@ impl Rooms {
 
     async fn format_status(room: &EuphRoom) -> Option<String> {
         match room.status().await {
-            None => None,
-            Some(None) => Some("connecting".to_string()),
-            Some(Some(Status::Joining(j))) if j.bounce.is_some() => {
+            RoomStatus::NoRoom | RoomStatus::Stopped => None,
+            RoomStatus::Connecting => Some("connecting".to_string()),
+            RoomStatus::Connected(Status::Joining(j)) if j.bounce.is_some() => {
                 Some("auth required".to_string())
             }
-            Some(Some(Status::Joining(_))) => Some("joining".to_string()),
-            Some(Some(Status::Joined(joined))) => Some(Self::format_pbln(&joined)),
+            RoomStatus::Connected(Status::Joining(_)) => Some("joining".to_string()),
+            RoomStatus::Connected(Status::Joined(joined)) => Some(Self::format_pbln(&joined)),
         }
     }
 
