@@ -3,6 +3,7 @@ use toss::styled::Styled;
 
 use crate::ui::widgets::background::Background;
 use crate::ui::widgets::border::Border;
+use crate::ui::widgets::float::Float;
 use crate::ui::widgets::layer::Layer;
 use crate::ui::widgets::padding::Padding;
 use crate::ui::widgets::text::Text;
@@ -17,24 +18,28 @@ impl Popup {
         let border_style = ContentStyle::default().red().bold();
         let text = Styled::new_plain(description)
             .then_plain("\n\n")
+            .then("Reason:", ContentStyle::default().bold())
+            .then_plain(" ")
             .then_plain(reason);
         Layer::new(vec![
-            Padding::new(Text::new(("Error", border_style)))
-                .horizontal(1)
-                .into(),
-            Border::new(Background::new(Text::new(text)))
+            Border::new(Background::new(Padding::new(Text::new(text)).horizontal(1)))
                 .style(border_style)
+                .into(),
+            Float::new(Padding::new(Text::new(("Error", border_style))).horizontal(1))
+                .horizontal(0.5)
                 .into(),
         ])
         .into()
     }
 
     pub fn widget(&self) -> BoxedWidget {
-        match self {
+        let widget = match self {
             Self::ServerError {
                 description,
                 reason,
             } => Self::server_error_widget(description, reason),
-        }
+        };
+
+        Float::new(widget).horizontal(0.5).vertical(0.5).into()
     }
 }
