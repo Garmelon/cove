@@ -59,7 +59,7 @@ pub fn list_editor_key_bindings(
     bindings.binding("↑/↓", "move cursor up/down");
 }
 
-pub fn handle_editor_event(
+pub fn handle_editor_input_event(
     editor: &EditorState,
     terminal: &mut Terminal,
     crossterm_lock: &Arc<FairMutex<()>>,

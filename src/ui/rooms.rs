@@ -278,7 +278,7 @@ impl Rooms {
         }
     }
 
-    pub async fn handle_event(
+    pub async fn handle_input_event(
         &mut self,
         terminal: &mut Terminal,
         crossterm_lock: &Arc<FairMutex<()>>,
@@ -326,7 +326,10 @@ impl Rooms {
             },
             State::ShowRoom(name) => {
                 if let Some(room) = self.euph_rooms.get_mut(name) {
-                    if room.handle_event(terminal, crossterm_lock, event).await {
+                    if room
+                        .handle_input_event(terminal, crossterm_lock, event)
+                        .await
+                    {
                         return true;
                     }
 
@@ -348,7 +351,7 @@ impl Rooms {
                     }
                 }
                 _ => {
-                    return util::handle_editor_event(
+                    return util::handle_editor_input_event(
                         ed,
                         terminal,
                         crossterm_lock,

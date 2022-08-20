@@ -14,6 +14,9 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Changed
+- Reduced amount of unnecessary redraws
+
 ### Fixed
 - Crash when connecting to nonexistent rooms
 - Crash when connecting to rooms that require authentication

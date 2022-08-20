@@ -17,7 +17,6 @@ use tokio_tungstenite::tungstenite::handshake::client::Response;
 use tokio_tungstenite::tungstenite::http::{header, HeaderValue};
 
 use crate::macros::ok_or_return;
-use crate::ui::UiEvent;
 use crate::vault::{EuphVault, Vault};
 
 #[derive(Debug, thiserror::Error)]
@@ -26,11 +25,19 @@ pub enum Error {
     Stopped,
 }
 
+pub enum EuphRoomEvent {
+    Connected,
+    Disconnected,
+    Data(Box<Data>),
+}
+
 #[derive(Debug)]
 enum Event {
+    // Events
     Connected(ConnTx),
     Disconnected,
     Data(Box<Data>),
+    // Commands
     Status(oneshot::Sender<Option<Status>>),
     RequestLogs,
     Nick(String),
@@ -41,7 +48,6 @@ enum Event {
 struct State {
     name: String,
     vault: EuphVault,
-    ui_event_tx: mpsc::UnboundedSender<UiEvent>,
 
     conn_tx: Option<ConnTx>,
     /// `None` before any `snapshot-event`, then either `Some(None)` or
@@ -56,6 +62,7 @@ impl State {
         canary: oneshot::Receiver<Infallible>,
         event_tx: mpsc::UnboundedSender<Event>,
         mut event_rx: mpsc::UnboundedReceiver<Event>,
+        euph_room_event_tx: mpsc::UnboundedSender<EuphRoomEvent>,
     ) {
         let vault = self.vault.clone();
         let name = self.name.clone();
@@ -63,7 +70,7 @@ impl State {
             _ = canary => Ok(()),
             _ = Self::reconnect(&vault, &name, &event_tx) => Ok(()),
             _ = Self::regularly_request_logs(&event_tx) => Ok(()),
-            e = self.handle_events(&mut event_rx) => e,
+            e = self.handle_events(&mut event_rx, &euph_room_event_tx) => e,
         };
 
         if let Err(e) = result {
@@ -150,22 +157,23 @@ impl State {
     async fn handle_events(
         &mut self,
         event_rx: &mut mpsc::UnboundedReceiver<Event>,
+        euph_room_event_tx: &mpsc::UnboundedSender<EuphRoomEvent>,
     ) -> anyhow::Result<()> {
         while let Some(event) = event_rx.recv().await {
-            // TODO Send UI events on more occasions
-            // Example: When a room disconnects at the moment, the screen is
-            // redrawn. Why? Because tungstenite debug-logs that the connection
-            // was closed and the log then causes a full-screen redraw. This is
-            // a clear case of "works but only because mistakes cancel out". A
-            // first step towards fixing this would be to only redraw if an
-            // event affected the currently visible screen.
             match event {
-                Event::Connected(conn_tx) => self.conn_tx = Some(conn_tx),
+                Event::Connected(conn_tx) => {
+                    self.conn_tx = Some(conn_tx);
+                    let _ = euph_room_event_tx.send(EuphRoomEvent::Connected);
+                }
                 Event::Disconnected => {
                     self.conn_tx = None;
                     self.last_msg_id = None;
+                    let _ = euph_room_event_tx.send(EuphRoomEvent::Disconnected);
                 }
-                Event::Data(data) => self.on_data(*data).await?,
+                Event::Data(data) => {
+                    self.on_data(&*data).await?;
+                    let _ = euph_room_event_tx.send(EuphRoomEvent::Data(data));
+                }
                 Event::Status(reply_tx) => self.on_status(reply_tx).await,
                 Event::RequestLogs => self.on_request_logs(),
                 Event::Nick(name) => self.on_nick(name),
@@ -182,7 +190,7 @@ impl State {
         })
     }
 
-    async fn on_data(&mut self, data: Data) -> anyhow::Result<()> {
+    async fn on_data(&mut self, data: &Data) -> anyhow::Result<()> {
         match data {
             Data::BounceEvent(_) => {}
             Data::DisconnectEvent(d) => {
@@ -217,7 +225,8 @@ impl State {
                 let own_user_id = self.own_user_id().await;
                 if let Some(last_msg_id) = &mut self.last_msg_id {
                     let id = d.0.id;
-                    self.vault.add_message(d.0, *last_msg_id, own_user_id);
+                    self.vault
+                        .add_message(d.0.clone(), *last_msg_id, own_user_id);
                     *last_msg_id = Some(id);
                 } else {
                     bail!("send event before snapshot event");
@@ -228,17 +237,19 @@ impl State {
                 self.vault.join(Time::now());
                 self.last_msg_id = Some(d.log.last().map(|m| m.id));
                 let own_user_id = self.own_user_id().await;
-                self.vault.add_messages(d.log, None, own_user_id);
+                self.vault.add_messages(d.log.clone(), None, own_user_id);
             }
             Data::LogReply(d) => {
                 let own_user_id = self.own_user_id().await;
-                self.vault.add_messages(d.log, d.before, own_user_id);
+                self.vault
+                    .add_messages(d.log.clone(), d.before, own_user_id);
             }
             Data::SendReply(d) => {
                 let own_user_id = self.own_user_id().await;
                 if let Some(last_msg_id) = &mut self.last_msg_id {
                     let id = d.0.id;
-                    self.vault.add_message(d.0, *last_msg_id, own_user_id);
+                    self.vault
+                        .add_message(d.0.clone(), *last_msg_id, own_user_id);
                     *last_msg_id = Some(id);
                 } else {
                     bail!("send reply before snapshot event");
@@ -246,7 +257,6 @@ impl State {
             }
             _ => {}
         }
-        let _ = self.ui_event_tx.send(UiEvent::Redraw);
         Ok(())
     }
 
@@ -332,25 +342,26 @@ pub struct Room {
 }
 
 impl Room {
-    pub fn new(vault: EuphVault, ui_event_tx: mpsc::UnboundedSender<UiEvent>) -> Self {
+    pub fn new(vault: EuphVault) -> (Self, mpsc::UnboundedReceiver<EuphRoomEvent>) {
         let (canary_tx, canary_rx) = oneshot::channel();
         let (event_tx, event_rx) = mpsc::unbounded_channel();
+        let (euph_room_event_tx, euph_room_event_rx) = mpsc::unbounded_channel();
 
         let state = State {
             name: vault.room().to_string(),
             vault,
-            ui_event_tx,
             conn_tx: None,
             last_msg_id: None,
             requesting_logs: Arc::new(Mutex::new(false)),
         };
 
-        task::spawn(state.run(canary_rx, event_tx.clone(), event_rx));
+        task::spawn(state.run(canary_rx, event_tx.clone(), event_rx, euph_room_event_tx));
 
-        Self {
+        let new_room = Self {
             canary: canary_tx,
             event_tx,
-        }
+        };
+        (new_room, euph_room_event_rx)
     }
 
     pub fn stopped(&self) -> bool {

@@ -11,7 +11,8 @@ use tokio::sync::{mpsc, oneshot};
 use toss::styled::Styled;
 use toss::terminal::Terminal;
 
-use crate::euph;
+use crate::euph::{self, EuphRoomEvent};
+use crate::macros::{ok_or_return, some_or_return};
 use crate::store::MsgStore;
 use crate::ui::chat::{ChatState, Reaction};
 use crate::ui::input::{key, InputEvent, KeyBindingsList, KeyEvent};
@@ -61,10 +62,32 @@ impl EuphRoom {
         }
     }
 
+    async fn shovel_room_events(
+        name: String,
+        mut euph_room_event_rx: mpsc::UnboundedReceiver<EuphRoomEvent>,
+        ui_event_tx: mpsc::UnboundedSender<UiEvent>,
+    ) {
+        loop {
+            let event = some_or_return!(euph_room_event_rx.recv().await);
+            let event = UiEvent::EuphRoom {
+                name: name.clone(),
+                event,
+            };
+            ok_or_return!(ui_event_tx.send(event));
+        }
+    }
+
     pub fn connect(&mut self) {
         if self.room.is_none() {
-            self.room = Some(euph::Room::new(
-                self.chat.store().clone(),
+            let store = self.chat.store().clone();
+            let name = store.room().to_string();
+            let (room, euph_room_event_rx) = euph::Room::new(store);
+
+            self.room = Some(room);
+
+            tokio::task::spawn(Self::shovel_room_events(
+                name,
+                euph_room_event_rx,
                 self.ui_event_tx.clone(),
             ));
         }
@@ -353,7 +376,7 @@ impl EuphRoom {
         }
     }
 
-    pub async fn handle_event(
+    pub async fn handle_input_event(
         &mut self,
         terminal: &mut Terminal,
         crossterm_lock: &Arc<FairMutex<()>>,
@@ -366,7 +389,7 @@ impl EuphRoom {
                     if let Ok(Some(Status::Joined(joined))) = room.status().await {
                         match self
                             .chat
-                            .handle_event(terminal, crossterm_lock, event, true)
+                            .handle_input_event(terminal, crossterm_lock, event, true)
                             .await
                         {
                             Reaction::NotHandled => {}
@@ -392,7 +415,7 @@ impl EuphRoom {
                 }
 
                 self.chat
-                    .handle_event(terminal, crossterm_lock, event, false)
+                    .handle_input_event(terminal, crossterm_lock, event, false)
                     .await
                     .handled()
             }
@@ -408,7 +431,7 @@ impl EuphRoom {
                     self.state = State::Normal;
                     true
                 }
-                _ => util::handle_editor_event(
+                _ => util::handle_editor_input_event(
                     ed,
                     terminal,
                     crossterm_lock,

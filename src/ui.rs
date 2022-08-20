@@ -6,17 +6,20 @@ mod util;
 mod widgets;
 
 use std::convert::Infallible;
+use std::io;
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 
-use crossterm::event::{Event, KeyCode};
+use crossterm::event::KeyCode;
 use parking_lot::FairMutex;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::task;
 use toss::terminal::Terminal;
 
+use crate::euph::EuphRoomEvent;
 use crate::logger::{LogMsg, Logger};
+use crate::macros::{ok_or_return, some_or_return};
 use crate::vault::Vault;
 
 pub use self::chat::ChatMsg;
@@ -30,17 +33,20 @@ use self::widgets::BoxedWidget;
 /// Time to spend batch processing events before redrawing the screen.
 const EVENT_PROCESSING_TIME: Duration = Duration::from_millis(1000 / 15); // 15 fps
 
-#[derive(Debug)]
 pub enum UiEvent {
-    Redraw,
-    Term(Event),
+    GraphemeWidthsChanged,
+    LogChanged,
+    Term(crossterm::event::Event),
+    EuphRoom { name: String, event: EuphRoomEvent },
 }
 
 enum EventHandleResult {
+    Redraw,
     Continue,
     Stop,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Mode {
     Main,
     Log,
@@ -92,34 +98,34 @@ impl Ui {
             key_bindings_list: None,
         };
         tokio::select! {
-            e = ui.run_main(terminal, event_rx, crossterm_lock) => Ok(e),
-            _ = Self::update_on_log_event(logger_rx, &event_tx) => Ok(Ok(())),
-            e = crossterm_event_task => e,
-        }?
+            e = ui.run_main(terminal, event_rx, crossterm_lock) => e?,
+            _ = Self::update_on_log_event(logger_rx, &event_tx) => (),
+            e = crossterm_event_task => e??,
+        }
+        Ok(())
     }
 
     fn poll_crossterm_events(
         tx: UnboundedSender<UiEvent>,
         lock: Weak<FairMutex<()>>,
-    ) -> anyhow::Result<()> {
-        while let Some(lock) = lock.upgrade() {
+    ) -> crossterm::Result<()> {
+        loop {
+            let lock = some_or_return!(lock.upgrade(), Ok(()));
             let _guard = lock.lock();
             if crossterm::event::poll(Self::POLL_DURATION)? {
                 let event = crossterm::event::read()?;
-                tx.send(UiEvent::Term(event))?;
+                ok_or_return!(tx.send(UiEvent::Term(event)), Ok(()));
             }
         }
-        Ok(())
     }
 
     async fn update_on_log_event(
         mut logger_rx: UnboundedReceiver<()>,
         event_tx: &UnboundedSender<UiEvent>,
     ) {
-        while let Some(()) = logger_rx.recv().await {
-            if event_tx.send(UiEvent::Redraw).is_err() {
-                break;
-            }
+        loop {
+            some_or_return!(logger_rx.recv().await);
+            ok_or_return!(event_tx.send(UiEvent::LogChanged));
         }
     }
 
@@ -128,7 +134,7 @@ impl Ui {
         terminal: &mut Terminal,
         mut event_rx: UnboundedReceiver<UiEvent>,
         crossterm_lock: Arc<FairMutex<()>>,
-    ) -> anyhow::Result<()> {
+    ) -> io::Result<()> {
         // Initial render so we don't show a blank screen until the first event
         terminal.autoresize()?;
         terminal.frame().reset();
@@ -140,7 +146,7 @@ impl Ui {
             if terminal.measuring_required() {
                 let _guard = crossterm_lock.lock();
                 terminal.measure_widths()?;
-                self.event_tx.send(UiEvent::Redraw)?;
+                ok_or_return!(self.event_tx.send(UiEvent::GraphemeWidthsChanged), Ok(()));
             }
 
             // 2. Handle events (in batches)
@@ -148,25 +154,11 @@ impl Ui {
                 Some(event) => event,
                 None => return Ok(()),
             };
+            let mut redraw = false;
             let end_time = Instant::now() + EVENT_PROCESSING_TIME;
             loop {
-                // Render in-between events so the next event is handled in an
-                // up-to-date state. The results of these intermediate renders
-                // will be thrown away before the final render.
-                terminal.autoresize()?;
-                self.widget().await.render(terminal.frame()).await;
-
-                let result = match event {
-                    UiEvent::Redraw => EventHandleResult::Continue,
-                    UiEvent::Term(event) => {
-                        if let Some(event) = InputEvent::from_event(event) {
-                            self.handle_event(terminal, &crossterm_lock, &event).await
-                        } else {
-                            EventHandleResult::Continue
-                        }
-                    }
-                };
-                match result {
+                match self.handle_event(terminal, &crossterm_lock, event).await {
+                    EventHandleResult::Redraw => redraw = true,
                     EventHandleResult::Continue => {}
                     EventHandleResult::Stop => return Ok(()),
                 }
@@ -181,10 +173,12 @@ impl Ui {
             }
 
             // 3. Render and present final state
-            terminal.autoresize()?;
-            terminal.frame().reset();
-            self.widget().await.render(terminal.frame()).await;
-            terminal.present()?;
+            if redraw {
+                terminal.autoresize()?;
+                terminal.frame().reset();
+                self.widget().await.render(terminal.frame()).await;
+                terminal.present()?;
+            }
         }
     }
 
@@ -224,8 +218,35 @@ impl Ui {
         &mut self,
         terminal: &mut Terminal,
         crossterm_lock: &Arc<FairMutex<()>>,
-        event: &InputEvent,
+        event: UiEvent,
     ) -> EventHandleResult {
+        match event {
+            UiEvent::GraphemeWidthsChanged => EventHandleResult::Redraw,
+            UiEvent::LogChanged if self.mode == Mode::Log => EventHandleResult::Redraw,
+            UiEvent::LogChanged => EventHandleResult::Continue,
+            UiEvent::Term(event) => {
+                self.handle_term_event(terminal, crossterm_lock, event)
+                    .await
+            }
+            UiEvent::EuphRoom { name, event } => {
+                let handled = self.handle_euph_room_event(name, event).await;
+                if self.mode == Mode::Main && handled {
+                    EventHandleResult::Redraw
+                } else {
+                    EventHandleResult::Continue
+                }
+            }
+        }
+    }
+
+    async fn handle_term_event(
+        &mut self,
+        terminal: &mut Terminal,
+        crossterm_lock: &Arc<FairMutex<()>>,
+        event: crossterm::event::Event,
+    ) -> EventHandleResult {
+        let event = some_or_return!(InputEvent::from_event(event), EventHandleResult::Continue);
+
         if let key!(Ctrl + 'c') = event {
             // Exit unconditionally on ctrl+c. Previously, shift+q would also
             // unconditionally exit, but that interfered with typing text in
@@ -239,35 +260,35 @@ impl Ui {
                 key!(Esc) | key!(F 1) | key!('?') => self.key_bindings_list = None,
                 key!('k') | key!(Up) => key_bindings_list.scroll_up(1),
                 key!('j') | key!(Down) => key_bindings_list.scroll_down(1),
-                _ => {}
+                _ => return EventHandleResult::Continue,
             }
-            return EventHandleResult::Continue;
+            return EventHandleResult::Redraw;
         }
 
         match event {
             key!(F 1) => {
                 self.key_bindings_list = Some(ListState::new());
-                return EventHandleResult::Continue;
+                return EventHandleResult::Redraw;
             }
             key!(F 12) => {
                 self.mode = match self.mode {
                     Mode::Main => Mode::Log,
                     Mode::Log => Mode::Main,
                 };
-                return EventHandleResult::Continue;
+                return EventHandleResult::Redraw;
             }
             _ => {}
         }
 
-        let handled = match self.mode {
+        let mut handled = match self.mode {
             Mode::Main => {
                 self.rooms
-                    .handle_event(terminal, crossterm_lock, event)
+                    .handle_input_event(terminal, crossterm_lock, &event)
                     .await
             }
             Mode::Log => self
                 .log_chat
-                .handle_event(terminal, crossterm_lock, event, false)
+                .handle_input_event(terminal, crossterm_lock, &event, false)
                 .await
                 .handled(),
         };
@@ -278,9 +299,19 @@ impl Ui {
         if !handled {
             if let key!('?') = event {
                 self.show_key_bindings();
+                handled = true;
             }
         }
 
-        EventHandleResult::Continue
+        if handled {
+            EventHandleResult::Redraw
+        } else {
+            EventHandleResult::Continue
+        }
+    }
+
+    async fn handle_euph_room_event(&mut self, name: String, event: EuphRoomEvent) -> bool {
+        // TODO Redirect this to the euph room
+        true
     }
 }

@@ -90,7 +90,7 @@ impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
         }
     }
 
-    pub async fn handle_event(
+    pub async fn handle_input_event(
         &mut self,
         terminal: &mut Terminal,
         crossterm_lock: &Arc<FairMutex<()>>,
@@ -100,7 +100,7 @@ impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
         match self.mode {
             Mode::Tree => {
                 self.tree
-                    .handle_event(terminal, crossterm_lock, event, can_compose)
+                    .handle_input_event(terminal, crossterm_lock, event, can_compose)
                     .await
             }
         }
