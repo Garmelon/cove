@@ -12,6 +12,7 @@ pub mod join;
 pub mod layer;
 pub mod list;
 pub mod padding;
+pub mod popup;
 pub mod resize;
 pub mod rules;
 pub mod text;
