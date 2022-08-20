@@ -30,7 +30,7 @@ features = ["rustls-tls-native-roots"]
 
 [dependencies.euphoxide]
 git = "https://github.com/Garmelon/euphoxide.git"
-rev = "643da74bcc24dc2eeb8746b45fbb986d1d000f0a"
+rev = "2579a9860da7b0eaa9aded098921c64f8ea2abab"
 
 # [patch."https://github.com/Garmelon/euphoxide.git"]
 # toss = { path = "../euphoxide/" }

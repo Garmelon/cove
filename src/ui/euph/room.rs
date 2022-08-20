@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crossterm::event::KeyCode;
 use crossterm::style::{Color, ContentStyle, Stylize};
-use euphoxide::api::{Data, SessionType, SessionView, Snowflake};
+use euphoxide::api::{Data, PacketType, SessionType, SessionView, Snowflake};
 use euphoxide::conn::{Joined, Status};
 use parking_lot::FairMutex;
 use tokio::sync::oneshot::error::TryRecvError;
@@ -466,5 +466,65 @@ impl EuphRoom {
                 ),
             },
         }
+    }
+
+    pub fn handle_euph_room_event(&mut self, event: EuphRoomEvent) -> bool {
+        match event {
+            EuphRoomEvent::Connected | EuphRoomEvent::Disconnected => true,
+            EuphRoomEvent::Packet(packet) => match packet.content {
+                Ok(data) => self.handle_euph_data(data),
+                Err(reason) => self.handle_euph_error(packet.r#type, reason),
+            },
+        }
+    }
+
+    fn handle_euph_data(&mut self, data: Data) -> bool {
+        // These packets don't result in any noticeable change in the UI. This
+        // function's main purpose is to prevent pings from causing a redraw.
+
+        #[allow(clippy::match_like_matches_macro)]
+        match data {
+            Data::PingEvent(_) | Data::PingReply(_) => {
+                // Pings are displayed nowhere in the room UI.
+                false
+            }
+            Data::DisconnectEvent(_) => {
+                // Followed by the server closing the connection, meaning that
+                // we'll get an `EuphRoomEvent::Disconnected` soon after this.
+                false
+            }
+            _ => true,
+        }
+    }
+
+    fn handle_euph_error(&mut self, r#type: PacketType, reason: String) -> bool {
+        let action = match r#type {
+            PacketType::AuthReply => "authenticate",
+            PacketType::NickReply => "set nick",
+            PacketType::PmInitiateReply => "initiate pm",
+            PacketType::SendReply => "send message",
+            PacketType::ChangeEmailReply => "change account email",
+            PacketType::ChangeNameReply => "change account name",
+            PacketType::ChangePasswordReply => "change account password",
+            PacketType::LoginReply => "log in",
+            PacketType::LogoutReply => "log out",
+            PacketType::RegisterAccountReply => "register account",
+            PacketType::ResendVerificationEmailReply => "resend verification email",
+            PacketType::ResetPasswordReply => "reset account password",
+            PacketType::BanReply => "ban",
+            PacketType::EditMessageReply => "edit message",
+            PacketType::GrantAccessReply => "grant room access",
+            PacketType::GrantManagerReply => "grant manager permissions",
+            PacketType::RevokeAccessReply => "revoke room access",
+            PacketType::RevokeManagerReply => "revoke manager permissions",
+            PacketType::UnbanReply => "unban",
+            _ => return false,
+        };
+        let description = format!("Failed to {action}.");
+        self.popups.push_front(Popup::ServerError {
+            description,
+            reason,
+        });
+        true
     }
 }

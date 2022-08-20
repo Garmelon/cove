@@ -311,7 +311,7 @@ impl Ui {
     }
 
     async fn handle_euph_room_event(&mut self, name: String, event: EuphRoomEvent) -> bool {
-        // TODO Redirect this to the euph room
-        true
+        let handled = self.rooms.handle_euph_room_event(name, event);
+        handled && self.mode == Mode::Main
     }
 }

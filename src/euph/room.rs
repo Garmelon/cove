@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use anyhow::bail;
 use cookie::{Cookie, CookieJar};
+use euphoxide::api::packet::ParsedPacket;
 use euphoxide::api::{Data, Log, Nick, Send, Snowflake, Time, UserId};
 use euphoxide::conn::{ConnRx, ConnTx, Joining, Status};
 use log::{error, info, warn};
@@ -28,7 +29,7 @@ pub enum Error {
 pub enum EuphRoomEvent {
     Connected,
     Disconnected,
-    Data(Box<Data>),
+    Packet(Box<ParsedPacket>),
 }
 
 #[derive(Debug)]
@@ -36,7 +37,7 @@ enum Event {
     // Events
     Connected(ConnTx),
     Disconnected,
-    Data(Box<Data>),
+    Packet(Box<ParsedPacket>),
     // Commands
     Status(oneshot::Sender<Option<Status>>),
     RequestLogs,
@@ -89,8 +90,8 @@ impl State {
                 info!("e&{}: connected", name);
                 event_tx.send(Event::Connected(conn_tx))?;
 
-                while let Ok(data) = conn_rx.recv().await {
-                    event_tx.send(Event::Data(Box::new(data)))?;
+                while let Some(packet) = conn_rx.recv().await {
+                    event_tx.send(Event::Packet(Box::new(packet)))?;
                 }
 
                 info!("e&{}: disconnected", name);
@@ -170,9 +171,9 @@ impl State {
                     self.last_msg_id = None;
                     let _ = euph_room_event_tx.send(EuphRoomEvent::Disconnected);
                 }
-                Event::Data(data) => {
-                    self.on_data(&*data).await?;
-                    let _ = euph_room_event_tx.send(EuphRoomEvent::Data(data));
+                Event::Packet(packet) => {
+                    self.on_packet(&*packet).await?;
+                    let _ = euph_room_event_tx.send(EuphRoomEvent::Packet(packet));
                 }
                 Event::Status(reply_tx) => self.on_status(reply_tx).await,
                 Event::RequestLogs => self.on_request_logs(),
@@ -190,7 +191,8 @@ impl State {
         })
     }
 
-    async fn on_data(&mut self, data: &Data) -> anyhow::Result<()> {
+    async fn on_packet(&mut self, packet: &ParsedPacket) -> anyhow::Result<()> {
+        let data = ok_or_return!(&packet.content, Ok(()));
         match data {
             Data::BounceEvent(_) => {}
             Data::DisconnectEvent(d) => {

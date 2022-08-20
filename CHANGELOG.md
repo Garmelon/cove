@@ -14,6 +14,9 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Added
+- Error popups in rooms when something goes wrong
+
 ### Changed
 - Reduced amount of unnecessary redraws
 

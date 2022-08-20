@@ -11,6 +11,7 @@ use tokio::sync::mpsc;
 use toss::styled::Styled;
 use toss::terminal::Terminal;
 
+use crate::euph::EuphRoomEvent;
 use crate::vault::Vault;
 
 use super::euph::room::EuphRoom;
@@ -364,5 +365,17 @@ impl Rooms {
         }
 
         true
+    }
+
+    pub fn handle_euph_room_event(&mut self, name: String, event: EuphRoomEvent) -> bool {
+        let room_visible = if let State::ShowRoom(n) = &self.state {
+            *n == name
+        } else {
+            true
+        };
+
+        let room = self.get_or_insert_room(name);
+        let handled = room.handle_euph_room_event(event);
+        handled && room_visible
     }
 }
