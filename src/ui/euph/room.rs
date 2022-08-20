@@ -19,6 +19,7 @@ use crate::ui::chat::{ChatState, Reaction};
 use crate::ui::input::{key, InputEvent, KeyBindingsList, KeyEvent};
 use crate::ui::widgets::background::Background;
 use crate::ui::widgets::border::Border;
+use crate::ui::widgets::cursor::Cursor;
 use crate::ui::widgets::editor::EditorState;
 use crate::ui::widgets::empty::Empty;
 use crate::ui::widgets::join::{HJoin, Segment, VJoin};
@@ -193,7 +194,7 @@ impl EuphRoom {
 
         match &self.state {
             State::Normal => {}
-            State::Auth(editor) => layers.push(Self::auth_widget(editor)),
+            State::Auth(_) => layers.push(Self::auth_widget()),
             State::Nick(editor) => layers.push(Self::nick_widget(editor)),
         }
 
@@ -204,11 +205,17 @@ impl EuphRoom {
         Layer::new(layers).into()
     }
 
-    fn auth_widget(editor: &EditorState) -> BoxedWidget {
-        Popup::new(Padding::new(editor.widget()).left(1))
-            .title("Enter password")
-            .inner_padding(false)
-            .build()
+    fn auth_widget() -> BoxedWidget {
+        Popup::new(
+            Padding::new(Cursor::new(Text::new((
+                "<hidden>",
+                ContentStyle::default().grey().italic(),
+            ))))
+            .left(1),
+        )
+        .title("Enter password")
+        .inner_padding(false)
+        .build()
     }
 
     fn nick_widget(editor: &EditorState) -> BoxedWidget {

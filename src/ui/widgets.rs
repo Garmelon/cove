@@ -5,6 +5,7 @@
 
 pub mod background;
 pub mod border;
+pub mod cursor;
 pub mod editor;
 pub mod empty;
 pub mod float;
