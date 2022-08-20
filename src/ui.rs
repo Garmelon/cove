@@ -224,6 +224,7 @@ impl Ui {
             UiEvent::GraphemeWidthsChanged => EventHandleResult::Redraw,
             UiEvent::LogChanged if self.mode == Mode::Log => EventHandleResult::Redraw,
             UiEvent::LogChanged => EventHandleResult::Continue,
+            UiEvent::Term(crossterm::event::Event::Resize(_, _)) => EventHandleResult::Redraw,
             UiEvent::Term(event) => {
                 self.handle_term_event(terminal, crossterm_lock, event)
                     .await
