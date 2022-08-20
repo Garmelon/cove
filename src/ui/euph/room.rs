@@ -21,17 +21,17 @@ use crate::ui::widgets::background::Background;
 use crate::ui::widgets::border::Border;
 use crate::ui::widgets::editor::EditorState;
 use crate::ui::widgets::empty::Empty;
-use crate::ui::widgets::float::Float;
 use crate::ui::widgets::join::{HJoin, Segment, VJoin};
 use crate::ui::widgets::layer::Layer;
 use crate::ui::widgets::list::{List, ListState};
 use crate::ui::widgets::padding::Padding;
+use crate::ui::widgets::popup::Popup;
 use crate::ui::widgets::text::Text;
 use crate::ui::widgets::BoxedWidget;
 use crate::ui::{util, UiEvent};
 use crate::vault::EuphVault;
 
-use super::popup::Popup;
+use super::popup::RoomPopup;
 
 enum State {
     Normal,
@@ -45,7 +45,7 @@ pub struct EuphRoom {
     room: Option<euph::Room>,
 
     state: State,
-    popups: VecDeque<Popup>,
+    popups: VecDeque<RoomPopup>,
 
     chat: ChatState<euph::SmallMessage, EuphVault>,
     last_msg_sent: Option<oneshot::Receiver<Snowflake>>,
@@ -155,21 +155,7 @@ impl EuphRoom {
 
         match &self.state {
             State::Normal => {}
-            State::ChooseNick(ed) => layers.push(
-                Float::new(Border::new(Background::new(VJoin::new(vec![
-                    Segment::new(Padding::new(Text::new("Choose nick")).horizontal(1)),
-                    Segment::new(
-                        Padding::new(
-                            ed.widget()
-                                .highlight(|s| Styled::new(s, euph::nick_style(s))),
-                        )
-                        .left(1),
-                    ),
-                ]))))
-                .horizontal(0.5)
-                .vertical(0.5)
-                .into(),
-            ),
+            State::ChooseNick(editor) => layers.push(Self::choose_nick_widget(editor)),
         }
 
         for popup in &self.popups {
@@ -177,6 +163,16 @@ impl EuphRoom {
         }
 
         Layer::new(layers).into()
+    }
+
+    fn choose_nick_widget(editor: &EditorState) -> BoxedWidget {
+        let editor = editor
+            .widget()
+            .highlight(|s| Styled::new(s, euph::nick_style(s)));
+        Popup::new(Padding::new(editor).left(1))
+            .title("Choose nick")
+            .inner_padding(false)
+            .build()
     }
 
     async fn widget_without_nick_list(&self, status: &Option<Option<Status>>) -> BoxedWidget {
@@ -470,7 +466,7 @@ impl EuphRoom {
 
     pub fn handle_euph_room_event(&mut self, event: EuphRoomEvent) -> bool {
         match event {
-            EuphRoomEvent::Connected | EuphRoomEvent::Disconnected => true,
+            EuphRoomEvent::Connected | EuphRoomEvent::Disconnected | EuphRoomEvent::Stopped => true,
             EuphRoomEvent::Packet(packet) => match packet.content {
                 Ok(data) => self.handle_euph_data(data),
                 Err(reason) => self.handle_euph_error(packet.r#type, reason),
@@ -521,7 +517,7 @@ impl EuphRoom {
             _ => return false,
         };
         let description = format!("Failed to {action}.");
-        self.popups.push_front(Popup::ServerError {
+        self.popups.push_front(RoomPopup::ServerError {
             description,
             reason,
         });

@@ -16,14 +16,12 @@ use crate::vault::Vault;
 
 use super::euph::room::EuphRoom;
 use super::input::{key, InputEvent, KeyBindingsList, KeyEvent};
-use super::widgets::background::Background;
-use super::widgets::border::Border;
 use super::widgets::editor::EditorState;
-use super::widgets::float::Float;
 use super::widgets::join::{HJoin, Segment, VJoin};
 use super::widgets::layer::Layer;
 use super::widgets::list::{List, ListState};
 use super::widgets::padding::Padding;
+use super::widgets::popup::Popup;
 use super::widgets::text::Text;
 use super::widgets::BoxedWidget;
 use super::{util, UiEvent};
@@ -104,27 +102,27 @@ impl Rooms {
                     .widget()
                     .await
             }
-            State::Connect(ed) => {
-                let room_style = ContentStyle::default().bold().blue();
-                Layer::new(vec![
-                    self.rooms_widget().await,
-                    Float::new(Border::new(Background::new(VJoin::new(vec![
-                        Segment::new(Padding::new(Text::new("Connect to")).horizontal(1)),
-                        Segment::new(
-                            Padding::new(HJoin::new(vec![
-                                Segment::new(Text::new(("&", room_style))),
-                                Segment::new(ed.widget().highlight(|s| Styled::new(s, room_style))),
-                            ]))
-                            .left(1),
-                        ),
-                    ]))))
-                    .horizontal(0.5)
-                    .vertical(0.5)
-                    .into(),
-                ])
-                .into()
-            }
+            State::Connect(editor) => Layer::new(vec![
+                self.rooms_widget().await,
+                Self::new_room_widget(editor),
+            ])
+            .into(),
         }
+    }
+
+    fn new_room_widget(editor: &EditorState) -> BoxedWidget {
+        let room_style = ContentStyle::default().bold().blue();
+        let editor = editor.widget().highlight(|s| Styled::new(s, room_style));
+        Popup::new(
+            Padding::new(HJoin::new(vec![
+                Segment::new(Text::new(("&", room_style))),
+                Segment::new(editor).priority(0),
+            ]))
+            .left(1),
+        )
+        .title("Connect to")
+        .inner_padding(false)
+        .build()
     }
 
     fn format_pbln(joined: &Joined) -> String {

@@ -1,19 +1,16 @@
 use crossterm::style::{ContentStyle, Stylize};
 use toss::styled::Styled;
 
-use crate::ui::widgets::background::Background;
-use crate::ui::widgets::border::Border;
 use crate::ui::widgets::float::Float;
-use crate::ui::widgets::layer::Layer;
-use crate::ui::widgets::padding::Padding;
+use crate::ui::widgets::popup::Popup;
 use crate::ui::widgets::text::Text;
 use crate::ui::widgets::BoxedWidget;
 
-pub enum Popup {
+pub enum RoomPopup {
     ServerError { description: String, reason: String },
 }
 
-impl Popup {
+impl RoomPopup {
     fn server_error_widget(description: &str, reason: &str) -> BoxedWidget {
         let border_style = ContentStyle::default().red().bold();
         let text = Styled::new_plain(description)
@@ -21,15 +18,10 @@ impl Popup {
             .then("Reason:", ContentStyle::default().bold())
             .then_plain(" ")
             .then_plain(reason);
-        Layer::new(vec![
-            Border::new(Background::new(Padding::new(Text::new(text)).horizontal(1)))
-                .style(border_style)
-                .into(),
-            Float::new(Padding::new(Text::new(("Error", border_style))).horizontal(1))
-                .horizontal(0.5)
-                .into(),
-        ])
-        .into()
+        Popup::new(Text::new(text))
+            .title(("Error", border_style))
+            .border(border_style)
+            .build()
     }
 
     pub fn widget(&self) -> BoxedWidget {
