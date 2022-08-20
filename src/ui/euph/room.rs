@@ -1,9 +1,10 @@
+use std::collections::VecDeque;
 use std::iter;
 use std::sync::Arc;
 
 use crossterm::event::KeyCode;
 use crossterm::style::{Color, ContentStyle, Stylize};
-use euphoxide::api::{SessionType, SessionView, Snowflake};
+use euphoxide::api::{Data, SessionType, SessionView, Snowflake};
 use euphoxide::conn::{Joined, Status};
 use parking_lot::FairMutex;
 use tokio::sync::oneshot::error::TryRecvError;
@@ -30,6 +31,8 @@ use crate::ui::widgets::BoxedWidget;
 use crate::ui::{util, UiEvent};
 use crate::vault::EuphVault;
 
+use super::popup::Popup;
+
 enum State {
     Normal,
     ChooseNick(EditorState),
@@ -42,6 +45,7 @@ pub struct EuphRoom {
     room: Option<euph::Room>,
 
     state: State,
+    popups: VecDeque<Popup>,
 
     chat: ChatState<euph::SmallMessage, EuphVault>,
     last_msg_sent: Option<oneshot::Receiver<Snowflake>>,
@@ -56,6 +60,7 @@ impl EuphRoom {
             vault: vault.clone(),
             room: None,
             state: State::Normal,
+            popups: VecDeque::new(),
             chat: ChatState::new(vault),
             last_msg_sent: None,
             nick_list: ListState::new(),
@@ -145,10 +150,12 @@ impl EuphRoom {
             Some(Some(Status::Joined(joined))) => self.widget_with_nick_list(&status, joined).await,
             _ => self.widget_without_nick_list(&status).await,
         };
+
+        let mut layers = vec![chat];
+
         match &self.state {
-            State::Normal => chat,
-            State::ChooseNick(ed) => Layer::new(vec![
-                chat,
+            State::Normal => {}
+            State::ChooseNick(ed) => layers.push(
                 Float::new(Border::new(Background::new(VJoin::new(vec![
                     Segment::new(Padding::new(Text::new("Choose nick")).horizontal(1)),
                     Segment::new(
@@ -162,9 +169,14 @@ impl EuphRoom {
                 .horizontal(0.5)
                 .vertical(0.5)
                 .into(),
-            ])
-            .into(),
+            ),
         }
+
+        for popup in &self.popups {
+            layers.push(popup.widget());
+        }
+
+        Layer::new(layers).into()
     }
 
     async fn widget_without_nick_list(&self, status: &Option<Option<Status>>) -> BoxedWidget {
@@ -350,6 +362,11 @@ impl EuphRoom {
     pub async fn list_key_bindings(&self, bindings: &mut KeyBindingsList) {
         bindings.heading("Room");
 
+        if !self.popups.is_empty() {
+            bindings.binding("esc", "close popup");
+            return;
+        }
+
         match &self.state {
             State::Normal => {
                 // TODO Use if-let chain
@@ -382,6 +399,14 @@ impl EuphRoom {
         crossterm_lock: &Arc<FairMutex<()>>,
         event: &InputEvent,
     ) -> bool {
+        if !self.popups.is_empty() {
+            if matches!(event, key!(Esc)) {
+                self.popups.pop_back();
+                return true;
+            }
+            return false;
+        }
+
         match &self.state {
             State::Normal => {
                 // TODO Use if-let chain
