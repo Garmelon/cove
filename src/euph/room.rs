@@ -30,6 +30,7 @@ pub enum EuphRoomEvent {
     Connected,
     Disconnected,
     Packet(Box<ParsedPacket>),
+    Stopped,
 }
 
 #[derive(Debug)]
@@ -77,6 +78,11 @@ impl State {
         if let Err(e) = result {
             error!("e&{name}: {}", e);
         }
+
+        // Ensure that whoever is using this room knows that it's gone.
+        // Otherwise, the users of the Room may be left in an inconsistent or
+        // outdated state, and the UI may not update correctly.
+        let _ = euph_room_event_tx.send(EuphRoomEvent::Stopped);
     }
 
     async fn reconnect(
@@ -98,6 +104,7 @@ impl State {
                 event_tx.send(Event::Disconnected)?;
             } else {
                 info!("e&{}: could not connect", name);
+                event_tx.send(Event::Disconnected)?;
             }
             tokio::time::sleep(Duration::from_secs(5)).await; // TODO Make configurable
         }
