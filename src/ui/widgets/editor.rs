@@ -49,7 +49,7 @@ impl InnerEditorState {
         Self {
             idx: text.len(),
             col: 0,
-            last_width: 0,
+            last_width: u16::MAX,
             text,
         }
     }
