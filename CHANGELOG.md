@@ -15,6 +15,7 @@ Procedure when bumping the version number:
 ## Unreleased
 
 ### Added
+- Authentication dialog for password-protected rooms
 - Error popups in rooms when something goes wrong
 
 ### Changed

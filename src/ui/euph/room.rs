@@ -5,7 +5,7 @@ use std::sync::Arc;
 use crossterm::event::KeyCode;
 use crossterm::style::{Color, ContentStyle, Stylize};
 use euphoxide::api::{Data, PacketType, SessionType, SessionView, Snowflake};
-use euphoxide::conn::{Joined, Status};
+use euphoxide::conn::{Joined, Joining, Status};
 use parking_lot::FairMutex;
 use tokio::sync::oneshot::error::TryRecvError;
 use tokio::sync::{mpsc, oneshot};
@@ -35,7 +35,8 @@ use super::popup::RoomPopup;
 
 enum State {
     Normal,
-    ChooseNick(EditorState),
+    Auth(EditorState),
+    Nick(EditorState),
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -153,10 +154,35 @@ impl EuphRoom {
         }
     }
 
-    pub async fn widget(&mut self) -> BoxedWidget {
-        self.stabilize_pseudo_msg().await;
+    fn stabilize_state(&mut self, status: &RoomStatus) {
+        match &self.state {
+            State::Auth(_)
+                if !matches!(
+                    status,
+                    RoomStatus::Connected(Status::Joining(Joining {
+                        bounce: Some(_),
+                        ..
+                    }))
+                ) =>
+            {
+                self.state = State::Normal
+            }
+            State::Nick(_) if !matches!(status, RoomStatus::Connected(Status::Joined(_))) => {
+                self.state = State::Normal
+            }
+            _ => {}
+        }
+    }
 
+    async fn stabilize(&mut self, status: &RoomStatus) {
+        self.stabilize_pseudo_msg().await;
+        self.stabilize_state(status);
+    }
+
+    pub async fn widget(&mut self) -> BoxedWidget {
         let status = self.status().await;
+        self.stabilize(&status).await;
+
         let chat = if let RoomStatus::Connected(Status::Joined(joined)) = &status {
             self.widget_with_nick_list(&status, joined).await
         } else {
@@ -167,7 +193,8 @@ impl EuphRoom {
 
         match &self.state {
             State::Normal => {}
-            State::ChooseNick(editor) => layers.push(Self::choose_nick_widget(editor)),
+            State::Auth(editor) => layers.push(Self::auth_widget(editor)),
+            State::Nick(editor) => layers.push(Self::nick_widget(editor)),
         }
 
         for popup in &self.popups {
@@ -177,7 +204,14 @@ impl EuphRoom {
         Layer::new(layers).into()
     }
 
-    fn choose_nick_widget(editor: &EditorState) -> BoxedWidget {
+    fn auth_widget(editor: &EditorState) -> BoxedWidget {
+        Popup::new(Padding::new(editor.widget()).left(1))
+            .title("Enter password")
+            .inner_padding(false)
+            .build()
+    }
+
+    fn nick_widget(editor: &EditorState) -> BoxedWidget {
         let editor = editor
             .widget()
             .highlight(|s| Styled::new(s, euph::nick_style(s)));
@@ -373,14 +407,21 @@ impl EuphRoom {
 
         match &self.state {
             State::Normal => {
-                // TODO Use if-let chain
                 bindings.binding("esc", "leave room");
+
                 let can_compose = if let Some(room) = &self.room {
-                    if let Ok(Some(Status::Joined(_))) = room.status().await {
-                        bindings.binding("n", "change nick");
-                        true
-                    } else {
-                        false
+                    match room.status().await {
+                        Ok(Some(Status::Joining(Joining {
+                            bounce: Some(_), ..
+                        }))) => {
+                            bindings.binding("a", "authenticate");
+                            false
+                        }
+                        Ok(Some(Status::Joined(_))) => {
+                            bindings.binding("n", "change nick");
+                            true
+                        }
+                        _ => false,
                     }
                 } else {
                     false
@@ -389,7 +430,12 @@ impl EuphRoom {
                 bindings.empty();
                 self.chat.list_key_bindings(bindings, can_compose).await;
             }
-            State::ChooseNick(_) => {
+            State::Auth(_) => {
+                bindings.binding("esc", "abort");
+                bindings.binding("enter", "authenticate");
+                util::list_editor_key_bindings(bindings, Self::nick_char, false);
+            }
+            State::Nick(_) => {
                 bindings.binding("esc", "abort");
                 bindings.binding("enter", "set nick");
                 util::list_editor_key_bindings(bindings, Self::nick_char, false);
@@ -413,42 +459,78 @@ impl EuphRoom {
 
         match &self.state {
             State::Normal => {
-                // TODO Use if-let chain
                 if let Some(room) = &self.room {
-                    if let Ok(Some(Status::Joined(joined))) = room.status().await {
-                        match self
-                            .chat
-                            .handle_input_event(terminal, crossterm_lock, event, true)
-                            .await
-                        {
-                            Reaction::NotHandled => {}
-                            Reaction::Handled => return true,
-                            Reaction::Composed { parent, content } => {
-                                match room.send(parent, content) {
-                                    Ok(id_rx) => self.last_msg_sent = Some(id_rx),
-                                    Err(_) => self.chat.sent(None).await,
-                                }
-                                return true;
-                            }
-                        }
+                    let status = room.status().await;
+                    let can_compose = matches!(status, Ok(Some(Status::Joined(_))));
 
-                        if let key!('n') | key!('N') = event {
-                            self.state = State::ChooseNick(EditorState::with_initial_text(
-                                joined.session.name.clone(),
-                            ));
+                    // We need to handle chat input first, otherwise the other
+                    // key bindings will shadow characters in the editor.
+                    match self
+                        .chat
+                        .handle_input_event(terminal, crossterm_lock, event, can_compose)
+                        .await
+                    {
+                        Reaction::NotHandled => {}
+                        Reaction::Handled => return true,
+                        Reaction::Composed { parent, content } => {
+                            match room.send(parent, content) {
+                                Ok(id_rx) => self.last_msg_sent = Some(id_rx),
+                                Err(_) => self.chat.sent(None).await,
+                            }
                             return true;
                         }
-
-                        return false;
                     }
-                }
 
-                self.chat
-                    .handle_input_event(terminal, crossterm_lock, event, false)
-                    .await
-                    .handled()
+                    match status {
+                        Ok(Some(Status::Joining(Joining {
+                            bounce: Some(_), ..
+                        }))) => {
+                            if let key!('a') | key!('A') = event {
+                                self.state = State::Auth(EditorState::new());
+                                return true;
+                            }
+                            false
+                        }
+                        Ok(Some(Status::Joined(joined))) => {
+                            if let key!('n') | key!('N') = event {
+                                self.state = State::Nick(EditorState::with_initial_text(
+                                    joined.session.name,
+                                ));
+                                return true;
+                            }
+                            true
+                        }
+                        _ => false,
+                    }
+                } else {
+                    self.chat
+                        .handle_input_event(terminal, crossterm_lock, event, false)
+                        .await
+                        .handled()
+                }
             }
-            State::ChooseNick(ed) => match event {
+            State::Auth(ed) => match event {
+                key!(Esc) => {
+                    self.state = State::Normal;
+                    true
+                }
+                key!(Enter) => {
+                    if let Some(room) = &self.room {
+                        let _ = room.auth(ed.text());
+                    }
+                    self.state = State::Normal;
+                    true
+                }
+                _ => util::handle_editor_input_event(
+                    ed,
+                    terminal,
+                    crossterm_lock,
+                    event,
+                    Self::nick_char,
+                    false,
+                ),
+            },
+            State::Nick(ed) => match event {
                 key!(Esc) => {
                     self.state = State::Normal;
                     true

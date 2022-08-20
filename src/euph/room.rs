@@ -6,7 +6,7 @@ use std::time::Duration;
 use anyhow::bail;
 use cookie::{Cookie, CookieJar};
 use euphoxide::api::packet::ParsedPacket;
-use euphoxide::api::{Data, Log, Nick, Send, Snowflake, Time, UserId};
+use euphoxide::api::{Auth, AuthOption, Data, Log, Nick, Send, Snowflake, Time, UserId};
 use euphoxide::conn::{ConnRx, ConnTx, Joining, Status};
 use log::{error, info, warn};
 use parking_lot::Mutex;
@@ -46,6 +46,7 @@ enum Event {
     // Commands
     Status(oneshot::Sender<Option<Status>>),
     RequestLogs,
+    Auth(String),
     Nick(String),
     Send(Option<Snowflake>, String, oneshot::Sender<Snowflake>),
 }
@@ -188,6 +189,7 @@ impl State {
                 }
                 Event::Status(reply_tx) => self.on_status(reply_tx).await,
                 Event::RequestLogs => self.on_request_logs(),
+                Event::Auth(password) => self.on_auth(password),
                 Event::Nick(name) => self.on_nick(name),
                 Event::Send(parent, content, id_tx) => self.on_send(parent, content, id_tx),
             }
@@ -321,6 +323,20 @@ impl State {
         Ok(())
     }
 
+    fn on_auth(&self, password: String) {
+        if let Some(conn_tx) = &self.conn_tx {
+            let conn_tx = conn_tx.clone();
+            task::spawn(async move {
+                let _ = conn_tx
+                    .send(Auth {
+                        r#type: AuthOption::Passcode,
+                        passcode: Some(password),
+                    })
+                    .await;
+            });
+        }
+    }
+
     fn on_nick(&self, name: String) {
         if let Some(conn_tx) = &self.conn_tx {
             let conn_tx = conn_tx.clone();
@@ -387,6 +403,12 @@ impl Room {
             .send(Event::Status(tx))
             .map_err(|_| Error::Stopped)?;
         rx.await.map_err(|_| Error::Stopped)
+    }
+
+    pub fn auth(&self, password: String) -> Result<(), Error> {
+        self.event_tx
+            .send(Event::Auth(password))
+            .map_err(|_| Error::Stopped)
     }
 
     pub fn nick(&self, name: String) -> Result<(), Error> {
