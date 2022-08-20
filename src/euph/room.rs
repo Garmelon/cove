@@ -20,6 +20,10 @@ use tokio_tungstenite::tungstenite::http::{header, HeaderValue};
 use crate::macros::ok_or_return;
 use crate::vault::{EuphVault, Vault};
 
+const TIMEOUT: Duration = Duration::from_secs(30);
+const RECONNECT_INTERVAL: Duration = Duration::from_secs(5);
+const LOG_INTERVAL: Duration = Duration::from_secs(10);
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("room stopped")]
@@ -106,7 +110,7 @@ impl State {
                 info!("e&{}: could not connect", name);
                 event_tx.send(Event::Disconnected)?;
             }
-            tokio::time::sleep(Duration::from_secs(5)).await; // TODO Make configurable
+            tokio::time::sleep(RECONNECT_INTERVAL).await;
         }
     }
 
@@ -143,7 +147,7 @@ impl State {
         match tokio_tungstenite::connect_async(request).await {
             Ok((ws, response)) => {
                 Self::update_cookies(vault.vault(), &response);
-                Ok(Some(euphoxide::wrap(ws)))
+                Ok(Some(euphoxide::wrap(ws, TIMEOUT)))
             }
             Err(tungstenite::Error::Http(resp)) if resp.status().is_client_error() => {
                 bail!("room {name} doesn't exist");
@@ -157,7 +161,7 @@ impl State {
 
     async fn regularly_request_logs(event_tx: &mpsc::UnboundedSender<Event>) {
         loop {
-            tokio::time::sleep(Duration::from_secs(10)).await; // TODO Make configurable
+            tokio::time::sleep(LOG_INTERVAL).await;
             let _ = event_tx.send(Event::RequestLogs);
         }
     }
