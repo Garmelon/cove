@@ -17,6 +17,7 @@ Procedure when bumping the version number:
 ### Fixed
 - Crash when connecting to nonexistent rooms
 - Crash when connecting to rooms that require authentication
+- Pasting multi-line strings into the editor
 
 ## v0.2.1 - 2022-08-11
 
