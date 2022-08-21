@@ -20,6 +20,7 @@ Procedure when bumping the version number:
 
 ### Changed
 - Reduced amount of unnecessary redraws
+- Description of `export` CLI command
 
 ### Fixed
 - Crash when connecting to nonexistent rooms

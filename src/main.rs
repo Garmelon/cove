@@ -41,7 +41,7 @@ use crate::logger::Logger;
 enum Command {
     /// Run the client interactively (default).
     Run,
-    /// Export logs for a single room as a plain text file.
+    /// Export room logs as plain text files.
     Export(export::Args),
     /// Compact and clean up vault.
     Gc,
