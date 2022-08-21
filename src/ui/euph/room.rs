@@ -263,6 +263,80 @@ impl EuphRoom {
         Text::new(info).into()
     }
 
+    pub async fn list_normal_key_bindings(&self, bindings: &mut KeyBindingsList) {
+        bindings.binding("esc", "leave room");
+
+        let can_compose = if let Some(room) = &self.room {
+            match room.status().await.ok().flatten() {
+                Some(Status::Joining(Joining {
+                    bounce: Some(_), ..
+                })) => {
+                    bindings.binding("a", "authenticate");
+                    false
+                }
+                Some(Status::Joined(_)) => {
+                    bindings.binding("n", "change nick");
+                    true
+                }
+                _ => false,
+            }
+        } else {
+            false
+        };
+
+        bindings.empty();
+        self.chat.list_key_bindings(bindings, can_compose).await;
+    }
+
+    async fn handle_normal_input_event(
+        &mut self,
+        terminal: &mut Terminal,
+        crossterm_lock: &Arc<FairMutex<()>>,
+        event: &InputEvent,
+    ) -> bool {
+        if let Some(room) = &self.room {
+            let status = room.status().await;
+            let can_compose = matches!(status, Ok(Some(Status::Joined(_))));
+
+            // We need to handle chat input first, otherwise the other
+            // key bindings will shadow characters in the editor.
+            match self
+                .chat
+                .handle_input_event(terminal, crossterm_lock, event, can_compose)
+                .await
+            {
+                Reaction::NotHandled => {}
+                Reaction::Handled => return true,
+                Reaction::Composed { parent, content } => {
+                    match room.send(parent, content) {
+                        Ok(id_rx) => self.last_msg_sent = Some(id_rx),
+                        Err(_) => self.chat.sent(None).await,
+                    }
+                    return true;
+                }
+            }
+
+            match status.ok().flatten() {
+                Some(Status::Joining(Joining {
+                    bounce: Some(_), ..
+                })) if matches!(event, key!('a') | key!('A')) => {
+                    self.state = State::Auth(auth::new());
+                    true
+                }
+                Some(Status::Joined(joined)) if matches!(event, key!('n') | key!('N')) => {
+                    self.state = State::Nick(nick::new(joined));
+                    true
+                }
+                _ => false,
+            }
+        } else {
+            self.chat
+                .handle_input_event(terminal, crossterm_lock, event, false)
+                .await
+                .handled()
+        }
+    }
+
     pub async fn list_key_bindings(&self, bindings: &mut KeyBindingsList) {
         bindings.heading("Room");
 
@@ -272,30 +346,7 @@ impl EuphRoom {
         }
 
         match &self.state {
-            State::Normal => {
-                bindings.binding("esc", "leave room");
-
-                let can_compose = if let Some(room) = &self.room {
-                    match room.status().await.ok().flatten() {
-                        Some(Status::Joining(Joining {
-                            bounce: Some(_), ..
-                        })) => {
-                            bindings.binding("a", "authenticate");
-                            false
-                        }
-                        Some(Status::Joined(_)) => {
-                            bindings.binding("n", "change nick");
-                            true
-                        }
-                        _ => false,
-                    }
-                } else {
-                    false
-                };
-
-                bindings.empty();
-                self.chat.list_key_bindings(bindings, can_compose).await;
-            }
+            State::Normal => self.list_normal_key_bindings(bindings).await,
             State::Auth(_) => auth::list_key_bindings(bindings),
             State::Nick(_) => nick::list_key_bindings(bindings),
         }
@@ -317,47 +368,8 @@ impl EuphRoom {
 
         match &self.state {
             State::Normal => {
-                if let Some(room) = &self.room {
-                    let status = room.status().await;
-                    let can_compose = matches!(status, Ok(Some(Status::Joined(_))));
-
-                    // We need to handle chat input first, otherwise the other
-                    // key bindings will shadow characters in the editor.
-                    match self
-                        .chat
-                        .handle_input_event(terminal, crossterm_lock, event, can_compose)
-                        .await
-                    {
-                        Reaction::NotHandled => {}
-                        Reaction::Handled => return true,
-                        Reaction::Composed { parent, content } => {
-                            match room.send(parent, content) {
-                                Ok(id_rx) => self.last_msg_sent = Some(id_rx),
-                                Err(_) => self.chat.sent(None).await,
-                            }
-                            return true;
-                        }
-                    }
-
-                    match status.ok().flatten() {
-                        Some(Status::Joining(Joining {
-                            bounce: Some(_), ..
-                        })) if matches!(event, key!('a') | key!('A')) => {
-                            self.state = State::Auth(auth::new());
-                            true
-                        }
-                        Some(Status::Joined(joined)) if matches!(event, key!('n') | key!('N')) => {
-                            self.state = State::Nick(nick::new(joined));
-                            true
-                        }
-                        _ => false,
-                    }
-                } else {
-                    self.chat
-                        .handle_input_event(terminal, crossterm_lock, event, false)
-                        .await
-                        .handled()
-                }
+                self.handle_normal_input_event(terminal, crossterm_lock, event)
+                    .await
             }
             State::Auth(editor) => {
                 match auth::handle_input_event(terminal, crossterm_lock, event, &self.room, editor)
