@@ -17,20 +17,18 @@ use crate::store::MsgStore;
 use crate::ui::chat::{ChatState, Reaction};
 use crate::ui::input::{key, InputEvent, KeyBindingsList, KeyEvent};
 use crate::ui::widgets::border::Border;
-use crate::ui::widgets::cursor::Cursor;
 use crate::ui::widgets::editor::EditorState;
 use crate::ui::widgets::join::{HJoin, Segment, VJoin};
 use crate::ui::widgets::layer::Layer;
 use crate::ui::widgets::list::ListState;
 use crate::ui::widgets::padding::Padding;
-use crate::ui::widgets::popup::Popup;
 use crate::ui::widgets::text::Text;
 use crate::ui::widgets::BoxedWidget;
-use crate::ui::{util, UiEvent};
+use crate::ui::UiEvent;
 use crate::vault::EuphVault;
 
 use super::popup::RoomPopup;
-use super::{nick, nick_list};
+use super::{auth, nick, nick_list};
 
 enum State {
     Normal,
@@ -155,17 +153,7 @@ impl EuphRoom {
 
     fn stabilize_state(&mut self, status: &RoomStatus) {
         match &self.state {
-            State::Auth(_)
-                if !matches!(
-                    status,
-                    RoomStatus::Connected(Status::Joining(Joining {
-                        bounce: Some(_),
-                        ..
-                    }))
-                ) =>
-            {
-                self.state = State::Normal
-            }
+            State::Auth(_) if !auth::stable(status) => self.state = State::Normal,
             State::Nick(_) if !nick::stable(status) => self.state = State::Normal,
             _ => {}
         }
@@ -190,7 +178,7 @@ impl EuphRoom {
 
         match &self.state {
             State::Normal => {}
-            State::Auth(_) => layers.push(Self::auth_widget()),
+            State::Auth(_) => layers.push(auth::widget()),
             State::Nick(editor) => layers.push(nick::widget(editor)),
         }
 
@@ -199,19 +187,6 @@ impl EuphRoom {
         }
 
         Layer::new(layers).into()
-    }
-
-    fn auth_widget() -> BoxedWidget {
-        Popup::new(
-            Padding::new(Cursor::new(Text::new((
-                "<hidden>",
-                ContentStyle::default().grey().italic(),
-            ))))
-            .left(1),
-        )
-        .title("Enter password")
-        .inner_padding(false)
-        .build()
     }
 
     async fn widget_without_nick_list(&self, status: &RoomStatus) -> BoxedWidget {
@@ -309,11 +284,7 @@ impl EuphRoom {
                 bindings.empty();
                 self.chat.list_key_bindings(bindings, can_compose).await;
             }
-            State::Auth(_) => {
-                bindings.binding("esc", "abort");
-                bindings.binding("enter", "authenticate");
-                util::list_editor_key_bindings(bindings, |_| true, false);
-            }
+            State::Auth(_) => auth::list_key_bindings(bindings),
             State::Nick(_) => nick::list_key_bindings(bindings),
         }
     }
@@ -360,7 +331,7 @@ impl EuphRoom {
                         Some(Status::Joining(Joining {
                             bounce: Some(_), ..
                         })) if matches!(event, key!('a') | key!('A')) => {
-                            self.state = State::Auth(EditorState::new());
+                            self.state = State::Auth(auth::new());
                             true
                         }
                         Some(Status::Joined(joined)) if matches!(event, key!('n') | key!('N')) => {
@@ -376,27 +347,17 @@ impl EuphRoom {
                         .handled()
                 }
             }
-            State::Auth(ed) => match event {
-                key!(Esc) => {
-                    self.state = State::Normal;
-                    true
-                }
-                key!(Enter) => {
-                    if let Some(room) = &self.room {
-                        let _ = room.auth(ed.text());
+            State::Auth(editor) => {
+                match auth::handle_input_event(terminal, crossterm_lock, event, &self.room, editor)
+                {
+                    auth::EventResult::NotHandled => false,
+                    auth::EventResult::Handled => true,
+                    auth::EventResult::ResetState => {
+                        self.state = State::Normal;
+                        true
                     }
-                    self.state = State::Normal;
-                    true
                 }
-                _ => util::handle_editor_input_event(
-                    ed,
-                    terminal,
-                    crossterm_lock,
-                    event,
-                    |_| true,
-                    false,
-                ),
-            },
+            }
             State::Nick(editor) => {
                 match nick::handle_input_event(terminal, crossterm_lock, event, &self.room, editor)
                 {
