@@ -29,8 +29,8 @@ use crate::ui::widgets::BoxedWidget;
 use crate::ui::{util, UiEvent};
 use crate::vault::EuphVault;
 
-use super::nick_list;
 use super::popup::RoomPopup;
+use super::{nick, nick_list};
 
 enum State {
     Normal,
@@ -166,9 +166,7 @@ impl EuphRoom {
             {
                 self.state = State::Normal
             }
-            State::Nick(_) if !matches!(status, RoomStatus::Connected(Status::Joined(_))) => {
-                self.state = State::Normal
-            }
+            State::Nick(_) if !nick::stable(status) => self.state = State::Normal,
             _ => {}
         }
     }
@@ -193,7 +191,7 @@ impl EuphRoom {
         match &self.state {
             State::Normal => {}
             State::Auth(_) => layers.push(Self::auth_widget()),
-            State::Nick(editor) => layers.push(Self::nick_widget(editor)),
+            State::Nick(editor) => layers.push(nick::widget(editor)),
         }
 
         for popup in &self.popups {
@@ -214,16 +212,6 @@ impl EuphRoom {
         .title("Enter password")
         .inner_padding(false)
         .build()
-    }
-
-    fn nick_widget(editor: &EditorState) -> BoxedWidget {
-        let editor = editor
-            .widget()
-            .highlight(|s| Styled::new(s, euph::nick_style(s)));
-        Popup::new(Padding::new(editor).left(1))
-            .title("Choose nick")
-            .inner_padding(false)
-            .build()
     }
 
     async fn widget_without_nick_list(&self, status: &RoomStatus) -> BoxedWidget {
@@ -288,10 +276,6 @@ impl EuphRoom {
         Text::new(info).into()
     }
 
-    fn nick_char(c: char) -> bool {
-        c != '\n'
-    }
-
     pub async fn list_key_bindings(&self, bindings: &mut KeyBindingsList) {
         bindings.heading("Room");
 
@@ -305,14 +289,14 @@ impl EuphRoom {
                 bindings.binding("esc", "leave room");
 
                 let can_compose = if let Some(room) = &self.room {
-                    match room.status().await {
-                        Ok(Some(Status::Joining(Joining {
+                    match room.status().await.ok().flatten() {
+                        Some(Status::Joining(Joining {
                             bounce: Some(_), ..
-                        }))) => {
+                        })) => {
                             bindings.binding("a", "authenticate");
                             false
                         }
-                        Ok(Some(Status::Joined(_))) => {
+                        Some(Status::Joined(_)) => {
                             bindings.binding("n", "change nick");
                             true
                         }
@@ -328,13 +312,9 @@ impl EuphRoom {
             State::Auth(_) => {
                 bindings.binding("esc", "abort");
                 bindings.binding("enter", "authenticate");
-                util::list_editor_key_bindings(bindings, Self::nick_char, false);
+                util::list_editor_key_bindings(bindings, |_| true, false);
             }
-            State::Nick(_) => {
-                bindings.binding("esc", "abort");
-                bindings.binding("enter", "set nick");
-                util::list_editor_key_bindings(bindings, Self::nick_char, false);
-            }
+            State::Nick(_) => nick::list_key_bindings(bindings),
         }
     }
 
@@ -376,18 +356,15 @@ impl EuphRoom {
                         }
                     }
 
-                    match status {
-                        Ok(Some(Status::Joining(Joining {
+                    match status.ok().flatten() {
+                        Some(Status::Joining(Joining {
                             bounce: Some(_), ..
-                        }))) if matches!(event, key!('a') | key!('A')) => {
+                        })) if matches!(event, key!('a') | key!('A')) => {
                             self.state = State::Auth(EditorState::new());
                             true
                         }
-                        Ok(Some(Status::Joined(joined)))
-                            if matches!(event, key!('n') | key!('N')) =>
-                        {
-                            let name = joined.session.name;
-                            self.state = State::Nick(EditorState::with_initial_text(name));
+                        Some(Status::Joined(joined)) if matches!(event, key!('n') | key!('N')) => {
+                            self.state = State::Nick(nick::new(joined));
                             true
                         }
                         _ => false,
@@ -416,31 +393,21 @@ impl EuphRoom {
                     terminal,
                     crossterm_lock,
                     event,
-                    Self::nick_char,
+                    |_| true,
                     false,
                 ),
             },
-            State::Nick(ed) => match event {
-                key!(Esc) => {
-                    self.state = State::Normal;
-                    true
-                }
-                key!(Enter) => {
-                    if let Some(room) = &self.room {
-                        let _ = room.nick(ed.text());
+            State::Nick(editor) => {
+                match nick::handle_input_event(terminal, crossterm_lock, event, &self.room, editor)
+                {
+                    nick::EventResult::NotHandled => false,
+                    nick::EventResult::Handled => true,
+                    nick::EventResult::ResetState => {
+                        self.state = State::Normal;
+                        true
                     }
-                    self.state = State::Normal;
-                    true
                 }
-                _ => util::handle_editor_input_event(
-                    ed,
-                    terminal,
-                    crossterm_lock,
-                    event,
-                    Self::nick_char,
-                    false,
-                ),
-            },
+            }
         }
     }
 
