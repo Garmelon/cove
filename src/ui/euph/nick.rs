@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crossterm::event::KeyCode;
-use euphoxide::conn::{Joined, Status};
+use euphoxide::conn::Joined;
 use parking_lot::FairMutex;
 use toss::styled::Styled;
 use toss::terminal::Terminal;
@@ -14,14 +14,8 @@ use crate::ui::widgets::padding::Padding;
 use crate::ui::widgets::popup::Popup;
 use crate::ui::widgets::BoxedWidget;
 
-use super::room::RoomStatus;
-
 pub fn new(joined: Joined) -> EditorState {
     EditorState::with_initial_text(joined.session.name)
-}
-
-pub fn stable(status: &RoomStatus) -> bool {
-    matches!(status, RoomStatus::Connected(Status::Joined(_)))
 }
 
 pub fn widget(editor: &EditorState) -> BoxedWidget {

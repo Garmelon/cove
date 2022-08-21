@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use crossterm::event::KeyCode;
 use crossterm::style::{ContentStyle, Stylize};
-use euphoxide::conn::{Joining, Status};
 use parking_lot::FairMutex;
 use toss::terminal::Terminal;
 
@@ -16,20 +15,8 @@ use crate::ui::widgets::popup::Popup;
 use crate::ui::widgets::text::Text;
 use crate::ui::widgets::BoxedWidget;
 
-use super::room::RoomStatus;
-
 pub fn new() -> EditorState {
     EditorState::new()
-}
-
-pub fn stable(status: &RoomStatus) -> bool {
-    matches!(
-        status,
-        RoomStatus::Connected(Status::Joining(Joining {
-            bounce: Some(_),
-            ..
-        }))
-    )
 }
 
 pub fn widget() -> BoxedWidget {

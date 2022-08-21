@@ -153,8 +153,20 @@ impl EuphRoom {
 
     fn stabilize_state(&mut self, status: &RoomStatus) {
         match &self.state {
-            State::Auth(_) if !auth::stable(status) => self.state = State::Normal,
-            State::Nick(_) if !nick::stable(status) => self.state = State::Normal,
+            State::Auth(_)
+                if !matches!(
+                    status,
+                    RoomStatus::Connected(Status::Joining(Joining {
+                        bounce: Some(_),
+                        ..
+                    }))
+                ) =>
+            {
+                self.state = State::Normal
+            }
+            State::Nick(_) if !matches!(status, RoomStatus::Connected(Status::Joined(_))) => {
+                self.state = State::Normal
+            }
             _ => {}
         }
     }
