@@ -421,6 +421,21 @@ impl EuphRoom {
                 // we'll get an `EuphRoomEvent::Disconnected` soon after this.
                 false
             }
+            Data::AuthReply(reply) if !reply.success => {
+                // Because the euphoria API is very carefully designed with
+                // emphasis on consistency, authentication failures are not
+                // normal errors but instead error-free replies that encode
+                // their own error.
+                let description = "Failed to authenticate.".to_string();
+                let reason = reply
+                    .reason
+                    .unwrap_or_else(|| "no idea, the server wouldn't say".to_string());
+                self.popups.push_front(RoomPopup::ServerError {
+                    description,
+                    reason,
+                });
+                true
+            }
             _ => true,
         }
     }
