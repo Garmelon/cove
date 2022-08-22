@@ -64,8 +64,7 @@ impl Popup {
                         .style(self.border_style),
                 )
                 .horizontal(2),
-            )
-            .horizontal(0.5);
+            );
             Layer::new(vec![window.into(), title.into()]).into()
         } else {
             window.into()
