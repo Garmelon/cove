@@ -78,12 +78,17 @@ pub fn handle_editor_input_event(
 
         // Editing
         key!(Char ch) if char_filter(*ch) => editor.insert_char(terminal.frame(), *ch),
-        key!(Paste str) if str.chars().all(char_filter) => {
+        key!(Paste str) => {
             // It seems that when pasting, '\n' are converted into '\r' for some
             // reason. I don't really know why, or at what point this happens.
             // Vim converts any '\r' pasted via the terminal into '\n', so I
             // decided to mirror that behaviour.
-            editor.insert_str(terminal.frame(), &str.replace('\r', "\n"))
+            let str = str.replace('\r', "\n");
+            if str.chars().all(char_filter) {
+                editor.insert_str(terminal.frame(), &str);
+            } else {
+                return false;
+            }
         }
         key!(Ctrl + 'h') | key!(Backspace) => editor.backspace(terminal.frame()),
         key!(Ctrl + 'd') | key!(Delete) => editor.delete(),
