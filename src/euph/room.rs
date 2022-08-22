@@ -101,7 +101,8 @@ impl State {
     ) -> anyhow::Result<()> {
         loop {
             info!("e&{}: connecting", name);
-            if let Some((conn_tx, mut conn_rx)) = Self::connect(vault, name).await? {
+            let connected = if let Some((conn_tx, mut conn_rx)) = Self::connect(vault, name).await?
+            {
                 info!("e&{}: connected", name);
                 event_tx.send(Event::Connected(conn_tx))?;
 
@@ -111,11 +112,19 @@ impl State {
 
                 info!("e&{}: disconnected", name);
                 event_tx.send(Event::Disconnected)?;
+
+                true
             } else {
                 info!("e&{}: could not connect", name);
                 event_tx.send(Event::Disconnected)?;
+                false
+            };
+
+            // Only delay reconnecting if the previous attempt failed. This way,
+            // we'll reconnect immediately if we login or logout.
+            if !connected {
+                tokio::time::sleep(RECONNECT_INTERVAL).await;
             }
-            tokio::time::sleep(RECONNECT_INTERVAL).await;
         }
     }
 
