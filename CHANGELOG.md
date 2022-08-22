@@ -14,6 +14,8 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+## v0.3.0 - 2022-08-22
+
 ### Added
 - Account login and logout
 - Authentication dialog for password-protected rooms
