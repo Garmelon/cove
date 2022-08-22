@@ -2,6 +2,7 @@ use std::iter;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use crossterm::style::{ContentStyle, Stylize};
 use parking_lot::{FairMutex, Mutex};
 use toss::frame::{Frame, Pos, Size};
 use toss::styled::Styled;
@@ -335,6 +336,8 @@ impl EditorState {
             state: self.0.clone(),
             text,
             idx,
+            focus: true,
+            hidden: None,
         }
     }
 
@@ -420,6 +423,8 @@ pub struct Editor {
     state: Arc<Mutex<InnerEditorState>>,
     text: Styled,
     idx: usize,
+    focus: bool,
+    hidden: Option<Styled>,
 }
 
 impl Editor {
@@ -430,6 +435,20 @@ impl Editor {
         let new_text = f(self.text.text());
         assert_eq!(self.text.text(), new_text.text());
         self.text = new_text;
+        self
+    }
+
+    pub fn focus(mut self, active: bool) -> Self {
+        self.focus = active;
+        self
+    }
+
+    pub fn hidden(self) -> Self {
+        self.hidden_with_placeholder(("<hidden>", ContentStyle::default().grey().italic()))
+    }
+
+    pub fn hidden_with_placeholder<S: Into<Styled>>(mut self, placeholder: S) -> Self {
+        self.hidden = Some(placeholder.into());
         self
     }
 
@@ -477,15 +496,25 @@ impl Widget for Editor {
     }
 
     async fn render(self: Box<Self>, frame: &mut Frame) {
+        if let Some(placeholder) = self.hidden {
+            frame.write(Pos::ZERO, placeholder);
+            if self.focus {
+                frame.set_cursor(Some(Pos::ZERO));
+            }
+            return;
+        }
+
         let width = frame.size().width.max(1);
         let text_width = (width - 1) as usize;
         let indices = wrap(frame, self.text.text(), text_width);
         let lines = self.text.split_at_indices(&indices);
 
-        let (cursor_row, cursor_line_idx) = Self::wrapped_cursor(self.idx, &indices);
-        let cursor_col = frame.width(lines[cursor_row].text().split_at(cursor_line_idx).0);
-        let cursor_col = cursor_col.min(text_width);
-        frame.set_cursor(Some(Pos::new(cursor_col as i32, cursor_row as i32)));
+        if self.focus {
+            let (cursor_row, cursor_line_idx) = Self::wrapped_cursor(self.idx, &indices);
+            let cursor_col = frame.width(lines[cursor_row].text().split_at(cursor_line_idx).0);
+            let cursor_col = cursor_col.min(text_width);
+            frame.set_cursor(Some(Pos::new(cursor_col as i32, cursor_row as i32)));
+        }
 
         for (i, line) in lines.into_iter().enumerate() {
             frame.write(Pos::new(0, i as i32), line);

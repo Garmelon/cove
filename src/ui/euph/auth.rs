@@ -1,35 +1,24 @@
 use std::sync::Arc;
 
 use crossterm::event::KeyCode;
-use crossterm::style::{ContentStyle, Stylize};
 use parking_lot::FairMutex;
 use toss::terminal::Terminal;
 
 use crate::euph::Room;
 use crate::ui::input::{key, InputEvent, KeyBindingsList, KeyEvent};
 use crate::ui::util;
-use crate::ui::widgets::cursor::Cursor;
 use crate::ui::widgets::editor::EditorState;
-use crate::ui::widgets::padding::Padding;
 use crate::ui::widgets::popup::Popup;
-use crate::ui::widgets::text::Text;
 use crate::ui::widgets::BoxedWidget;
 
 pub fn new() -> EditorState {
     EditorState::new()
 }
 
-pub fn widget() -> BoxedWidget {
-    Popup::new(
-        Padding::new(Cursor::new(Text::new((
-            "<hidden>",
-            ContentStyle::default().grey().italic(),
-        ))))
-        .left(1),
-    )
-    .title("Enter password")
-    .inner_padding(false)
-    .build()
+pub fn widget(editor: &EditorState) -> BoxedWidget {
+    Popup::new(editor.widget().hidden())
+        .title("Enter password")
+        .build()
 }
 
 pub fn list_key_bindings(bindings: &mut KeyBindingsList) {

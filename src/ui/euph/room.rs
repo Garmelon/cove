@@ -190,7 +190,7 @@ impl EuphRoom {
 
         match &self.state {
             State::Normal => {}
-            State::Auth(_) => layers.push(auth::widget()),
+            State::Auth(editor) => layers.push(auth::widget(editor)),
             State::Nick(editor) => layers.push(nick::widget(editor)),
         }
 
