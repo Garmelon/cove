@@ -328,7 +328,7 @@ impl EuphRoom {
             match status.ok().flatten() {
                 Some(Status::Joining(Joining {
                     bounce: Some(_), ..
-                })) if matches!(event, key!('a') | key!('A')) => {
+                })) if matches!(event, key!('a')) => {
                     self.state = State::Auth(auth::new());
                     true
                 }
