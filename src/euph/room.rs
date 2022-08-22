@@ -74,14 +74,23 @@ impl State {
         event_tx: mpsc::UnboundedSender<Event>,
         mut event_rx: mpsc::UnboundedReceiver<Event>,
         euph_room_event_tx: mpsc::UnboundedSender<EuphRoomEvent>,
+        ephemeral: bool,
     ) {
         let vault = self.vault.clone();
         let name = self.name.clone();
-        let result = select! {
-            _ = canary => Ok(()),
-            _ = Self::reconnect(&vault, &name, &event_tx) => Ok(()),
-            _ = Self::regularly_request_logs(&event_tx) => Ok(()),
-            e = self.handle_events(&mut event_rx, &euph_room_event_tx) => e,
+        let result = if ephemeral {
+            select! {
+                _ = canary => Ok(()),
+                _ = Self::reconnect(&vault, &name, &event_tx) => Ok(()),
+                e = self.handle_events(&mut event_rx, &euph_room_event_tx) => e,
+            }
+        } else {
+            select! {
+                _ = canary => Ok(()),
+                _ = Self::reconnect(&vault, &name, &event_tx) => Ok(()),
+                e = self.handle_events(&mut event_rx, &euph_room_event_tx) => e,
+                _ = Self::regularly_request_logs(&event_tx) => Ok(()),
+            }
         };
 
         if let Err(e) = result {
@@ -406,6 +415,7 @@ impl Room {
         let (canary_tx, canary_rx) = oneshot::channel();
         let (event_tx, event_rx) = mpsc::unbounded_channel();
         let (euph_room_event_tx, euph_room_event_rx) = mpsc::unbounded_channel();
+        let ephemeral = vault.vault().ephemeral();
 
         let state = State {
             name: vault.room().to_string(),
@@ -415,7 +425,13 @@ impl Room {
             requesting_logs: Arc::new(Mutex::new(false)),
         };
 
-        task::spawn(state.run(canary_rx, event_tx.clone(), event_rx, euph_room_event_tx));
+        task::spawn(state.run(
+            canary_rx,
+            event_tx.clone(),
+            event_rx,
+            euph_room_event_tx,
+            ephemeral,
+        ));
 
         let new_room = Self {
             canary: canary_tx,
