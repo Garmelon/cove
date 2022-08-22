@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use crossterm::event::KeyCode;
+use crossterm::style::{ContentStyle, Stylize};
 use euphoxide::api::PersonalAccountView;
 use euphoxide::conn::Status;
 use parking_lot::FairMutex;
-use toss::styled::Styled;
 use toss::terminal::Terminal;
 
 use crate::euph::Room;
@@ -12,8 +12,9 @@ use crate::ui::input::{key, InputEvent, KeyBindingsList, KeyEvent};
 use crate::ui::util;
 use crate::ui::widgets::editor::EditorState;
 use crate::ui::widgets::empty::Empty;
-use crate::ui::widgets::join::{Segment, VJoin};
+use crate::ui::widgets::join::{HJoin, Segment, VJoin};
 use crate::ui::widgets::popup::Popup;
+use crate::ui::widgets::resize::Resize;
 use crate::ui::widgets::text::Text;
 use crate::ui::widgets::BoxedWidget;
 
@@ -41,17 +42,25 @@ impl LoggedOut {
     }
 
     fn widget(&self) -> BoxedWidget {
+        let bold = ContentStyle::default().bold();
         VJoin::new(vec![
-            Segment::new(Text::new("Email address")),
-            Segment::new(self.email.widget().focus(self.focus == Focus::Email)),
+            Segment::new(Text::new(("Not logged in", bold.yellow()))),
             Segment::new(Empty::new().height(1)),
-            Segment::new(Text::new("Password")),
-            Segment::new(
-                self.password
-                    .widget()
-                    .focus(self.focus == Focus::Password)
-                    .hidden(),
-            ),
+            Segment::new(HJoin::new(vec![
+                Segment::new(Text::new(("Email address:", bold))),
+                Segment::new(Empty::new().width(1)),
+                Segment::new(self.email.widget().focus(self.focus == Focus::Email)),
+            ])),
+            Segment::new(HJoin::new(vec![
+                Segment::new(Text::new(("Password:", bold))),
+                Segment::new(Empty::new().width(5 + 1)),
+                Segment::new(
+                    self.password
+                        .widget()
+                        .focus(self.focus == Focus::Password)
+                        .hidden(),
+                ),
+            ])),
         ])
         .into()
     }
@@ -61,12 +70,17 @@ pub struct LoggedIn(PersonalAccountView);
 
 impl LoggedIn {
     fn widget(&self) -> BoxedWidget {
-        let text = Styled::new_plain("Name:  ")
-            .then_plain(&self.0.name)
-            .then_plain("\n")
-            .then_plain("Email: ")
-            .then_plain(&self.0.email);
-        Text::new(text).into()
+        let bold = ContentStyle::default().bold();
+        VJoin::new(vec![
+            Segment::new(Text::new(("Logged in", bold.green()))),
+            Segment::new(Empty::new().height(1)),
+            Segment::new(HJoin::new(vec![
+                Segment::new(Text::new(("Email address:", bold))),
+                Segment::new(Empty::new().width(1)),
+                Segment::new(Text::new((&self.0.email,))),
+            ])),
+        ])
+        .into()
     }
 }
 
@@ -105,7 +119,9 @@ impl AccountUiState {
             Self::LoggedOut(logged_out) => logged_out.widget(),
             Self::LoggedIn(logged_in) => logged_in.widget(),
         };
-        Popup::new(inner).title("Account").build()
+        Popup::new(Resize::new(inner).min_width(40))
+            .title("Account")
+            .build()
     }
 
     pub fn list_key_bindings(&self, bindings: &mut KeyBindingsList) {
