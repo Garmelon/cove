@@ -284,6 +284,7 @@ impl EuphRoom {
                 }
                 Some(Status::Joined(_)) => {
                     bindings.binding("n", "change nick");
+                    bindings.binding("m", "download more messages");
                     bindings.binding("A", "show account ui");
                     true
                 }
@@ -335,6 +336,12 @@ impl EuphRoom {
                 Some(Status::Joined(joined)) => match event {
                     key!('n') | key!('N') => {
                         self.state = State::Nick(nick::new(joined));
+                        true
+                    }
+                    key!('m') => {
+                        if let Some(room) = &self.room {
+                            let _ = room.log();
+                        }
                         true
                     }
                     key!('A') => {

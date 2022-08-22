@@ -458,6 +458,12 @@ impl Room {
             .map_err(|_| Error::Stopped)
     }
 
+    pub fn log(&self) -> Result<(), Error> {
+        self.event_tx
+            .send(Event::RequestLogs)
+            .map_err(|_| Error::Stopped)
+    }
+
     pub fn nick(&self, name: String) -> Result<(), Error> {
         self.event_tx
             .send(Event::Nick(name))
