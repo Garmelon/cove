@@ -61,28 +61,41 @@ struct Args {
     /// Path to a directory for cove to store its data in.
     #[clap(long, short)]
     data_dir: Option<PathBuf>,
+
+    /// If set, cove won't store data permanently.
+    #[clap(long, short, action)]
+    ephemeral: bool,
+
     /// Measure the width of characters as displayed by the terminal emulator
     /// instead of guessing the width.
     #[clap(long, short, action)]
     measure_widths: bool,
+
     #[clap(subcommand)]
     command: Option<Command>,
+}
+
+fn data_dir(args_data_dir: Option<PathBuf>) -> PathBuf {
+    if let Some(data_dir) = args_data_dir {
+        data_dir
+    } else {
+        let dirs =
+            ProjectDirs::from("de", "plugh", "cove").expect("unable to determine directories");
+        dirs.data_dir().to_path_buf()
+    }
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
-    let data_dir = if let Some(data_dir) = args.data_dir {
-        data_dir
+    let vault = if args.ephemeral {
+        vault::launch_in_memory()?
     } else {
-        let dirs =
-            ProjectDirs::from("de", "plugh", "cove").expect("unable to determine directories");
-        dirs.data_dir().to_path_buf()
+        let data_dir = data_dir(args.data_dir);
+        println!("Data dir: {}", data_dir.to_string_lossy());
+        vault::launch(&data_dir.join("vault.db"))?
     };
-    println!("Data dir: {}", data_dir.to_string_lossy());
-
-    let vault = vault::launch(&data_dir.join("vault.db"))?;
 
     match args.command.unwrap_or_default() {
         Command::Run => run(&vault, args.measure_widths).await?,

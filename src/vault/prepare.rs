@@ -1,8 +1,6 @@
 use rusqlite::Connection;
 
 pub fn prepare(conn: &mut Connection) -> rusqlite::Result<()> {
-    println!("Opening vault");
-
     // Cache ids of tree roots.
     conn.execute_batch(
         "

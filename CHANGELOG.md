@@ -18,6 +18,7 @@ Procedure when bumping the version number:
 - Account login and logout
 - Authentication dialog for password-protected rooms
 - Error popups in rooms when something goes wrong
+- `--ephemeral` flag that prevents cove from storing data permanently
 
 ### Changed
 - Reduced amount of unnecessary redraws
