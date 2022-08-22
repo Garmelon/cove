@@ -11,6 +11,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::ui::util;
 
+use super::text::Text;
 use super::Widget;
 
 /// Like [`Frame::wrap`] but includes a final break index if the text ends with
@@ -424,7 +425,7 @@ pub struct Editor {
     text: Styled,
     idx: usize,
     focus: bool,
-    hidden: Option<Styled>,
+    hidden: Option<Box<Text>>,
 }
 
 impl Editor {
@@ -448,7 +449,7 @@ impl Editor {
     }
 
     pub fn hidden_with_placeholder<S: Into<Styled>>(mut self, placeholder: S) -> Self {
-        self.hidden = Some(placeholder.into());
+        self.hidden = Some(Box::new(Text::new(placeholder)));
         self
     }
 
@@ -479,7 +480,21 @@ impl Editor {
 
 #[async_trait]
 impl Widget for Editor {
-    fn size(&self, frame: &mut Frame, max_width: Option<u16>, _max_height: Option<u16>) -> Size {
+    fn size(&self, frame: &mut Frame, max_width: Option<u16>, max_height: Option<u16>) -> Size {
+        if let Some(placeholder) = &self.hidden {
+            let mut size = if self.text.text().is_empty() {
+                Size::new(1, 1)
+            } else {
+                placeholder.size(frame, max_width, max_height)
+            };
+
+            // Cursor needs to fit regardless of focus
+            size.width = size.width.max(1);
+            size.height = size.height.max(1);
+
+            return size;
+        }
+
         let max_width = max_width.map(|w| w as usize).unwrap_or(usize::MAX).max(1);
         let max_text_width = max_width - 1;
         let indices = wrap(frame, self.text.text(), max_text_width);
@@ -497,7 +512,9 @@ impl Widget for Editor {
 
     async fn render(self: Box<Self>, frame: &mut Frame) {
         if let Some(placeholder) = self.hidden {
-            frame.write(Pos::ZERO, placeholder);
+            if !self.text.text().is_empty() {
+                placeholder.render(frame).await;
+            }
             if self.focus {
                 frame.set_cursor(Some(Pos::ZERO));
             }
