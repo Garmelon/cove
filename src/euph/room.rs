@@ -6,7 +6,9 @@ use std::time::Duration;
 use anyhow::bail;
 use cookie::{Cookie, CookieJar};
 use euphoxide::api::packet::ParsedPacket;
-use euphoxide::api::{Auth, AuthOption, Data, Log, Nick, Send, Snowflake, Time, UserId};
+use euphoxide::api::{
+    Auth, AuthOption, Data, Log, Login, Logout, Nick, Send, Snowflake, Time, UserId,
+};
 use euphoxide::conn::{ConnRx, ConnTx, Joining, Status};
 use log::{error, info, warn};
 use parking_lot::Mutex;
@@ -49,6 +51,8 @@ enum Event {
     Auth(String),
     Nick(String),
     Send(Option<Snowflake>, String, oneshot::Sender<Snowflake>),
+    Login { email: String, password: String },
+    Logout,
 }
 
 #[derive(Debug)]
@@ -192,6 +196,8 @@ impl State {
                 Event::Auth(password) => self.on_auth(password),
                 Event::Nick(name) => self.on_nick(name),
                 Event::Send(parent, content, id_tx) => self.on_send(parent, content, id_tx),
+                Event::Login { email, password } => self.on_login(email, password),
+                Event::Logout => self.on_logout(),
             }
         }
         Ok(())
@@ -361,6 +367,22 @@ impl State {
             });
         }
     }
+
+    fn on_login(&self, email: String, password: String) {
+        if let Some(conn_tx) = &self.conn_tx {
+            let _ = conn_tx.send(Login {
+                namespace: "email".to_string(),
+                id: email,
+                password,
+            });
+        }
+    }
+
+    fn on_logout(&self) {
+        if let Some(conn_tx) = &self.conn_tx {
+            let _ = conn_tx.send(Logout);
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -426,6 +448,18 @@ impl Room {
         self.event_tx
             .send(Event::Send(parent, content, id_tx))
             .map(|_| id_rx)
+            .map_err(|_| Error::Stopped)
+    }
+
+    pub fn login(&self, email: String, password: String) -> Result<(), Error> {
+        self.event_tx
+            .send(Event::Login { email, password })
+            .map_err(|_| Error::Stopped)
+    }
+
+    pub fn logout(&self) -> Result<(), Error> {
+        self.event_tx
+            .send(Event::Logout)
             .map_err(|_| Error::Stopped)
     }
 }

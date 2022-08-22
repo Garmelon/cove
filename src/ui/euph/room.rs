@@ -27,6 +27,7 @@ use crate::ui::widgets::BoxedWidget;
 use crate::ui::UiEvent;
 use crate::vault::EuphVault;
 
+use super::account::{self, AccountUiState};
 use super::popup::RoomPopup;
 use super::{auth, nick, nick_list};
 
@@ -34,6 +35,7 @@ enum State {
     Normal,
     Auth(EditorState),
     Nick(EditorState),
+    Account(AccountUiState),
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -152,7 +154,7 @@ impl EuphRoom {
     }
 
     fn stabilize_state(&mut self, status: &RoomStatus) {
-        match &self.state {
+        match &mut self.state {
             State::Auth(_)
                 if !matches!(
                     status,
@@ -166,6 +168,11 @@ impl EuphRoom {
             }
             State::Nick(_) if !matches!(status, RoomStatus::Connected(Status::Joined(_))) => {
                 self.state = State::Normal
+            }
+            State::Account(account) => {
+                if !account.stabilize(status) {
+                    self.state = State::Normal
+                }
             }
             _ => {}
         }
@@ -192,6 +199,7 @@ impl EuphRoom {
             State::Normal => {}
             State::Auth(editor) => layers.push(auth::widget(editor)),
             State::Nick(editor) => layers.push(nick::widget(editor)),
+            State::Account(account) => layers.push(account.widget()),
         }
 
         for popup in &self.popups {
@@ -276,6 +284,7 @@ impl EuphRoom {
                 }
                 Some(Status::Joined(_)) => {
                     bindings.binding("n", "change nick");
+                    bindings.binding("A", "show account ui");
                     true
                 }
                 _ => false,
@@ -323,10 +332,17 @@ impl EuphRoom {
                     self.state = State::Auth(auth::new());
                     true
                 }
-                Some(Status::Joined(joined)) if matches!(event, key!('n') | key!('N')) => {
-                    self.state = State::Nick(nick::new(joined));
-                    true
-                }
+                Some(Status::Joined(joined)) => match event {
+                    key!('n') | key!('N') => {
+                        self.state = State::Nick(nick::new(joined));
+                        true
+                    }
+                    key!('A') => {
+                        self.state = State::Account(AccountUiState::new());
+                        true
+                    }
+                    _ => false,
+                },
                 _ => false,
             }
         } else {
@@ -349,6 +365,7 @@ impl EuphRoom {
             State::Normal => self.list_normal_key_bindings(bindings).await,
             State::Auth(_) => auth::list_key_bindings(bindings),
             State::Nick(_) => nick::list_key_bindings(bindings),
+            State::Account(account) => account.list_key_bindings(bindings),
         }
     }
 
@@ -366,7 +383,7 @@ impl EuphRoom {
             return false;
         }
 
-        match &self.state {
+        match &mut self.state {
             State::Normal => {
                 self.handle_normal_input_event(terminal, crossterm_lock, event)
                     .await
@@ -393,6 +410,16 @@ impl EuphRoom {
                     }
                 }
             }
+            State::Account(account) => {
+                match account.handle_input_event(terminal, crossterm_lock, event, &self.room) {
+                    account::EventResult::NotHandled => false,
+                    account::EventResult::Handled => true,
+                    account::EventResult::ResetState => {
+                        self.state = State::Normal;
+                        true
+                    }
+                }
+            }
         }
     }
 
@@ -407,11 +434,9 @@ impl EuphRoom {
     }
 
     fn handle_euph_data(&mut self, data: Data) -> bool {
-        // These packets don't result in any noticeable change in the UI. This
-        // function's main purpose is to prevent pings from causing a redraw.
-
+        // These packets don't result in any noticeable change in the UI.
         #[allow(clippy::match_like_matches_macro)]
-        match data {
+        let handled = match &data {
             Data::PingEvent(_) | Data::PingReply(_) => {
                 // Pings are displayed nowhere in the room UI.
                 false
@@ -421,23 +446,27 @@ impl EuphRoom {
                 // we'll get an `EuphRoomEvent::Disconnected` soon after this.
                 false
             }
-            Data::AuthReply(reply) if !reply.success => {
-                // Because the euphoria API is very carefully designed with
-                // emphasis on consistency, authentication failures are not
-                // normal errors but instead error-free replies that encode
-                // their own error.
-                let description = "Failed to authenticate.".to_string();
-                let reason = reply
-                    .reason
-                    .unwrap_or_else(|| "no idea, the server wouldn't say".to_string());
-                self.popups.push_front(RoomPopup::ServerError {
-                    description,
-                    reason,
-                });
-                true
-            }
             _ => true,
+        };
+
+        // Because the euphoria API is very carefully designed with emphasis on
+        // consistency, some failures are not normal errors but instead
+        // error-free replies that encode their own error.
+        let error = match data {
+            Data::AuthReply(reply) if !reply.success => Some(("authenticate", reply.reason)),
+            Data::LoginReply(reply) if !reply.success => Some(("login", reply.reason)),
+            _ => None,
+        };
+        if let Some((action, reason)) = error {
+            let description = format!("Failed to {action}.");
+            let reason = reason.unwrap_or_else(|| "no idea, the server wouldn't say".to_string());
+            self.popups.push_front(RoomPopup::ServerError {
+                description,
+                reason,
+            });
         }
+
+        handled
     }
 
     fn handle_euph_error(&mut self, r#type: PacketType, reason: String) -> bool {

@@ -1,3 +1,4 @@
+mod account;
 mod auth;
 mod nick;
 mod nick_list;

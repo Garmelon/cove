@@ -290,7 +290,7 @@ checksum = "3f107b87b6afc2a64fd13cac55fe06d6c8859f12d4b14cbcdd2c67d0976781be"
 [[package]]
 name = "euphoxide"
 version = "0.1.0"
-source = "git+https://github.com/Garmelon/euphoxide.git?rev=5ac16db3fcf9a5a6705630e92f3ad859e99cd891#5ac16db3fcf9a5a6705630e92f3ad859e99cd891"
+source = "git+https://github.com/Garmelon/euphoxide.git?rev=516bb8232381a7f5751cc4e0c74477b535fe46df#516bb8232381a7f5751cc4e0c74477b535fe46df"
 dependencies = [
  "futures",
  "serde",

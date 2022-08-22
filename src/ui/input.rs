@@ -53,6 +53,7 @@ impl From<crossterm::event::KeyEvent> for KeyEvent {
     }
 }
 
+// TODO Use absolute paths
 #[rustfmt::skip]
 macro_rules! key {
     // key!(Paste text)
