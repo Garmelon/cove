@@ -435,24 +435,3 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         }
     }
 }
-
-/*
-    pub async fn center_cursor<S: MsgStore<M>>(
-        &mut self,
-        store: &S,
-        cursor: &mut Option<Cursor<M::Id>>,
-        frame: &mut Frame,
-        size: Size,
-    ) {
-        if let Some(cursor) = cursor {
-            cursor.proportion = 0.5;
-
-            // Correcting the offset just to make sure that this function
-            // behaves nicely if the cursor has too many lines.
-            let old_blocks = self.layout_blocks(store, Some(cursor), frame, size).await;
-            let old_cursor_id = Some(cursor.id.clone());
-            self.correct_cursor_offset(store, frame, size, &old_blocks, &old_cursor_id, cursor)
-                .await;
-        }
-    }
-*/
