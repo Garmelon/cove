@@ -102,7 +102,11 @@ impl EuphRoom {
         if self.room.is_none() {
             let store = self.chat.store().clone();
             let name = store.room().to_string();
-            let (room, euph_room_event_rx) = euph::Room::new(store, self.config.password.clone());
+            let (room, euph_room_event_rx) = euph::Room::new(
+                store,
+                self.config.username.clone(),
+                self.config.password.clone(),
+            );
 
             self.room = Some(room);
 

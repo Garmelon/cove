@@ -8,6 +8,7 @@ use crate::macros::ok_or_return;
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct EuphRoom {
+    pub username: Option<String>,
     pub password: Option<String>,
 }
 
