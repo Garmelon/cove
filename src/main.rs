@@ -17,6 +17,7 @@
 // TODO Enable warn(unreachable_pub)?
 // TODO Clean up use and manipulation of toss Pos and Size
 
+mod config;
 mod euph;
 mod export;
 mod logger;
@@ -35,6 +36,7 @@ use toss::terminal::Terminal;
 use ui::Ui;
 use vault::Vault;
 
+use crate::config::Config;
 use crate::logger::Logger;
 
 #[derive(Debug, clap::Subcommand)]
@@ -58,6 +60,10 @@ impl Default for Command {
 #[derive(Debug, clap::Parser)]
 #[clap(version)]
 struct Args {
+    /// Path to the config file.
+    #[clap(long, short)]
+    config: Option<PathBuf>,
+
     /// Path to a directory for cove to store its data in.
     #[clap(long, short)]
     data_dir: Option<PathBuf>,
@@ -75,25 +81,24 @@ struct Args {
     command: Option<Command>,
 }
 
-fn data_dir(args_data_dir: Option<PathBuf>) -> PathBuf {
-    if let Some(data_dir) = args_data_dir {
-        data_dir
-    } else {
-        let dirs =
-            ProjectDirs::from("de", "plugh", "cove").expect("unable to determine directories");
-        dirs.data_dir().to_path_buf()
-    }
-}
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+    let dirs = ProjectDirs::from("de", "plugh", "cove").expect("unable to determine directories");
+
+    let config_path = args
+        .config
+        .unwrap_or_else(|| dirs.config_dir().join("config.toml"));
+    println!("Config file: {}", config_path.to_string_lossy());
+    let config = Config::load(&config_path);
 
     let vault = if args.ephemeral {
         vault::launch_in_memory()?
     } else {
-        let data_dir = data_dir(args.data_dir);
-        println!("Data dir: {}", data_dir.to_string_lossy());
+        let data_dir = args
+            .data_dir
+            .unwrap_or_else(|| dirs.data_dir().to_path_buf());
+        println!("Data dir:    {}", data_dir.to_string_lossy());
         vault::launch(&data_dir.join("vault.db"))?
     };
 

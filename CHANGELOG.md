@@ -14,6 +14,9 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Added
+- Config file
+
 ## v0.3.0 - 2022-08-22
 
 ### Added
