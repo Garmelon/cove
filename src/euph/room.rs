@@ -59,6 +59,7 @@ enum Event {
 struct State {
     name: String,
     username: Option<String>,
+    force_username: bool,
     password: Option<String>,
     vault: EuphVault,
 
@@ -287,13 +288,8 @@ impl State {
                 let own_user_id = self.own_user_id().await;
                 self.vault.add_messages(d.log.clone(), None, own_user_id);
 
-                if d.nick.is_none() {
-                    // Avoid overwriting nicks that the euphoria backend already
-                    // knows, e. g. because the user set it while logged in via
-                    // the browser. This setting is mostly meant for ephemeral
-                    // mode. Maybe I'll add a "force_nick" setting at some point
-                    // in the future?
-                    if let Some(username) = &self.username {
+                if let Some(username) = &self.username {
+                    if self.force_username || d.nick.is_none() {
                         self.on_nick(username.clone());
                     }
                 }
@@ -434,6 +430,7 @@ impl Room {
     pub fn new(
         vault: EuphVault,
         username: Option<String>,
+        force_username: bool,
         password: Option<String>,
     ) -> (Self, mpsc::UnboundedReceiver<EuphRoomEvent>) {
         let (canary_tx, canary_rx) = oneshot::channel();
@@ -444,6 +441,7 @@ impl Room {
         let state = State {
             name: vault.room().to_string(),
             username,
+            force_username,
             password,
             vault,
             conn_tx: None,

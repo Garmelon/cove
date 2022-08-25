@@ -105,6 +105,7 @@ impl EuphRoom {
             let (room, euph_room_event_rx) = euph::Room::new(
                 store,
                 self.config.username.clone(),
+                self.config.force_username,
                 self.config.password.clone(),
             );
 
