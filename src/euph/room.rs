@@ -58,6 +58,7 @@ enum Event {
 #[derive(Debug)]
 struct State {
     name: String,
+    password: Option<String>,
     vault: EuphVault,
 
     conn_tx: Option<ConnTx>,
@@ -231,7 +232,14 @@ impl State {
     async fn on_packet(&mut self, packet: &ParsedPacket) -> anyhow::Result<()> {
         let data = ok_or_return!(&packet.content, Ok(()));
         match data {
-            Data::BounceEvent(_) => {}
+            Data::BounceEvent(_) => {
+                if let Some(password) = &self.password {
+                    // Try to authenticate with the configured password, but no
+                    // promises if it doesn't work. In particular, we only ever
+                    // try this password once.
+                    self.on_auth(password.clone());
+                }
+            }
             Data::DisconnectEvent(d) => {
                 warn!("e&{}: disconnected for reason {:?}", self.name, d.reason);
             }
@@ -411,7 +419,10 @@ pub struct Room {
 }
 
 impl Room {
-    pub fn new(vault: EuphVault) -> (Self, mpsc::UnboundedReceiver<EuphRoomEvent>) {
+    pub fn new(
+        vault: EuphVault,
+        password: Option<String>,
+    ) -> (Self, mpsc::UnboundedReceiver<EuphRoomEvent>) {
         let (canary_tx, canary_rx) = oneshot::channel();
         let (event_tx, event_rx) = mpsc::unbounded_channel();
         let (euph_room_event_tx, euph_room_event_rx) = mpsc::unbounded_channel();
@@ -419,6 +430,7 @@ impl Room {
 
         let state = State {
             name: vault.room().to_string(),
+            password,
             vault,
             conn_tx: None,
             last_msg_id: None,

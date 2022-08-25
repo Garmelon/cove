@@ -110,19 +110,21 @@ async fn main() -> anyhow::Result<()> {
     let mut config = Config::load(&config_path);
     set_data_dir(&mut config, args.data_dir);
     set_ephemeral(&mut config, args.ephemeral);
+    let config = Box::leak(Box::new(config));
 
     let vault = if config.ephemeral {
         vault::launch_in_memory()?
     } else {
         let data_dir = config
             .data_dir
+            .clone()
             .unwrap_or_else(|| dirs.data_dir().to_path_buf());
         println!("Data dir:    {}", data_dir.to_string_lossy());
         vault::launch(&data_dir.join("vault.db"))?
     };
 
     match args.command.unwrap_or_default() {
-        Command::Run => run(&vault, args.measure_widths).await?,
+        Command::Run => run(config, &vault, args.measure_widths).await?,
         Command::Export(args) => export::export(&vault, args).await?,
         Command::Gc => {
             println!("Cleaning up and compacting vault");
@@ -141,7 +143,7 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn run(vault: &Vault, measure_widths: bool) -> anyhow::Result<()> {
+async fn run(config: &'static Config, vault: &Vault, measure_widths: bool) -> anyhow::Result<()> {
     let (logger, logger_rx) = Logger::init(log::Level::Debug);
     info!(
         "Welcome to {} {}",
@@ -151,7 +153,7 @@ async fn run(vault: &Vault, measure_widths: bool) -> anyhow::Result<()> {
 
     let mut terminal = Terminal::new()?;
     terminal.set_measuring(measure_widths);
-    Ui::run(&mut terminal, vault.clone(), logger, logger_rx).await?;
+    Ui::run(config, &mut terminal, vault.clone(), logger, logger_rx).await?;
     drop(terminal); // So the vault can print again
 
     Ok(())

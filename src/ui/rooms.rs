@@ -11,6 +11,7 @@ use tokio::sync::mpsc;
 use toss::styled::Styled;
 use toss::terminal::Terminal;
 
+use crate::config::Config;
 use crate::euph::EuphRoomEvent;
 use crate::vault::Vault;
 
@@ -33,6 +34,8 @@ enum State {
 }
 
 pub struct Rooms {
+    config: &'static Config,
+
     vault: Vault,
     ui_event_tx: mpsc::UnboundedSender<UiEvent>,
 
@@ -43,8 +46,13 @@ pub struct Rooms {
 }
 
 impl Rooms {
-    pub fn new(vault: Vault, ui_event_tx: mpsc::UnboundedSender<UiEvent>) -> Self {
+    pub fn new(
+        config: &'static Config,
+        vault: Vault,
+        ui_event_tx: mpsc::UnboundedSender<UiEvent>,
+    ) -> Self {
         Self {
+            config,
             vault,
             ui_event_tx,
             state: State::ShowList,
@@ -54,9 +62,13 @@ impl Rooms {
     }
 
     fn get_or_insert_room(&mut self, name: String) -> &mut EuphRoom {
-        self.euph_rooms
-            .entry(name.clone())
-            .or_insert_with(|| EuphRoom::new(self.vault.euph(name), self.ui_event_tx.clone()))
+        self.euph_rooms.entry(name.clone()).or_insert_with(|| {
+            EuphRoom::new(
+                self.config.euph_room(&name),
+                self.vault.euph(name),
+                self.ui_event_tx.clone(),
+            )
+        })
     }
 
     /// Remove rooms that are not running any more and can't be found in the db.

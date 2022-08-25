@@ -17,6 +17,7 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::task;
 use toss::terminal::Terminal;
 
+use crate::config::Config;
 use crate::euph::EuphRoomEvent;
 use crate::logger::{LogMsg, Logger};
 use crate::macros::{ok_or_return, some_or_return};
@@ -66,6 +67,7 @@ impl Ui {
     const POLL_DURATION: Duration = Duration::from_millis(100);
 
     pub async fn run(
+        config: &'static Config,
         terminal: &mut Terminal,
         vault: Vault,
         logger: Logger,
@@ -93,7 +95,7 @@ impl Ui {
         let mut ui = Self {
             event_tx: event_tx.clone(),
             mode: Mode::Main,
-            rooms: Rooms::new(vault, event_tx.clone()),
+            rooms: Rooms::new(config, vault, event_tx.clone()),
             log_chat: ChatState::new(logger),
             key_bindings_list: None,
         };

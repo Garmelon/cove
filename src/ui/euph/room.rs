@@ -11,6 +11,7 @@ use tokio::sync::{mpsc, oneshot};
 use toss::styled::Styled;
 use toss::terminal::Terminal;
 
+use crate::config;
 use crate::euph::{self, EuphRoomEvent};
 use crate::macros::{ok_or_return, some_or_return};
 use crate::store::MsgStore;
@@ -47,6 +48,8 @@ pub enum RoomStatus {
 }
 
 pub struct EuphRoom {
+    config: config::EuphRoom,
+
     ui_event_tx: mpsc::UnboundedSender<UiEvent>,
 
     vault: EuphVault,
@@ -62,8 +65,13 @@ pub struct EuphRoom {
 }
 
 impl EuphRoom {
-    pub fn new(vault: EuphVault, ui_event_tx: mpsc::UnboundedSender<UiEvent>) -> Self {
+    pub fn new(
+        config: config::EuphRoom,
+        vault: EuphVault,
+        ui_event_tx: mpsc::UnboundedSender<UiEvent>,
+    ) -> Self {
         Self {
+            config,
             ui_event_tx,
             vault: vault.clone(),
             room: None,
@@ -94,7 +102,7 @@ impl EuphRoom {
         if self.room.is_none() {
             let store = self.chat.store().clone();
             let name = store.room().to_string();
-            let (room, euph_room_event_rx) = euph::Room::new(store);
+            let (room, euph_room_event_rx) = euph::Room::new(store, self.config.password.clone());
 
             self.room = Some(room);
 
