@@ -17,6 +17,7 @@ Procedure when bumping the version number:
 ### Added
 - Config file
 - `ephemeral` config option
+- `data_dir` config option
 
 ## v0.3.0 - 2022-08-22
 

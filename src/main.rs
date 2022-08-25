@@ -30,8 +30,9 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use cookie::CookieJar;
-use directories::ProjectDirs;
+use directories::{BaseDirs, ProjectDirs};
 use log::info;
+use macros::some_or_return;
 use toss::terminal::Terminal;
 use ui::Ui;
 use vault::Vault;
@@ -81,6 +82,22 @@ struct Args {
     command: Option<Command>,
 }
 
+fn set_data_dir(config: &mut Config, args_data_dir: Option<PathBuf>) {
+    let data_dir = some_or_return!(args_data_dir);
+    let data_dir = if let Some(base_dirs) = BaseDirs::new() {
+        base_dirs.home_dir().join(data_dir)
+    } else {
+        data_dir
+    };
+    config.data_dir = Some(data_dir);
+}
+
+fn set_ephemeral(config: &mut Config, args_ephemeral: bool) {
+    if args_ephemeral {
+        config.ephemeral = true;
+    }
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
@@ -91,15 +108,13 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|| dirs.config_dir().join("config.toml"));
     println!("Config file: {}", config_path.to_string_lossy());
     let mut config = Config::load(&config_path);
-
-    if args.ephemeral {
-        config.ephemeral = true;
-    }
+    set_data_dir(&mut config, args.data_dir);
+    set_ephemeral(&mut config, args.ephemeral);
 
     let vault = if config.ephemeral {
         vault::launch_in_memory()?
     } else {
-        let data_dir = args
+        let data_dir = config
             .data_dir
             .unwrap_or_else(|| dirs.data_dir().to_path_buf());
         println!("Data dir:    {}", data_dir.to_string_lossy());
