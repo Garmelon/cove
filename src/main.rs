@@ -90,9 +90,13 @@ async fn main() -> anyhow::Result<()> {
         .config
         .unwrap_or_else(|| dirs.config_dir().join("config.toml"));
     println!("Config file: {}", config_path.to_string_lossy());
-    let config = Config::load(&config_path);
+    let mut config = Config::load(&config_path);
 
-    let vault = if args.ephemeral {
+    if args.ephemeral {
+        config.ephemeral = true;
+    }
+
+    let vault = if config.ephemeral {
         vault::launch_in_memory()?
     } else {
         let data_dir = args
