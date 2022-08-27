@@ -180,6 +180,40 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         false
     }
 
+    pub async fn move_cursor_to_parent(&mut self) {
+        match &mut self.cursor {
+            Cursor::Pseudo { parent: Some(parent), .. } => {
+                let id = parent.clone();
+                self.cursor = Cursor::Msg(id);
+            }
+            Cursor::Msg(id) => {
+                let tree = self.store.tree(id).await;
+                Self::find_parent(&tree, id);
+            }
+            _ => {}
+        }
+        self.correction = Some(Correction::MakeCursorVisible);
+    }
+
+    pub async fn move_cursor_to_root(&mut self) {
+        match &mut self.cursor {
+            Cursor::Pseudo { parent: Some(parent), .. } => {
+                let tree = self.store.tree(parent).await;
+                let mut id = parent.clone();
+                while Self::find_parent(&tree, &mut id) {}
+                self.cursor = Cursor::Msg(id);
+            }
+            Cursor::Msg(id) => {
+                let mut tree = self.store.tree(id).await;
+                while Self::find_parent(&tree, id) {
+                    tree = self.store.tree(id).await;
+                }
+            }
+            _ => {}
+        }
+        self.correction = Some(Correction::MakeCursorVisible);
+    }
+
     pub async fn move_cursor_up(&mut self) {
         match &mut self.cursor {
             Cursor::Bottom | Cursor::Pseudo { parent: None, .. } => {
