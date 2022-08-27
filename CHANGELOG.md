@@ -21,6 +21,7 @@ Procedure when bumping the version number:
 - `euph.rooms.<name>.username` config option
 - `euph.rooms.<name>.force_username` config option
 - `euph.rooms.<name>.password` config option
+- Key binding to change rooms sort order
 
 ## v0.3.0 - 2022-08-22
 

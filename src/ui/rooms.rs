@@ -33,6 +33,11 @@ enum State {
     Connect(EditorState),
 }
 
+enum Order {
+    Alphabet,
+    Importance,
+}
+
 pub struct Rooms {
     config: &'static Config,
 
@@ -42,6 +47,7 @@ pub struct Rooms {
     state: State,
 
     list: ListState<String>,
+    order: Order,
     euph_rooms: HashMap<String, EuphRoom>,
 }
 
@@ -57,6 +63,7 @@ impl Rooms {
             ui_event_tx,
             state: State::ShowList,
             list: ListState::new(),
+            order: Order::Alphabet,
             euph_rooms: HashMap::new(),
         }
     }
@@ -169,8 +176,8 @@ impl Rooms {
         result.join(" ")
     }
 
-    async fn format_status(room: &EuphRoom) -> Option<String> {
-        match room.status().await {
+    fn format_status(status: RoomStatus) -> Option<String> {
+        match status {
             RoomStatus::NoRoom | RoomStatus::Stopped => None,
             RoomStatus::Connecting => Some("connecting".to_string()),
             RoomStatus::Connected(Status::Joining(j)) if j.bounce.is_some() => {
@@ -181,8 +188,7 @@ impl Rooms {
         }
     }
 
-    async fn format_unseen_msgs(room: &EuphRoom) -> Option<String> {
-        let unseen = room.unseen_msgs_count().await;
+    fn format_unseen_msgs(unseen: usize) -> Option<String> {
         if unseen == 0 {
             None
         } else {
@@ -190,11 +196,11 @@ impl Rooms {
         }
     }
 
-    async fn format_room_info(room: &EuphRoom) -> Styled {
+    fn format_room_info(status: RoomStatus, unseen: usize) -> Styled {
         let unseen_style = ContentStyle::default().bold().green();
 
-        let status = Self::format_status(room).await;
-        let unseen = Self::format_unseen_msgs(room).await;
+        let status = Self::format_status(status);
+        let unseen = Self::format_unseen_msgs(unseen);
 
         match (status, unseen) {
             (None, None) => Styled::default(),
@@ -210,6 +216,15 @@ impl Rooms {
         }
     }
 
+    fn sort_rooms(&self, rooms: &mut [(&String, RoomStatus, usize)]) {
+        match self.order {
+            Order::Alphabet => rooms.sort_unstable_by_key(|(n, _, _)| *n),
+            Order::Importance => {
+                rooms.sort_unstable_by_key(|(n, s, u)| (!s.connecting_or_connected(), *u == 0, *n))
+            }
+        }
+    }
+
     async fn render_rows(&self, list: &mut List<String>) {
         if self.euph_rooms.is_empty() {
             list.add_unsel(Text::new((
@@ -218,16 +233,21 @@ impl Rooms {
             )))
         }
 
-        let mut rooms = self.euph_rooms.iter().collect::<Vec<_>>();
-        rooms.sort_by_key(|(n, _)| *n);
-        for (name, room) in rooms {
+        let mut rooms = vec![];
+        for (name, room) in &self.euph_rooms {
+            let status = room.status().await;
+            let unseen = room.unseen_msgs_count().await;
+            rooms.push((name, status, unseen));
+        }
+        self.sort_rooms(&mut rooms);
+        for (name, status, unseen) in rooms {
             let room_style = ContentStyle::default().bold().blue();
             let room_sel_style = ContentStyle::default().bold().black().on_white();
 
             let mut normal = Styled::new(format!("&{name}"), room_style);
             let mut selected = Styled::new(format!("&{name}"), room_sel_style);
 
-            let info = Self::format_room_info(room).await;
+            let info = Self::format_room_info(status, unseen);
             normal = normal.and_then(info.clone());
             selected = selected.and_then(info);
 
@@ -265,6 +285,8 @@ impl Rooms {
                 bindings.binding("C", "connect to new room");
                 bindings.binding("d", "disconnect from selected room");
                 bindings.binding("D", "delete room");
+                bindings.empty();
+                bindings.binding("s", "change sort order");
             }
             State::ShowRoom(name) => {
                 // Key bindings for leaving the room are a part of the room's
@@ -332,6 +354,12 @@ impl Rooms {
                         self.euph_rooms.remove(&name);
                         self.vault.euph(name.clone()).delete();
                     }
+                }
+                key!('s') => {
+                    self.order = match self.order {
+                        Order::Alphabet => Order::Importance,
+                        Order::Importance => Order::Alphabet,
+                    };
                 }
                 _ => return false,
             },

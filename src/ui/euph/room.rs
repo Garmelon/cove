@@ -47,6 +47,15 @@ pub enum RoomStatus {
     Connected(Status),
 }
 
+impl RoomStatus {
+    pub fn connecting_or_connected(&self) -> bool {
+        match self {
+            Self::NoRoom | Self::Stopped => false,
+            Self::Connecting | Self::Connected(_) => true,
+        }
+    }
+}
+
 pub struct EuphRoom {
     config: config::EuphRoom,
 
