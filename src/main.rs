@@ -32,7 +32,6 @@ use clap::Parser;
 use cookie::CookieJar;
 use directories::{BaseDirs, ProjectDirs};
 use log::info;
-use macros::some_or_return;
 use toss::terminal::Terminal;
 use ui::Ui;
 use vault::Vault;
@@ -83,13 +82,17 @@ struct Args {
 }
 
 fn set_data_dir(config: &mut Config, args_data_dir: Option<PathBuf>) {
-    let data_dir = some_or_return!(args_data_dir);
-    let data_dir = if let Some(base_dirs) = BaseDirs::new() {
-        base_dirs.home_dir().join(data_dir)
-    } else {
-        data_dir
-    };
-    config.data_dir = Some(data_dir);
+    if let Some(data_dir) = args_data_dir {
+        // The data dir specified via args_data_dir is relative to the current
+        // directory and needs no resolving.
+        config.data_dir = Some(data_dir);
+    } else if let Some(data_dir) = &config.data_dir {
+        // Resolve the data dir specified in the config file relative to the
+        // user's home directory, if possible.
+        if let Some(base_dirs) = BaseDirs::new() {
+            config.data_dir = Some(base_dirs.home_dir().join(data_dir));
+        }
+    }
 }
 
 fn set_ephemeral(config: &mut Config, args_ephemeral: bool) {
