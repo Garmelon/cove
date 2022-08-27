@@ -57,7 +57,7 @@ impl Rooms {
         vault: Vault,
         ui_event_tx: mpsc::UnboundedSender<UiEvent>,
     ) -> Self {
-        Self {
+        let mut result = Self {
             config,
             vault,
             ui_event_tx,
@@ -65,7 +65,15 @@ impl Rooms {
             list: ListState::new(),
             order: Order::Alphabet,
             euph_rooms: HashMap::new(),
+        };
+
+        for (name, config) in &config.euph.rooms {
+            if config.autojoin {
+                result.get_or_insert_room(name.clone()).connect();
+            }
         }
+
+        result
     }
 
     fn get_or_insert_room(&mut self, name: String) -> &mut EuphRoom {
