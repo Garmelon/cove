@@ -16,8 +16,9 @@ Procedure when bumping the version number:
 
 ### Added
 - Config file
-- `ephemeral` config option
 - `data_dir` config option
+- `ephemeral` config option
+- `offline` config option
 - `euph.rooms.<name>.autojoin` config option
 - `euph.rooms.<name>.username` config option
 - `euph.rooms.<name>.force_username` config option

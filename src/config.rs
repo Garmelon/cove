@@ -26,6 +26,8 @@ pub struct Config {
     pub data_dir: Option<PathBuf>,
     #[serde(default)]
     pub ephemeral: bool,
+    #[serde(default)]
+    pub offline: bool,
     pub euph: Euph,
 }
 

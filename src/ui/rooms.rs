@@ -67,9 +67,11 @@ impl Rooms {
             euph_rooms: HashMap::new(),
         };
 
-        for (name, config) in &config.euph.rooms {
-            if config.autojoin {
-                result.get_or_insert_room(name.clone()).connect();
+        if !config.offline {
+            for (name, config) in &config.euph.rooms {
+                if config.autojoin {
+                    result.get_or_insert_room(name.clone()).connect();
+                }
             }
         }
 
