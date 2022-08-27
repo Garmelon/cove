@@ -72,6 +72,10 @@ struct Args {
     #[clap(long, short, action)]
     ephemeral: bool,
 
+    /// If set, cove will ignore the autojoin config option.
+    #[clap(long, short, action)]
+    offline: bool,
+
     /// Measure the width of characters as displayed by the terminal emulator
     /// instead of guessing the width.
     #[clap(long, short, action)]
@@ -101,6 +105,12 @@ fn set_ephemeral(config: &mut Config, args_ephemeral: bool) {
     }
 }
 
+fn set_offline(config: &mut Config, args_offline: bool) {
+    if args_offline {
+        config.offline = true;
+    }
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
@@ -113,6 +123,7 @@ async fn main() -> anyhow::Result<()> {
     let mut config = Config::load(&config_path);
     set_data_dir(&mut config, args.data_dir);
     set_ephemeral(&mut config, args.ephemeral);
+    set_offline(&mut config, args.offline);
     let config = Box::leak(Box::new(config));
 
     let vault = if config.ephemeral {
