@@ -282,9 +282,11 @@ impl Rooms {
                 bindings.empty();
                 bindings.binding("enter", "enter selected room");
                 bindings.binding("c", "connect to selected room");
-                bindings.binding("C", "connect to new room");
+                bindings.binding("C", "connect to all rooms");
                 bindings.binding("d", "disconnect from selected room");
-                bindings.binding("D", "delete room");
+                bindings.binding("D", "disconnect from all rooms");
+                bindings.binding("n", "connect to new room");
+                bindings.binding("X", "delete room");
                 bindings.empty();
                 bindings.binding("s", "change sort order");
             }
@@ -340,7 +342,11 @@ impl Rooms {
                         }
                     }
                 }
-                key!('C') => self.state = State::Connect(EditorState::new()),
+                key!('C') => {
+                    for room in self.euph_rooms.values_mut() {
+                        room.connect();
+                    }
+                }
                 key!('d') => {
                     if let Some(name) = self.list.cursor() {
                         if let Some(room) = self.euph_rooms.get_mut(&name) {
@@ -349,6 +355,12 @@ impl Rooms {
                     }
                 }
                 key!('D') => {
+                    for room in self.euph_rooms.values_mut() {
+                        room.disconnect();
+                    }
+                }
+                key!('n') => self.state = State::Connect(EditorState::new()),
+                key!('X') => {
                     // TODO Check whether user wanted this via popup
                     if let Some(name) = self.list.cursor() {
                         self.euph_rooms.remove(&name);
