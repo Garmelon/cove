@@ -288,6 +288,41 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         self.correction = Some(Correction::MakeCursorVisible);
     }
 
+    pub async fn move_cursor_to_parent(&mut self) {
+        match &mut self.cursor {
+            Cursor::Pseudo {
+                parent: Some(parent),
+                ..
+            } => self.cursor = Cursor::Msg(parent.clone()),
+            Cursor::Msg(id) => {
+                // Could also be done via retrieving the path, but it doesn't
+                // really matter here
+                let tree = self.store.tree(id).await;
+                Self::find_parent(&tree, id);
+            }
+            _ => {}
+        }
+        self.correction = Some(Correction::MakeCursorVisible);
+    }
+
+    pub async fn move_cursor_to_root(&mut self) {
+        match &mut self.cursor {
+            Cursor::Pseudo {
+                parent: Some(parent),
+                ..
+            } => {
+                let path = self.store.path(parent).await;
+                self.cursor = Cursor::Msg(path.first().clone());
+            }
+            Cursor::Msg(msg) => {
+                let path = self.store.path(msg).await;
+                *msg = path.first().clone();
+            }
+            _ => {}
+        }
+        self.correction = Some(Correction::MakeCursorVisible);
+    }
+
     pub async fn move_cursor_older(&mut self) {
         match &mut self.cursor {
             Cursor::Msg(id) => {

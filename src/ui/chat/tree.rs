@@ -69,6 +69,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     pub fn list_movement_key_bindings(&self, bindings: &mut KeyBindingsList) {
         bindings.binding("j/k, ↓/↑", "move cursor up/down");
         bindings.binding("J/K, ctrl+↓/↑", "move cursor to prev/next sibling");
+        bindings.binding("p/P", "move cursor to parent/root");
         bindings.binding("h/l, ←/→", "move cursor chronologically");
         bindings.binding("H/L, ctrl+←/→", "move cursor to prev/next unseen message");
         bindings.binding("g, home", "move cursor to top");
@@ -87,6 +88,8 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             key!('j') | key!(Down) => self.move_cursor_down().await,
             key!('K') | key!(Ctrl + Up) => self.move_cursor_up_sibling().await,
             key!('J') | key!(Ctrl + Down) => self.move_cursor_down_sibling().await,
+            key!('p') => self.move_cursor_to_parent().await,
+            key!('P') => self.move_cursor_to_root().await,
             key!('h') | key!(Left) => self.move_cursor_older().await,
             key!('l') | key!(Right) => self.move_cursor_newer().await,
             key!('H') | key!(Ctrl + Left) => self.move_cursor_older_unseen().await,
