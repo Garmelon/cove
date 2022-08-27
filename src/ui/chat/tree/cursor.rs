@@ -190,7 +190,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                     self.cursor = Cursor::Msg(id);
                 }
             }
-            Cursor::Msg(ref mut msg) => {
+            Cursor::Msg(msg) => {
                 let path = self.store.path(msg).await;
                 let mut tree = self.store.tree(path.first()).await;
                 Self::find_prev_msg(&self.store, &self.folded, &mut tree, msg).await;
@@ -211,7 +211,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
 
     pub async fn move_cursor_down(&mut self) {
         match &mut self.cursor {
-            Cursor::Msg(ref mut msg) => {
+            Cursor::Msg(msg) => {
                 let path = self.store.path(msg).await;
                 let mut tree = self.store.tree(path.first()).await;
                 if !Self::find_next_msg(&self.store, &self.folded, &mut tree, msg).await {
@@ -247,7 +247,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                     self.cursor = Cursor::Msg(last_tree_id);
                 }
             }
-            Cursor::Msg(ref mut msg) => {
+            Cursor::Msg(msg) => {
                 let path = self.store.path(msg).await;
                 let mut tree = self.store.tree(path.first()).await;
                 Self::find_prev_sibling(&self.store, &mut tree, msg).await;
@@ -271,7 +271,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
 
     pub async fn move_cursor_down_sibling(&mut self) {
         match &mut self.cursor {
-            Cursor::Msg(ref mut msg) => {
+            Cursor::Msg(msg) => {
                 let path = self.store.path(msg).await;
                 let mut tree = self.store.tree(path.first()).await;
                 if !Self::find_next_sibling(&self.store, &mut tree, msg).await
