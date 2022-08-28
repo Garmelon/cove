@@ -198,16 +198,14 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     pub async fn move_cursor_to_root(&mut self) {
         match &mut self.cursor {
             Cursor::Pseudo { parent: Some(parent), .. } => {
-                let tree = self.store.tree(parent).await;
-                let mut id = parent.clone();
-                while Self::find_parent(&tree, &mut id) {}
-                self.cursor = Cursor::Msg(id);
+                let path = self.store.path(parent).await;
+                let root = path.first().clone();
+                self.cursor = Cursor::Msg(root);
             }
-            Cursor::Msg(id) => {
-                let mut tree = self.store.tree(id).await;
-                while Self::find_parent(&tree, id) {
-                    tree = self.store.tree(id).await;
-                }
+            Cursor::Msg(msg) => {
+                let path = self.store.path(msg).await;
+                let root = path.first().clone();
+                *msg = root;
             }
             _ => {}
         }
