@@ -293,11 +293,10 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             Cursor::Pseudo {
                 parent: Some(parent),
                 ..
-            } => {
-                let id = parent.clone();
-                self.cursor = Cursor::Msg(id);
-            }
+            } => self.cursor = Cursor::Msg(parent.clone()),
             Cursor::Msg(id) => {
+                // Could also be done via retrieving the path, but it doesn't
+                // really matter here
                 let tree = self.store.tree(id).await;
                 Self::find_parent(&tree, id);
             }
@@ -313,13 +312,11 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                 ..
             } => {
                 let path = self.store.path(parent).await;
-                let root = path.first().clone();
-                self.cursor = Cursor::Msg(root);
+                self.cursor = Cursor::Msg(path.first().clone());
             }
             Cursor::Msg(msg) => {
                 let path = self.store.path(msg).await;
-                let root = path.first().clone();
-                *msg = root;
+                *msg = path.first().clone();
             }
             _ => {}
         }
