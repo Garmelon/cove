@@ -180,38 +180,6 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         false
     }
 
-    pub async fn move_cursor_to_parent(&mut self) {
-        match &mut self.cursor {
-            Cursor::Pseudo { parent: Some(parent), .. } => {
-                let id = parent.clone();
-                self.cursor = Cursor::Msg(id);
-            }
-            Cursor::Msg(id) => {
-                let tree = self.store.tree(id).await;
-                Self::find_parent(&tree, id);
-            }
-            _ => {}
-        }
-        self.correction = Some(Correction::MakeCursorVisible);
-    }
-
-    pub async fn move_cursor_to_root(&mut self) {
-        match &mut self.cursor {
-            Cursor::Pseudo { parent: Some(parent), .. } => {
-                let path = self.store.path(parent).await;
-                let root = path.first().clone();
-                self.cursor = Cursor::Msg(root);
-            }
-            Cursor::Msg(msg) => {
-                let path = self.store.path(msg).await;
-                let root = path.first().clone();
-                *msg = root;
-            }
-            _ => {}
-        }
-        self.correction = Some(Correction::MakeCursorVisible);
-    }
-
     pub async fn move_cursor_up(&mut self) {
         match &mut self.cursor {
             Cursor::Bottom | Cursor::Pseudo { parent: None, .. } => {
@@ -314,6 +282,44 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             }
             Cursor::Pseudo { parent: None, .. } => {
                 self.cursor = Cursor::Bottom;
+            }
+            _ => {}
+        }
+        self.correction = Some(Correction::MakeCursorVisible);
+    }
+
+    pub async fn move_cursor_to_parent(&mut self) {
+        match &mut self.cursor {
+            Cursor::Pseudo {
+                parent: Some(parent),
+                ..
+            } => {
+                let id = parent.clone();
+                self.cursor = Cursor::Msg(id);
+            }
+            Cursor::Msg(id) => {
+                let tree = self.store.tree(id).await;
+                Self::find_parent(&tree, id);
+            }
+            _ => {}
+        }
+        self.correction = Some(Correction::MakeCursorVisible);
+    }
+
+    pub async fn move_cursor_to_root(&mut self) {
+        match &mut self.cursor {
+            Cursor::Pseudo {
+                parent: Some(parent),
+                ..
+            } => {
+                let path = self.store.path(parent).await;
+                let root = path.first().clone();
+                self.cursor = Cursor::Msg(root);
+            }
+            Cursor::Msg(msg) => {
+                let path = self.store.path(msg).await;
+                let root = path.first().clone();
+                *msg = root;
             }
             _ => {}
         }
