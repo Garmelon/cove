@@ -138,21 +138,29 @@ impl Rooms {
         }
     }
 
-    /// Remove rooms that are not running any more and can't be found in the db.
-    /// Insert rooms that are in the db but not yet in in the hash map.
+    /// Remove rooms that are not running any more and can't be found in the db
+    /// or config. Insert rooms that are in the db or config but not yet in in
+    /// the hash map.
     ///
     /// These kinds of rooms are either
     /// - failed connection attempts, or
     /// - rooms that were deleted from the db.
     async fn stabilize_rooms(&mut self) {
+        // Collect all rooms from the db and config file
         let rooms = logging_unwrap!(self.vault.euph().rooms().await);
-        let mut rooms_set = rooms.into_iter().collect::<HashSet<_>>();
+        let mut rooms_set = rooms
+            .into_iter()
+            .chain(self.config.euph.rooms.keys().cloned())
+            .collect::<HashSet<_>>();
 
         // Prevent room that is currently being shown from being removed. This
-        // could otherwise happen when connecting to a room that doesn't exist.
+        // could otherwise happen after connecting to a room that doesn't exist.
         if let State::ShowRoom(name) = &self.state {
             rooms_set.insert(name.clone());
         }
+
+        // Now `rooms_set` contains all rooms that must exist. Other rooms may
+        // also exist, for example rooms that are connecting for the first time.
 
         self.euph_rooms
             .retain(|n, r| !r.stopped() || rooms_set.contains(n));

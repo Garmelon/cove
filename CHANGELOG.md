@@ -16,6 +16,7 @@ Procedure when bumping the version number:
 
 ### Changed
 - Improved JSON export performance
+- Always show rooms from config file in room list
 
 ### Fixed
 - Rooms reconnecting instead of showing error popups
