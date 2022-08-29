@@ -106,6 +106,12 @@ impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
         }
     }
 
+    pub async fn cursor(&self) -> Option<M::Id> {
+        match self.mode {
+            Mode::Tree => self.tree.cursor().await,
+        }
+    }
+
     /// A [`Reaction::Composed`] message was sent, either successfully or
     /// unsuccessfully.
     ///

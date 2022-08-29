@@ -1,5 +1,6 @@
 mod account;
 mod auth;
+mod links;
 mod nick;
 mod nick_list;
 mod popup;

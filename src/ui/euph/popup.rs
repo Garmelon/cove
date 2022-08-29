@@ -7,7 +7,7 @@ use crate::ui::widgets::text::Text;
 use crate::ui::widgets::BoxedWidget;
 
 pub enum RoomPopup {
-    ServerError { description: String, reason: String },
+    Error { description: String, reason: String },
 }
 
 impl RoomPopup {
@@ -26,7 +26,7 @@ impl RoomPopup {
 
     pub fn widget(&self) -> BoxedWidget {
         let widget = match self {
-            Self::ServerError {
+            Self::Error {
                 description,
                 reason,
             } => Self::server_error_widget(description, reason),

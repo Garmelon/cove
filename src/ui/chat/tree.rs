@@ -337,6 +337,13 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         }
     }
 
+    fn cursor(&self) -> Option<M::Id> {
+        match &self.cursor {
+            Cursor::Msg(id) => Some(id.clone()),
+            Cursor::Bottom | Cursor::Editor { .. } | Cursor::Pseudo { .. } => None,
+        }
+    }
+
     fn sent(&mut self, id: Option<M::Id>) {
         if let Cursor::Pseudo { coming_from, .. } = &self.cursor {
             if let Some(id) = id {
@@ -383,6 +390,10 @@ impl<M: Msg, S: MsgStore<M>> TreeViewState<M, S> {
             .await
             .handle_input_event(terminal, crossterm_lock, event, can_compose)
             .await
+    }
+
+    pub async fn cursor(&self) -> Option<M::Id> {
+        self.0.lock().await.cursor()
     }
 
     pub async fn sent(&mut self, id: Option<M::Id>) {

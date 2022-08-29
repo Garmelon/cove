@@ -29,6 +29,7 @@ use crate::ui::UiEvent;
 use crate::vault::EuphVault;
 
 use super::account::{self, AccountUiState};
+use super::links::{self, LinksState};
 use super::popup::RoomPopup;
 use super::{auth, nick, nick_list};
 
@@ -37,6 +38,7 @@ enum State {
     Auth(EditorState),
     Nick(EditorState),
     Account(AccountUiState),
+    Links(LinksState),
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -222,6 +224,7 @@ impl EuphRoom {
             State::Auth(editor) => layers.push(auth::widget(editor)),
             State::Nick(editor) => layers.push(nick::widget(editor)),
             State::Account(account) => layers.push(account.widget()),
+            State::Links(links) => layers.push(links.widget()),
         }
 
         for popup in &self.popups {
@@ -316,6 +319,8 @@ impl EuphRoom {
             false
         };
 
+        bindings.binding("I", "show message links");
+
         bindings.empty();
         self.chat.list_key_bindings(bindings, can_compose).await;
     }
@@ -326,6 +331,15 @@ impl EuphRoom {
         crossterm_lock: &Arc<FairMutex<()>>,
         event: &InputEvent,
     ) -> bool {
+        if let key!('I') = event {
+            if let Some(id) = self.chat.cursor().await {
+                if let Some(msg) = self.vault.msg(&id).await {
+                    self.state = State::Links(LinksState::new(&msg.content));
+                }
+            }
+            return true;
+        }
+
         if let Some(room) = &self.room {
             let status = room.status().await;
             let can_compose = matches!(status, Ok(Some(Status::Joined(_))));
@@ -395,6 +409,7 @@ impl EuphRoom {
             State::Auth(_) => auth::list_key_bindings(bindings),
             State::Nick(_) => nick::list_key_bindings(bindings),
             State::Account(account) => account.list_key_bindings(bindings),
+            State::Links(links) => links.list_key_bindings(bindings),
         }
     }
 
@@ -449,6 +464,23 @@ impl EuphRoom {
                     }
                 }
             }
+            State::Links(links) => {
+                match links.handle_input_event(terminal, crossterm_lock, event, &self.room) {
+                    links::EventResult::NotHandled => false,
+                    links::EventResult::Handled => true,
+                    links::EventResult::Close => {
+                        self.state = State::Normal;
+                        true
+                    }
+                    links::EventResult::ErrorOpeningLink { link, error } => {
+                        self.popups.push_front(RoomPopup::Error {
+                            description: format!("Failed to open link: {link}"),
+                            reason: format!("{error}"),
+                        });
+                        true
+                    }
+                }
+            }
         }
     }
 
@@ -489,7 +521,7 @@ impl EuphRoom {
         if let Some((action, reason)) = error {
             let description = format!("Failed to {action}.");
             let reason = reason.unwrap_or_else(|| "no idea, the server wouldn't say".to_string());
-            self.popups.push_front(RoomPopup::ServerError {
+            self.popups.push_front(RoomPopup::Error {
                 description,
                 reason,
             });
@@ -522,7 +554,7 @@ impl EuphRoom {
             _ => return false,
         };
         let description = format!("Failed to {action}.");
-        self.popups.push_front(RoomPopup::ServerError {
+        self.popups.push_front(RoomPopup::Error {
             description,
             reason,
         });
