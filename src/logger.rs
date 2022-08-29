@@ -79,6 +79,10 @@ impl MsgStore<LogMsg> for Logger {
         Path::new(vec![*id])
     }
 
+    async fn msg(&self, id: &usize) -> Option<LogMsg> {
+        self.messages.lock().get(*id).cloned()
+    }
+
     async fn tree(&self, tree_id: &usize) -> Tree<LogMsg> {
         let msgs = self
             .messages

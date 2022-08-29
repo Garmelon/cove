@@ -174,6 +174,18 @@ impl MsgStore<SmallMessage> for EuphVault {
         rx.await.unwrap()
     }
 
+    async fn msg(&self, id: &Snowflake) -> Option<SmallMessage> {
+        // TODO vault::Error
+        let (tx, rx) = oneshot::channel();
+        let request = EuphRequest::GetMsg {
+            room: self.room.clone(),
+            id: *id,
+            result: tx,
+        };
+        let _ = self.vault.tx.send(request.into());
+        rx.await.unwrap()
+    }
+
     async fn tree(&self, tree_id: &Snowflake) -> Tree<SmallMessage> {
         // TODO vault::Error
         let (tx, rx) = oneshot::channel();
@@ -403,6 +415,11 @@ pub(super) enum EuphRequest {
         id: Snowflake,
         result: oneshot::Sender<Path<Snowflake>>,
     },
+    GetMsg {
+        room: String,
+        id: Snowflake,
+        result: oneshot::Sender<Option<SmallMessage>>,
+    },
     GetTree {
         room: String,
         root: Snowflake,
@@ -506,6 +523,7 @@ impl EuphRequest {
             } => Self::add_msgs(conn, room, msgs, next_msg, own_user_id),
             Self::GetLastSpan { room, result } => Self::get_last_span(conn, room, result),
             Self::GetPath { room, id, result } => Self::get_path(conn, room, id, result),
+            Self::GetMsg { room, id, result } => Self::get_msg(conn, room, id, result),
             Self::GetTree { room, root, result } => Self::get_tree(conn, room, root, result),
             Self::GetFirstTreeId { room, result } => Self::get_first_tree_id(conn, room, result),
             Self::GetLastTreeId { room, result } => Self::get_last_tree_id(conn, room, result),
@@ -897,6 +915,37 @@ impl EuphRequest {
             .collect::<rusqlite::Result<_>>()?;
         let path = Path::new(path);
         let _ = result.send(path);
+        Ok(())
+    }
+
+    fn get_msg(
+        conn: &Connection,
+        room: String,
+        id: Snowflake,
+        result: oneshot::Sender<Option<SmallMessage>>,
+    ) -> rusqlite::Result<()> {
+        let msg = conn
+            .query_row(
+                "
+                SELECT id, parent, time, name, content, seen
+                FROM euph_msgs
+                WHERE room = ?
+                AND id = ?
+                ",
+                params![room, WSnowflake(id)],
+                |row| {
+                    Ok(SmallMessage {
+                        id: row.get::<_, WSnowflake>(0)?.0,
+                        parent: row.get::<_, Option<WSnowflake>>(1)?.map(|s| s.0),
+                        time: row.get::<_, WTime>(2)?.0,
+                        nick: row.get(3)?,
+                        content: row.get(4)?,
+                        seen: row.get(5)?,
+                    })
+                },
+            )
+            .optional()?;
+        let _ = result.send(msg);
         Ok(())
     }
 
