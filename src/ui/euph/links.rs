@@ -38,6 +38,12 @@ impl LinksState {
 
     pub fn widget(&self) -> BoxedWidget {
         let mut list = self.list.widget().focus(true);
+        if self.links.is_empty() {
+            list.add_unsel(Text::new((
+                "No links found",
+                ContentStyle::default().grey().italic(),
+            )))
+        }
         for (id, link) in self.links.iter().enumerate() {
             list.add_sel(
                 id,
