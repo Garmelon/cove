@@ -2,6 +2,7 @@ use std::io;
 
 use crossterm::event::KeyCode;
 use crossterm::style::{ContentStyle, Stylize};
+use linkify::{LinkFinder, LinkKind};
 
 use crate::ui::input::{key, InputEvent, KeyBindingsList, KeyEvent};
 use crate::ui::widgets::list::ListState;
@@ -23,12 +24,14 @@ pub enum EventResult {
 
 impl LinksState {
     pub fn new(content: &str) -> Self {
-        // TODO Extract links
+        let links = LinkFinder::new()
+            .links(content)
+            .filter(|l| *l.kind() == LinkKind::Url)
+            .map(|l| l.as_str().to_string())
+            .collect();
+
         Self {
-            links: vec![
-                "https://example.com/".to_string(),
-                "https://plugh.de/".to_string(),
-            ],
+            links,
             list: ListState::new(),
         }
     }

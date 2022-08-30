@@ -184,6 +184,7 @@ dependencies = [
  "directories",
  "edit",
  "euphoxide",
+ "linkify",
  "log",
  "open",
  "parking_lot",
@@ -543,6 +544,15 @@ dependencies = [
  "cc",
  "pkg-config",
  "vcpkg",
+]
+
+[[package]]
+name = "linkify"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96dd5884008358112bc66093362197c7248ece00d46624e2cf71e50029f8cff5"
+dependencies = [
+ "memchr",
 ]
 
 [[package]]
