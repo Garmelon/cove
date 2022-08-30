@@ -342,7 +342,7 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         }
     }
 
-    fn scroll_so_cursor_is_visible(&self, frame: &mut Frame, blocks: &mut TreeBlocks<M::Id>) {
+    fn scroll_so_cursor_is_visible(&self, frame: &Frame, blocks: &mut TreeBlocks<M::Id>) {
         if matches!(self.cursor, Cursor::Bottom) {
             return; // Cursor is locked to bottom
         }
@@ -368,7 +368,7 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         }
     }
 
-    fn scroll_so_cursor_is_centered(&self, frame: &mut Frame, blocks: &mut TreeBlocks<M::Id>) {
+    fn scroll_so_cursor_is_centered(&self, frame: &Frame, blocks: &mut TreeBlocks<M::Id>) {
         if matches!(self.cursor, Cursor::Bottom) {
             return; // Cursor is locked to bottom
         }
@@ -409,7 +409,7 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
 
     fn move_cursor_so_it_is_visible(
         &mut self,
-        frame: &mut Frame,
+        frame: &Frame,
         blocks: &TreeBlocks<M::Id>,
     ) -> Option<M::Id> {
         if !matches!(self.cursor, Cursor::Bottom | Cursor::Msg(_)) {

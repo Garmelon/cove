@@ -1,5 +1,3 @@
-// TODO Remove mut in &mut Frame wherever applicable in this entire module
-
 mod indent;
 mod seen;
 mod time;
