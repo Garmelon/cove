@@ -295,6 +295,8 @@ impl Rooms {
                 bindings.binding("C", "connect to all rooms");
                 bindings.binding("d", "disconnect from selected room");
                 bindings.binding("D", "disconnect from all rooms");
+                bindings.binding("a", "connect to all autojoin room");
+                bindings.binding("A", "disconnect from all non-autojoin rooms");
                 bindings.binding("n", "connect to new room");
                 bindings.binding("X", "delete room");
                 bindings.empty();
@@ -367,6 +369,27 @@ impl Rooms {
                 key!('D') => {
                     for room in self.euph_rooms.values_mut() {
                         room.disconnect();
+                    }
+                }
+                key!('a') => {
+                    for (name, options) in &self.config.euph.rooms {
+                        if options.autojoin {
+                            self.get_or_insert_room(name.clone()).connect();
+                        }
+                    }
+                }
+                key!('A') => {
+                    for (name, room) in &mut self.euph_rooms {
+                        let autojoin = self
+                            .config
+                            .euph
+                            .rooms
+                            .get(name)
+                            .map(|r| r.autojoin)
+                            .unwrap_or(false);
+                        if !autojoin {
+                            room.disconnect();
+                        }
                     }
                 }
                 key!('n') => self.state = State::Connect(EditorState::new()),

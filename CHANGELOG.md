@@ -25,6 +25,7 @@ Procedure when bumping the version number:
 - `euph.rooms.<name>.password` config option
 - Key binding to change rooms sort order
 - Key bindings to connect to/disconnect from all rooms
+- Key bindings to connect to autojoin rooms/disconnect from non-autojoin rooms
 - Key bindings to move to parent/root message
 - Key bindings to view and open links in a message
 
