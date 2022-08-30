@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
-use crossterm::event::KeyCode;
 use euphoxide::conn::Joined;
 use parking_lot::FairMutex;
 use toss::styled::Styled;
 use toss::terminal::Terminal;
 
 use crate::euph::{self, Room};
-use crate::ui::input::{key, InputEvent, KeyBindingsList, KeyEvent};
+use crate::ui::input::{key, InputEvent, KeyBindingsList};
 use crate::ui::util;
 use crate::ui::widgets::editor::EditorState;
 use crate::ui::widgets::padding::Padding;

@@ -9,14 +9,13 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use crossterm::event::KeyCode;
 use parking_lot::FairMutex;
 use tokio::sync::Mutex;
 use toss::frame::{Frame, Pos, Size};
 use toss::terminal::Terminal;
 
 use crate::store::{Msg, MsgStore};
-use crate::ui::input::{key, InputEvent, KeyBindingsList, KeyEvent};
+use crate::ui::input::{key, InputEvent, KeyBindingsList};
 use crate::ui::util;
 use crate::ui::widgets::editor::EditorState;
 use crate::ui::widgets::Widget;

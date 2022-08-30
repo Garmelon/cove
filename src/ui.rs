@@ -10,7 +10,6 @@ use std::io;
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 
-use crossterm::event::KeyCode;
 use parking_lot::FairMutex;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -25,7 +24,7 @@ use crate::vault::Vault;
 
 pub use self::chat::ChatMsg;
 use self::chat::ChatState;
-use self::input::{key, InputEvent, KeyBindingsList, KeyEvent};
+use self::input::{key, InputEvent, KeyBindingsList};
 use self::rooms::Rooms;
 use self::widgets::layer::Layer;
 use self::widgets::list::ListState;

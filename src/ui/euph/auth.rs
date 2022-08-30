@@ -1,11 +1,10 @@
 use std::sync::Arc;
 
-use crossterm::event::KeyCode;
 use parking_lot::FairMutex;
 use toss::terminal::Terminal;
 
 use crate::euph::Room;
-use crate::ui::input::{key, InputEvent, KeyBindingsList, KeyEvent};
+use crate::ui::input::{key, InputEvent, KeyBindingsList};
 use crate::ui::util;
 use crate::ui::widgets::editor::EditorState;
 use crate::ui::widgets::popup::Popup;

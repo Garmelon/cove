@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 use std::iter;
 use std::sync::Arc;
 
-use crossterm::event::KeyCode;
 use crossterm::style::{ContentStyle, Stylize};
 use euphoxide::api::SessionType;
 use euphoxide::conn::{Joined, Status};
@@ -16,7 +15,7 @@ use crate::euph::EuphRoomEvent;
 use crate::vault::Vault;
 
 use super::euph::room::{EuphRoom, RoomStatus};
-use super::input::{key, InputEvent, KeyBindingsList, KeyEvent};
+use super::input::{key, InputEvent, KeyBindingsList};
 use super::widgets::editor::EditorState;
 use super::widgets::join::{HJoin, Segment, VJoin};
 use super::widgets::layer::Layer;

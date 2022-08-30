@@ -1,11 +1,10 @@
 use std::io;
 
-use crossterm::event::KeyCode;
 use crossterm::style::{ContentStyle, Stylize};
 use linkify::{LinkFinder, LinkKind};
 use toss::styled::Styled;
 
-use crate::ui::input::{key, InputEvent, KeyBindingsList, KeyEvent};
+use crate::ui::input::{key, InputEvent, KeyBindingsList};
 use crate::ui::widgets::list::ListState;
 use crate::ui::widgets::popup::Popup;
 use crate::ui::widgets::text::Text;

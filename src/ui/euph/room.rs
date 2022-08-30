@@ -1,7 +1,6 @@
 use std::collections::VecDeque;
 use std::sync::Arc;
 
-use crossterm::event::KeyCode;
 use crossterm::style::{ContentStyle, Stylize};
 use euphoxide::api::{Data, PacketType, Snowflake};
 use euphoxide::conn::{Joined, Joining, Status};
@@ -16,7 +15,7 @@ use crate::euph::{self, EuphRoomEvent};
 use crate::macros::{ok_or_return, some_or_return};
 use crate::store::MsgStore;
 use crate::ui::chat::{ChatState, Reaction};
-use crate::ui::input::{key, InputEvent, KeyBindingsList, KeyEvent};
+use crate::ui::input::{key, InputEvent, KeyBindingsList};
 use crate::ui::widgets::border::Border;
 use crate::ui::widgets::editor::EditorState;
 use crate::ui::widgets::join::{HJoin, Segment, VJoin};

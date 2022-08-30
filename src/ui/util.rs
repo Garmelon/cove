@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
-use crossterm::event::KeyCode;
 use parking_lot::FairMutex;
 use toss::terminal::Terminal;
 
-use super::input::{key, InputEvent, KeyBindingsList, KeyEvent};
+use super::input::{key, InputEvent, KeyBindingsList};
 use super::widgets::editor::EditorState;
 
 pub fn prompt(
@@ -73,8 +72,8 @@ pub fn handle_editor_input_event(
         // Enter with *any* modifier pressed - if ctrl and shift don't
         // work, maybe alt does
         key!(Enter) => return false,
-        InputEvent::Key(KeyEvent {
-            code: KeyCode::Enter,
+        InputEvent::Key(crate::ui::input::KeyEvent {
+            code: crossterm::event::KeyCode::Enter,
             ..
         }) if char_filter('\n') => editor.insert_char(terminal.frame(), '\n'),
 

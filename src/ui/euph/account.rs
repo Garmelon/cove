@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crossterm::event::KeyCode;
 use crossterm::style::{ContentStyle, Stylize};
 use euphoxide::api::PersonalAccountView;
 use euphoxide::conn::Status;
@@ -8,7 +7,7 @@ use parking_lot::FairMutex;
 use toss::terminal::Terminal;
 
 use crate::euph::Room;
-use crate::ui::input::{key, InputEvent, KeyBindingsList, KeyEvent};
+use crate::ui::input::{key, InputEvent, KeyBindingsList};
 use crate::ui::util;
 use crate::ui::widgets::editor::EditorState;
 use crate::ui::widgets::empty::Empty;

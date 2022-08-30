@@ -53,33 +53,32 @@ impl From<crossterm::event::KeyEvent> for KeyEvent {
     }
 }
 
-// TODO Use absolute paths
 #[rustfmt::skip]
 macro_rules! key {
     // key!(Paste text)
-    ( Paste $text:ident ) => { InputEvent::Paste($text) };
+    ( Paste $text:ident ) => { crate::ui::input::InputEvent::Paste($text) };
 
     // key!('a')
-    (        $key:literal ) => { InputEvent::Key(KeyEvent { code: KeyCode::Char($key), shift: _, ctrl: false, alt: false, }) };
-    ( Ctrl + $key:literal ) => { InputEvent::Key(KeyEvent { code: KeyCode::Char($key), shift: _, ctrl: true,  alt: false, }) };
-    (  Alt + $key:literal ) => { InputEvent::Key(KeyEvent { code: KeyCode::Char($key), shift: _, ctrl: false, alt: true,  }) };
+    (        $key:literal ) => { crate::ui::input::InputEvent::Key(crate::ui::input::KeyEvent { code: crossterm::event::KeyCode::Char($key), shift: _, ctrl: false, alt: false, }) };
+    ( Ctrl + $key:literal ) => { crate::ui::input::InputEvent::Key(crate::ui::input::KeyEvent { code: crossterm::event::KeyCode::Char($key), shift: _, ctrl: true,  alt: false, }) };
+    (  Alt + $key:literal ) => { crate::ui::input::InputEvent::Key(crate::ui::input::KeyEvent { code: crossterm::event::KeyCode::Char($key), shift: _, ctrl: false, alt: true,  }) };
 
     // key!(Char c)
-    (        Char $key:pat ) => { InputEvent::Key(KeyEvent { code: KeyCode::Char($key), shift: _, ctrl: false, alt: false, }) };
-    ( Ctrl + Char $key:pat ) => { InputEvent::Key(KeyEvent { code: KeyCode::Char($key), shift: _, ctrl: true,  alt: false, }) };
-    (  Alt + Char $key:pat ) => { InputEvent::Key(KeyEvent { code: KeyCode::Char($key), shift: _, ctrl: false, alt: true,  }) };
+    (        Char $key:pat ) => { crate::ui::input::InputEvent::Key(crate::ui::input::KeyEvent { code: crossterm::event::KeyCode::Char($key), shift: _, ctrl: false, alt: false, }) };
+    ( Ctrl + Char $key:pat ) => { crate::ui::input::InputEvent::Key(crate::ui::input::KeyEvent { code: crossterm::event::KeyCode::Char($key), shift: _, ctrl: true,  alt: false, }) };
+    (  Alt + Char $key:pat ) => { crate::ui::input::InputEvent::Key(crate::ui::input::KeyEvent { code: crossterm::event::KeyCode::Char($key), shift: _, ctrl: false, alt: true,  }) };
 
     // key!(F n)
-    (         F $key:pat ) => { InputEvent::Key(KeyEvent { code: KeyCode::F($key), shift: false, ctrl: false, alt: false, }) };
-    ( Shift + F $key:pat ) => { InputEvent::Key(KeyEvent { code: KeyCode::F($key), shift: true,  ctrl: false, alt: false, }) };
-    (  Ctrl + F $key:pat ) => { InputEvent::Key(KeyEvent { code: KeyCode::F($key), shift: false, ctrl: true,  alt: false, }) };
-    (   Alt + F $key:pat ) => { InputEvent::Key(KeyEvent { code: KeyCode::F($key), shift: false, ctrl: false, alt: true,  }) };
+    (         F $key:pat ) => { crate::ui::input::InputEvent::Key(crate::ui::input::KeyEvent { code: crossterm::event::KeyCode::F($key), shift: false, ctrl: false, alt: false, }) };
+    ( Shift + F $key:pat ) => { crate::ui::input::InputEvent::Key(crate::ui::input::KeyEvent { code: crossterm::event::KeyCode::F($key), shift: true,  ctrl: false, alt: false, }) };
+    (  Ctrl + F $key:pat ) => { crate::ui::input::InputEvent::Key(crate::ui::input::KeyEvent { code: crossterm::event::KeyCode::F($key), shift: false, ctrl: true,  alt: false, }) };
+    (   Alt + F $key:pat ) => { crate::ui::input::InputEvent::Key(crate::ui::input::KeyEvent { code: crossterm::event::KeyCode::F($key), shift: false, ctrl: false, alt: true,  }) };
 
     // key!(other)
-    (         $key:ident ) => { InputEvent::Key(KeyEvent { code: KeyCode::$key, shift: false, ctrl: false, alt: false, }) };
-    ( Shift + $key:ident ) => { InputEvent::Key(KeyEvent { code: KeyCode::$key, shift: true,  ctrl: false, alt: false, }) };
-    (  Ctrl + $key:ident ) => { InputEvent::Key(KeyEvent { code: KeyCode::$key, shift: false, ctrl: true,  alt: false, }) };
-    (   Alt + $key:ident ) => { InputEvent::Key(KeyEvent { code: KeyCode::$key, shift: false, ctrl: false, alt: true,  }) };
+    (         $key:ident ) => { crate::ui::input::InputEvent::Key(crate::ui::input::KeyEvent { code: crossterm::event::KeyCode::$key, shift: false, ctrl: false, alt: false, }) };
+    ( Shift + $key:ident ) => { crate::ui::input::InputEvent::Key(crate::ui::input::KeyEvent { code: crossterm::event::KeyCode::$key, shift: true,  ctrl: false, alt: false, }) };
+    (  Ctrl + $key:ident ) => { crate::ui::input::InputEvent::Key(crate::ui::input::KeyEvent { code: crossterm::event::KeyCode::$key, shift: false, ctrl: true,  alt: false, }) };
+    (   Alt + $key:ident ) => { crate::ui::input::InputEvent::Key(crate::ui::input::KeyEvent { code: crossterm::event::KeyCode::$key, shift: false, ctrl: false, alt: true,  }) };
 }
 pub(crate) use key;
 
