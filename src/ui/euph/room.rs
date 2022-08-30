@@ -464,23 +464,21 @@ impl EuphRoom {
                     }
                 }
             }
-            State::Links(links) => {
-                match links.handle_input_event(terminal, crossterm_lock, event, &self.room) {
-                    links::EventResult::NotHandled => false,
-                    links::EventResult::Handled => true,
-                    links::EventResult::Close => {
-                        self.state = State::Normal;
-                        true
-                    }
-                    links::EventResult::ErrorOpeningLink { link, error } => {
-                        self.popups.push_front(RoomPopup::Error {
-                            description: format!("Failed to open link: {link}"),
-                            reason: format!("{error}"),
-                        });
-                        true
-                    }
+            State::Links(links) => match links.handle_input_event(event) {
+                links::EventResult::NotHandled => false,
+                links::EventResult::Handled => true,
+                links::EventResult::Close => {
+                    self.state = State::Normal;
+                    true
                 }
-            }
+                links::EventResult::ErrorOpeningLink { link, error } => {
+                    self.popups.push_front(RoomPopup::Error {
+                        description: format!("Failed to open link: {link}"),
+                        reason: format!("{error}"),
+                    });
+                    true
+                }
+            },
         }
     }
 
