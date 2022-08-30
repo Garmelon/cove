@@ -331,15 +331,6 @@ impl EuphRoom {
         crossterm_lock: &Arc<FairMutex<()>>,
         event: &InputEvent,
     ) -> bool {
-        if let key!('I') = event {
-            if let Some(id) = self.chat.cursor().await {
-                if let Some(msg) = self.vault.msg(&id).await {
-                    self.state = State::Links(LinksState::new(&msg.content));
-                }
-            }
-            return true;
-        }
-
         if let Some(room) = &self.room {
             let status = room.status().await;
             let can_compose = matches!(status, Ok(Some(Status::Joined(_))));
@@ -360,6 +351,15 @@ impl EuphRoom {
                     }
                     return true;
                 }
+            }
+
+            if let key!('I') = event {
+                if let Some(id) = self.chat.cursor().await {
+                    if let Some(msg) = self.vault.msg(&id).await {
+                        self.state = State::Links(LinksState::new(&msg.content));
+                    }
+                }
+                return true;
             }
 
             match status.ok().flatten() {
@@ -389,10 +389,25 @@ impl EuphRoom {
                 _ => false,
             }
         } else {
-            self.chat
+            if self
+                .chat
                 .handle_input_event(terminal, crossterm_lock, event, false)
                 .await
                 .handled()
+            {
+                return true;
+            }
+
+            if let key!('I') = event {
+                if let Some(id) = self.chat.cursor().await {
+                    if let Some(msg) = self.vault.msg(&id).await {
+                        self.state = State::Links(LinksState::new(&msg.content));
+                    }
+                }
+                return true;
+            }
+
+            false
         }
     }
 
