@@ -18,6 +18,7 @@ impl Text {
     }
 
     pub fn wrap(mut self, active: bool) -> Self {
+        // TODO Re-think and check what behaviour this setting should entail
         self.wrap = active;
         self
     }

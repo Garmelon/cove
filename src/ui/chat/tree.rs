@@ -1,3 +1,5 @@
+// TODO Focusing on sub-trees
+
 mod cursor;
 mod layout;
 mod tree_blocks;
@@ -78,6 +80,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         bindings.binding("ctrl+u/d", "scroll up/down half a screen");
         bindings.binding("ctrl+b/f, page up/down", "scroll up/down one screen");
         bindings.binding("z", "center cursor on screen");
+        // TODO Bindings inspired by vim's ()/[]/{} bindings?
     }
 
     async fn handle_movement_input_event(&mut self, frame: &mut Frame, event: &InputEvent) -> bool {

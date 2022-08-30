@@ -30,6 +30,8 @@ pub fn prompt(
     }
 }
 
+// TODO List key binding util functions
+
 pub fn list_editor_key_bindings(
     bindings: &mut KeyBindingsList,
     char_filter: impl Fn(char) -> bool,
@@ -94,6 +96,7 @@ pub fn handle_editor_input_event(
         key!(Ctrl + 'd') | key!(Delete) => editor.delete(),
         key!(Ctrl + 'l') => editor.clear(),
         key!(Ctrl + 'x') if can_edit_externally => editor.edit_externally(terminal, crossterm_lock),
+        // TODO Key bindings to delete words
 
         // Cursor movement
         key!(Ctrl + 'b') | key!(Left) => editor.move_cursor_left(terminal.frame()),

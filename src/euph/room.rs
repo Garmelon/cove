@@ -169,6 +169,7 @@ impl State {
         let cookies = Self::get_cookies(vault.vault()).await;
         let cookies = HeaderValue::from_str(&cookies).expect("valid cookies");
         request.headers_mut().append(header::COOKIE, cookies);
+        // TODO Set user agent?
 
         match tokio_tungstenite::connect_async(request).await {
             Ok((ws, response)) => {
@@ -186,6 +187,32 @@ impl State {
     }
 
     async fn regularly_request_logs(event_tx: &mpsc::UnboundedSender<Event>) {
+        // TODO Make log downloading smarter
+
+        // Possible log-related mechanics. Some of these could also run in some
+        // sort of "repair logs" mode that can be started via some key binding.
+        // For now, this is just a list of ideas.
+        //
+        // Download room history until there are no more gaps between now and
+        // the first known message.
+        //
+        // Download room history until reaching the beginning of the room's
+        // history.
+        //
+        // Check if the last known message still exists on the server. If it
+        // doesn't, do a binary search to find the server's last message and
+        // delete all older messages.
+        //
+        // Untruncate messages in the history, as well as new messages.
+        //
+        // Try to retrieve messages that are not in the room log by retrieving
+        // them by id.
+        //
+        // Redownload messages that are already known to find any edits and
+        // deletions that happened while the client was offline.
+        //
+        // Delete messages marked as deleted as well as all their children.
+
         loop {
             tokio::time::sleep(LOG_INTERVAL).await;
             let _ = event_tx.send(Event::RequestLogs);
@@ -255,6 +282,7 @@ impl State {
                 info!("e&{}: network event ({})", self.name, d.r#type);
             }
             Data::NickEvent(d) => {
+                // TODO Add entry in nick list (probably in euphoxide instead of here)
                 info!("e&{}: {:?} renamed to {:?}", self.name, d.from, d.to);
             }
             Data::EditMessageEvent(_) => {
@@ -265,6 +293,7 @@ impl State {
             }
             Data::PingEvent(_) => {}
             Data::PmInitiateEvent(d) => {
+                // TODO Show info popup and automatically join PM room
                 info!(
                     "e&{}: {:?} initiated a pm from &{}",
                     self.name, d.from_nick, d.from_room

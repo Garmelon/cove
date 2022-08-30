@@ -1,3 +1,7 @@
+// TODO Implement thread view
+// TODO Implement flat (chronological?) view
+// TODO Implement message search?
+
 mod blocks;
 mod tree;
 

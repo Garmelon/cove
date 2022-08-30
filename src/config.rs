@@ -8,6 +8,7 @@ use crate::macros::ok_or_return;
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct EuphRoom {
+    // TODO Mark favourite rooms via printable ascii characters
     #[serde(default)]
     pub autojoin: bool,
     pub username: Option<String>,
@@ -28,6 +29,7 @@ pub struct Config {
     pub ephemeral: bool,
     #[serde(default)]
     pub offline: bool,
+    // TODO Invoke external notification command?
     pub euph: Euph,
 }
 

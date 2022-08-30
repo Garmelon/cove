@@ -1,3 +1,5 @@
+// TODO Fix scrolling by focusing on the cursor like in chat::tree
+
 use std::sync::Arc;
 
 use async_trait::async_trait;

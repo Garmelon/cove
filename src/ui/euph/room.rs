@@ -39,6 +39,7 @@ enum State {
     Nick(EditorState),
     Account(AccountUiState),
     Links(LinksState),
+    // TODO Inspect messages and users
 }
 
 #[allow(clippy::large_enum_variant)]
