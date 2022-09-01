@@ -14,6 +14,8 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+## v0.4.0 - 2022-09-01
+
 ### Added
 - Config file and `--config` cli option
 - `data_dir` config option
