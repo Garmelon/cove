@@ -7,6 +7,17 @@ real-time chat platform.
 
 It runs on Linux, Windows and macOS.
 
+## Using cove
+
+To start cove, simply run `cove` in your terminal. For more info about the
+available subcommands such as exporting room logs or resetting cookies, run
+`cove --help`.
+
+If you delete rooms, cove's vault (the database it stores messages and other
+things in) won't automatically shrink. If it takes up too much space, try
+running `cove gc` and waiting for it to finish. This isn't done automatically
+because it can take quite a while.
+
 ## Manual installation
 
 This section contains instructions on how to install cove by compiling it yourself.
@@ -55,14 +66,3 @@ in the full version you want to install:
 ```bash
 $ cargo install --force --git https://github.com/Garmelon/cove --tag v0.1.0
 ```
-
-### Using cove
-
-To start cove, simply run `cove` in your terminal. For more info about the
-available subcommands such as exporting room logs or resetting cookies, run
-`cove --help`.
-
-If you delete rooms, cove's vault (the database it stores messages and other
-things in) won't automatically shrink. If it takes up too much space, try
-running `cove gc` and waiting for it to finish. This isn't done automatically
-because it can take quite a while.
