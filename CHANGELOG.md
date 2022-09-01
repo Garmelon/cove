@@ -15,7 +15,7 @@ Procedure when bumping the version number:
 ## Unreleased
 
 ### Added
-- Config file
+- Config file and `--config` cli option
 - `data_dir` config option
 - `ephemeral` config option
 - `offline` config option and `--offline` cli flag
