@@ -61,10 +61,14 @@ impl Default for Command {
 #[clap(version)]
 struct Args {
     /// Path to the config file.
+    ///
+    /// Relative paths are interpreted relative to the current directory.
     #[clap(long, short)]
     config: Option<PathBuf>,
 
     /// Path to a directory for cove to store its data in.
+    ///
+    /// Relative paths are interpreted relative to the current directory.
     #[clap(long, short)]
     data_dir: Option<PathBuf>,
 
