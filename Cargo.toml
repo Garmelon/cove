@@ -4,9 +4,9 @@ version = "0.3.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.62"
+anyhow = "1.0.63"
 async-trait = "0.1.57"
-clap = { version = "3.2.17", features = ["derive"] }
+clap = { version = "3.2.19", features = ["derive"] }
 cookie = "0.16.0"
 crossterm = "0.25.0"
 directories = "4.0.1"
@@ -17,7 +17,7 @@ parking_lot = "0.12.1"
 rusqlite = { version = "0.28.0", features = ["bundled", "time"] }
 serde = { version = "1.0.144", features = ["derive"] }
 serde_json = "1.0.85"
-thiserror = "1.0.32"
+thiserror = "1.0.33"
 tokio = { version = "1.20.1", features = ["full"] }
 toml = "0.5.9"
 unicode-segmentation = "1.9.0"
@@ -25,7 +25,7 @@ unicode-width = "0.1.9"
 linkify = "0.9.0"
 
 [dependencies.time]
-version = "0.3.13"
+version = "0.3.14"
 features = ["macros", "formatting", "parsing", "serde"]
 
 [dependencies.tokio-tungstenite]
