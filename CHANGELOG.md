@@ -14,6 +14,9 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Fixed
+- Cursor being visible through popups
+
 ## v0.4.0 - 2022-09-01
 
 ### Added
