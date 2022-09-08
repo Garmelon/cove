@@ -20,8 +20,8 @@ use super::widgets::editor::EditorState;
 use super::widgets::join::{HJoin, Segment, VJoin};
 use super::widgets::layer::Layer;
 use super::widgets::list::{List, ListState};
-use super::widgets::padding::Padding;
 use super::widgets::popup::Popup;
+use super::widgets::resize::Resize;
 use super::widgets::text::Text;
 use super::widgets::BoxedWidget;
 use super::{util, UiEvent};
@@ -30,6 +30,7 @@ enum State {
     ShowList,
     ShowRoom(String),
     Connect(EditorState),
+    Delete(String, EditorState),
 }
 
 enum Order {
@@ -135,21 +136,52 @@ impl Rooms {
                 Self::new_room_widget(editor),
             ])
             .into(),
+            State::Delete(name, editor) => Layer::new(vec![
+                self.rooms_widget().await,
+                Self::delete_room_widget(name, editor),
+            ])
+            .into(),
         }
     }
 
     fn new_room_widget(editor: &EditorState) -> BoxedWidget {
         let room_style = ContentStyle::default().bold().blue();
         let editor = editor.widget().highlight(|s| Styled::new(s, room_style));
-        Popup::new(
-            Padding::new(HJoin::new(vec![
+        Popup::new(HJoin::new(vec![
+            Segment::new(Text::new(("&", room_style))),
+            Segment::new(editor).priority(0),
+        ]))
+        .title("Connect to")
+        .build()
+    }
+
+    fn delete_room_widget(name: &str, editor: &EditorState) -> BoxedWidget {
+        let warn_style = ContentStyle::default().bold().red();
+        let room_style = ContentStyle::default().bold().blue();
+        let editor = editor.widget().highlight(|s| Styled::new(s, room_style));
+        let text = Styled::new_plain("Are you sure you want to delete ")
+            .then("&", room_style)
+            .then(name, room_style)
+            .then_plain("?\n\n")
+            .then_plain("This will delete the entire room history from your vault. ")
+            .then_plain("To shrink your vault afterwards, run ")
+            .then("cove gc", ContentStyle::default().italic().grey())
+            .then_plain(".\n\n")
+            .then_plain("To confirm the deletion, ")
+            .then_plain("enter the full name of the room and press enter:");
+        Popup::new(VJoin::new(vec![
+            // The HJoin prevents the text from filling up the entire available
+            // space if the editor is wider than the text.
+            Segment::new(HJoin::new(vec![Segment::new(
+                Resize::new(Text::new(text).wrap(true)).max_width(54),
+            )])),
+            Segment::new(HJoin::new(vec![
                 Segment::new(Text::new(("&", room_style))),
                 Segment::new(editor).priority(0),
-            ]))
-            .left(1),
-        )
-        .title("Connect to")
-        .inner_padding(false)
+            ])),
+        ]))
+        .title(("Delete room", warn_style))
+        .border(warn_style)
         .build()
     }
 
@@ -321,6 +353,12 @@ impl Rooms {
                 bindings.binding("enter", "connect to room");
                 util::list_editor_key_bindings(bindings, Self::room_char, false);
             }
+            State::Delete(_, _) => {
+                bindings.heading("Rooms");
+                bindings.binding("esc", "abort");
+                bindings.binding("enter", "delete room");
+                util::list_editor_key_bindings(bindings, Self::room_char, false);
+            }
         }
     }
 
@@ -393,10 +431,8 @@ impl Rooms {
                 }
                 key!('n') => self.state = State::Connect(EditorState::new()),
                 key!('X') => {
-                    // TODO Check whether user wanted this via popup
                     if let Some(name) = self.list.cursor() {
-                        self.euph_rooms.remove(&name);
-                        self.vault.euph(name.clone()).delete();
+                        self.state = State::Delete(name, EditorState::new());
                     }
                 }
                 key!('s') => {
@@ -436,6 +472,24 @@ impl Rooms {
                 _ => {
                     return util::handle_editor_input_event(
                         ed,
+                        terminal,
+                        crossterm_lock,
+                        event,
+                        Self::room_char,
+                        false,
+                    )
+                }
+            },
+            State::Delete(name, editor) => match event {
+                key!(Esc) => self.state = State::ShowList,
+                key!(Enter) if editor.text() == *name => {
+                    self.euph_rooms.remove(name);
+                    self.vault.euph(name.clone()).delete();
+                    self.state = State::ShowList;
+                }
+                _ => {
+                    return util::handle_editor_input_event(
+                        editor,
                         terminal,
                         crossterm_lock,
                         event,

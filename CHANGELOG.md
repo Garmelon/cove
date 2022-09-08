@@ -14,6 +14,9 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Added
+- Room deletion confirmation popup
+
 ### Fixed
 - Cursor being visible through popups
 
