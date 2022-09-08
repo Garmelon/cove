@@ -1,3 +1,5 @@
+// TODO Reduce code duplication (macro?)
+
 use std::mem;
 use std::str::FromStr;
 
@@ -140,6 +142,18 @@ impl EuphVault {
         let (tx, rx) = oneshot::channel();
         let request = EuphRequest::GetLastSpan {
             room: self.room.clone(),
+            result: tx,
+        };
+        let _ = self.vault.tx.send(request.into());
+        rx.await.unwrap()
+    }
+
+    pub async fn full_msg(&self, id: Snowflake) -> Option<Message> {
+        // TODO vault::Error
+        let (tx, rx) = oneshot::channel();
+        let request = EuphRequest::GetFullMsg {
+            room: self.room.clone(),
+            id,
             result: tx,
         };
         let _ = self.vault.tx.send(request.into());
@@ -420,6 +434,11 @@ pub(super) enum EuphRequest {
         id: Snowflake,
         result: oneshot::Sender<Option<SmallMessage>>,
     },
+    GetFullMsg {
+        room: String,
+        id: Snowflake,
+        result: oneshot::Sender<Option<Message>>,
+    },
     GetTree {
         room: String,
         root: Snowflake,
@@ -524,6 +543,7 @@ impl EuphRequest {
             Self::GetLastSpan { room, result } => Self::get_last_span(conn, room, result),
             Self::GetPath { room, id, result } => Self::get_path(conn, room, id, result),
             Self::GetMsg { room, id, result } => Self::get_msg(conn, room, id, result),
+            Self::GetFullMsg { room, id, result } => Self::get_full_msg(conn, room, id, result),
             Self::GetTree { room, root, result } => Self::get_tree(conn, room, root, result),
             Self::GetFirstTreeId { room, result } => Self::get_first_tree_id(conn, room, result),
             Self::GetLastTreeId { room, result } => Self::get_last_tree_id(conn, room, result),
@@ -944,6 +964,53 @@ impl EuphRequest {
                     })
                 },
             )
+            .optional()?;
+        let _ = result.send(msg);
+        Ok(())
+    }
+
+    fn get_full_msg(
+        conn: &Connection,
+        room: String,
+        id: Snowflake,
+        result: oneshot::Sender<Option<Message>>,
+    ) -> rusqlite::Result<()> {
+        let mut query = conn.prepare(
+            "
+            SELECT
+                id, parent, previous_edit_id, time, content, encryption_key_id, edited, deleted, truncated,
+                user_id, name, server_id, server_era, session_id, is_staff, is_manager, client_address, real_client_address
+            FROM euph_msgs
+            WHERE room = ?
+            AND id = ?
+            "
+        )?;
+
+        let msg = query
+            .query_row(params![room, WSnowflake(id)], |row| {
+                Ok(Message {
+                    id: row.get::<_, WSnowflake>(0)?.0,
+                    parent: row.get::<_, Option<WSnowflake>>(1)?.map(|s| s.0),
+                    previous_edit_id: row.get::<_, Option<WSnowflake>>(2)?.map(|s| s.0),
+                    time: row.get::<_, WTime>(3)?.0,
+                    content: row.get(4)?,
+                    encryption_key_id: row.get(5)?,
+                    edited: row.get::<_, Option<WTime>>(6)?.map(|t| t.0),
+                    deleted: row.get::<_, Option<WTime>>(7)?.map(|t| t.0),
+                    truncated: row.get(8)?,
+                    sender: SessionView {
+                        id: UserId(row.get(9)?),
+                        name: row.get(10)?,
+                        server_id: row.get(11)?,
+                        server_era: row.get(12)?,
+                        session_id: row.get(13)?,
+                        is_staff: row.get(14)?,
+                        is_manager: row.get(15)?,
+                        client_address: row.get(16)?,
+                        real_client_address: row.get(17)?,
+                    },
+                })
+            })
             .optional()?;
         let _ = result.send(msg);
         Ok(())

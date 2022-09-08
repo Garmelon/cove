@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 
 use crossterm::style::{ContentStyle, Stylize};
-use euphoxide::api::{Data, PacketType, Snowflake};
+use euphoxide::api::{Data, Message, PacketType, Snowflake};
 use euphoxide::conn::{Joined, Joining, Status};
 use parking_lot::FairMutex;
 use tokio::sync::oneshot::error::TryRecvError;
@@ -30,15 +30,17 @@ use crate::vault::EuphVault;
 use super::account::{self, AccountUiState};
 use super::links::{self, LinksState};
 use super::popup::RoomPopup;
-use super::{auth, nick, nick_list};
+use super::{auth, inspect, nick, nick_list};
 
+#[allow(clippy::large_enum_variant)]
 enum State {
     Normal,
     Auth(EditorState),
     Nick(EditorState),
     Account(AccountUiState),
     Links(LinksState),
-    // TODO Inspect messages and users
+    InspectMessage(Message),
+    // TODO Inspect users
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -225,6 +227,7 @@ impl EuphRoom {
             State::Nick(editor) => layers.push(nick::widget(editor)),
             State::Account(account) => layers.push(account.widget()),
             State::Links(links) => layers.push(links.widget()),
+            State::InspectMessage(message) => layers.push(inspect::message_widget(message)),
         }
 
         for popup in &self.popups {
@@ -319,6 +322,7 @@ impl EuphRoom {
             false
         };
 
+        bindings.binding("i", "inspect message");
         bindings.binding("I", "show message links");
 
         bindings.empty();
@@ -353,13 +357,24 @@ impl EuphRoom {
                 }
             }
 
-            if let key!('I') = event {
-                if let Some(id) = self.chat.cursor().await {
-                    if let Some(msg) = self.vault.msg(&id).await {
-                        self.state = State::Links(LinksState::new(&msg.content));
+            match event {
+                key!('i') => {
+                    if let Some(id) = self.chat.cursor().await {
+                        if let Some(msg) = self.vault.full_msg(id).await {
+                            self.state = State::InspectMessage(msg);
+                        }
                     }
+                    return true;
                 }
-                return true;
+                key!('I') => {
+                    if let Some(id) = self.chat.cursor().await {
+                        if let Some(msg) = self.vault.msg(&id).await {
+                            self.state = State::Links(LinksState::new(&msg.content));
+                        }
+                    }
+                    return true;
+                }
+                _ => {}
             }
 
             match status.ok().flatten() {
@@ -425,6 +440,7 @@ impl EuphRoom {
             State::Nick(_) => nick::list_key_bindings(bindings),
             State::Account(account) => account.list_key_bindings(bindings),
             State::Links(links) => links.list_key_bindings(bindings),
+            State::InspectMessage(_) => inspect::list_key_bindings(bindings),
         }
     }
 
@@ -441,6 +457,8 @@ impl EuphRoom {
             }
             return false;
         }
+
+        // TODO Use a common EventResult
 
         match &mut self.state {
             State::Normal => {
@@ -491,6 +509,13 @@ impl EuphRoom {
                         description: format!("Failed to open link: {link}"),
                         reason: format!("{error}"),
                     });
+                    true
+                }
+            },
+            State::InspectMessage(_) => match inspect::handle_input_event(event) {
+                inspect::EventResult::NotHandled => false,
+                inspect::EventResult::Close => {
+                    self.state = State::Normal;
                     true
                 }
             },
