@@ -526,15 +526,22 @@ impl Widget for Editor {
         let indices = wrap(frame, self.text.text(), text_width);
         let lines = self.text.split_at_indices(&indices);
 
-        if self.focus {
+        // Determine cursor position now while we still have the lines.
+        let cursor_pos = if self.focus {
             let (cursor_row, cursor_line_idx) = Self::wrapped_cursor(self.idx, &indices);
             let cursor_col = frame.width(lines[cursor_row].text().split_at(cursor_line_idx).0);
             let cursor_col = cursor_col.min(text_width);
-            frame.set_cursor(Some(Pos::new(cursor_col as i32, cursor_row as i32)));
-        }
+            Some(Pos::new(cursor_col as i32, cursor_row as i32))
+        } else {
+            None
+        };
 
         for (i, line) in lines.into_iter().enumerate() {
             frame.write(Pos::new(0, i as i32), line);
+        }
+
+        if let Some(pos) = cursor_pos {
+            frame.set_cursor(Some(pos));
         }
 
         self.state.lock().last_width = width;
