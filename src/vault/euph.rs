@@ -1,5 +1,3 @@
-// TODO Reduce code duplication (macro?)
-
 use std::mem;
 use std::str::FromStr;
 
@@ -13,8 +11,6 @@ use tokio::sync::oneshot;
 
 use crate::euph::SmallMessage;
 use crate::store::{MsgStore, Path, Tree};
-
-use super::{Request, Vault};
 
 /// Wrapper for [`Snowflake`] that implements useful rusqlite traits.
 struct WSnowflake(Snowflake);
@@ -50,43 +46,20 @@ impl FromSql for WTime {
     }
 }
 
-impl From<EuphRequest> for Request {
+impl From<EuphRequest> for super::Request {
     fn from(r: EuphRequest) -> Self {
         Self::Euph(r)
     }
 }
 
-impl Vault {
-    pub async fn euph_cookies(&self) -> CookieJar {
-        // TODO vault::Error
-        let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::GetCookies { result: tx };
-        let _ = self.tx.send(request.into());
-        rx.await.unwrap()
-    }
-
-    pub fn set_euph_cookies(&self, cookies: CookieJar) {
-        let request = EuphRequest::SetCookies { cookies };
-        let _ = self.tx.send(request.into());
-    }
-
-    pub async fn euph_rooms(&self) -> Vec<String> {
-        // TODO vault::Error
-        let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::GetRooms { result: tx };
-        let _ = self.tx.send(request.into());
-        rx.await.unwrap()
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct EuphVault {
-    pub(super) vault: Vault,
+    pub(super) vault: super::Vault,
     pub(super) room: String,
 }
 
 impl EuphVault {
-    pub fn vault(&self) -> &Vault {
+    pub fn vault(&self) -> &super::Vault {
         &self.vault
     }
 
@@ -95,509 +68,227 @@ impl EuphVault {
     }
 
     pub fn join(&self, time: Time) {
-        let request = EuphRequest::Join {
-            room: self.room.clone(),
-            time,
-        };
-        let _ = self.vault.tx.send(request.into());
+        self.vault.euph_join(self.room.clone(), time);
     }
 
     pub fn delete(self) {
-        let request = EuphRequest::Delete { room: self.room };
-        let _ = self.vault.tx.send(request.into());
+        self.vault.euph_delete(self.room.clone());
     }
 
     pub fn add_message(
         &self,
         msg: Message,
-        prev_msg: Option<Snowflake>,
+        prev_msg_id: Option<Snowflake>,
         own_user_id: Option<UserId>,
     ) {
-        let request = EuphRequest::AddMsg {
-            room: self.room.clone(),
-            msg: Box::new(msg),
-            prev_msg,
-            own_user_id,
-        };
-        let _ = self.vault.tx.send(request.into());
+        self.vault
+            .euph_add_msg(self.room.clone(), Box::new(msg), prev_msg_id, own_user_id);
     }
 
     pub fn add_messages(
         &self,
         msgs: Vec<Message>,
-        next_msg: Option<Snowflake>,
+        next_msg_id: Option<Snowflake>,
         own_user_id: Option<UserId>,
     ) {
-        let request = EuphRequest::AddMsgs {
-            room: self.room.clone(),
-            msgs,
-            next_msg,
-            own_user_id,
-        };
-        let _ = self.vault.tx.send(request.into());
+        self.vault
+            .euph_add_msgs(self.room.clone(), msgs, next_msg_id, own_user_id);
     }
 
     pub async fn last_span(&self) -> Option<(Option<Snowflake>, Option<Snowflake>)> {
-        // TODO vault::Error
-        let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::GetLastSpan {
-            room: self.room.clone(),
-            result: tx,
-        };
-        let _ = self.vault.tx.send(request.into());
-        rx.await.unwrap()
+        self.vault.euph_last_span(self.room.clone()).await
     }
 
     pub async fn full_msg(&self, id: Snowflake) -> Option<Message> {
-        // TODO vault::Error
-        let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::GetFullMsg {
-            room: self.room.clone(),
-            id,
-            result: tx,
-        };
-        let _ = self.vault.tx.send(request.into());
-        rx.await.unwrap()
+        self.vault.euph_full_msg(self.room.clone(), id).await
     }
 
     pub async fn chunk_at_offset(&self, amount: usize, offset: usize) -> Vec<Message> {
-        // TODO vault::Error
-        let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::GetChunkAtOffset {
-            room: self.room.clone(),
-            amount,
-            offset,
-            result: tx,
-        };
-        let _ = self.vault.tx.send(request.into());
-        rx.await.unwrap()
+        self.vault
+            .euph_chunk_at_offset(self.room.clone(), amount, offset)
+            .await
     }
 }
 
 #[async_trait]
 impl MsgStore<SmallMessage> for EuphVault {
     async fn path(&self, id: &Snowflake) -> Path<Snowflake> {
-        // TODO vault::Error
-        let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::GetPath {
-            room: self.room.clone(),
-            id: *id,
-            result: tx,
-        };
-        let _ = self.vault.tx.send(request.into());
-        rx.await.unwrap()
+        self.vault.euph_path(self.room.clone(), *id).await
     }
 
     async fn msg(&self, id: &Snowflake) -> Option<SmallMessage> {
-        // TODO vault::Error
-        let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::GetMsg {
-            room: self.room.clone(),
-            id: *id,
-            result: tx,
-        };
-        let _ = self.vault.tx.send(request.into());
-        rx.await.unwrap()
+        self.vault.euph_msg(self.room.clone(), *id).await
     }
 
     async fn tree(&self, tree_id: &Snowflake) -> Tree<SmallMessage> {
-        // TODO vault::Error
-        let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::GetTree {
-            room: self.room.clone(),
-            root: *tree_id,
-            result: tx,
-        };
-        let _ = self.vault.tx.send(request.into());
-        rx.await.unwrap()
+        self.vault.euph_tree(self.room.clone(), *tree_id).await
     }
 
     async fn first_tree_id(&self) -> Option<Snowflake> {
-        // TODO vault::Error
-        let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::GetFirstTreeId {
-            room: self.room.clone(),
-            result: tx,
-        };
-        let _ = self.vault.tx.send(request.into());
-        rx.await.unwrap()
+        self.vault.euph_first_tree_id(self.room.clone()).await
     }
 
     async fn last_tree_id(&self) -> Option<Snowflake> {
-        // TODO vault::Error
-        let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::GetLastTreeId {
-            room: self.room.clone(),
-            result: tx,
-        };
-        let _ = self.vault.tx.send(request.into());
-        rx.await.unwrap()
+        self.vault.euph_last_tree_id(self.room.clone()).await
     }
 
     async fn prev_tree_id(&self, tree_id: &Snowflake) -> Option<Snowflake> {
-        // TODO vault::Error
-        let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::GetPrevTreeId {
-            room: self.room.clone(),
-            root: *tree_id,
-            result: tx,
-        };
-        let _ = self.vault.tx.send(request.into());
-        rx.await.unwrap()
+        self.vault
+            .euph_prev_tree_id(self.room.clone(), *tree_id)
+            .await
     }
 
     async fn next_tree_id(&self, tree_id: &Snowflake) -> Option<Snowflake> {
-        // TODO vault::Error
-        let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::GetNextTreeId {
-            room: self.room.clone(),
-            root: *tree_id,
-            result: tx,
-        };
-        let _ = self.vault.tx.send(request.into());
-        rx.await.unwrap()
+        self.vault
+            .euph_next_tree_id(self.room.clone(), *tree_id)
+            .await
     }
 
     async fn oldest_msg_id(&self) -> Option<Snowflake> {
-        // TODO vault::Error
-        let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::GetOldestMsgId {
-            room: self.room.clone(),
-            result: tx,
-        };
-        let _ = self.vault.tx.send(request.into());
-        rx.await.unwrap()
+        self.vault.euph_oldest_msg_id(self.room.clone()).await
     }
 
     async fn newest_msg_id(&self) -> Option<Snowflake> {
-        // TODO vault::Error
-        let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::GetNewestMsgId {
-            room: self.room.clone(),
-            result: tx,
-        };
-        let _ = self.vault.tx.send(request.into());
-        rx.await.unwrap()
+        self.vault.euph_newest_msg_id(self.room.clone()).await
     }
 
     async fn older_msg_id(&self, id: &Snowflake) -> Option<Snowflake> {
-        // TODO vault::Error
-        let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::GetOlderMsgId {
-            room: self.room.clone(),
-            id: *id,
-            result: tx,
-        };
-        let _ = self.vault.tx.send(request.into());
-        rx.await.unwrap()
+        self.vault.euph_older_msg_id(self.room.clone(), *id).await
     }
 
     async fn newer_msg_id(&self, id: &Snowflake) -> Option<Snowflake> {
-        // TODO vault::Error
-        let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::GetNewerMsgId {
-            room: self.room.clone(),
-            id: *id,
-            result: tx,
-        };
-        let _ = self.vault.tx.send(request.into());
-        rx.await.unwrap()
+        self.vault.euph_newer_msg_id(self.room.clone(), *id).await
     }
 
     async fn oldest_unseen_msg_id(&self) -> Option<Snowflake> {
-        // TODO vault::Error
-        let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::GetOldestUnseenMsgId {
-            room: self.room.clone(),
-            result: tx,
-        };
-        let _ = self.vault.tx.send(request.into());
-        rx.await.unwrap()
+        self.vault
+            .euph_oldest_unseen_msg_id(self.room.clone())
+            .await
     }
 
     async fn newest_unseen_msg_id(&self) -> Option<Snowflake> {
-        // TODO vault::Error
-        let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::GetNewestUnseenMsgId {
-            room: self.room.clone(),
-            result: tx,
-        };
-        let _ = self.vault.tx.send(request.into());
-        rx.await.unwrap()
+        self.vault
+            .euph_newest_unseen_msg_id(self.room.clone())
+            .await
     }
 
     async fn older_unseen_msg_id(&self, id: &Snowflake) -> Option<Snowflake> {
-        // TODO vault::Error
-        let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::GetOlderUnseenMsgId {
-            room: self.room.clone(),
-            id: *id,
-            result: tx,
-        };
-        let _ = self.vault.tx.send(request.into());
-        rx.await.unwrap()
+        self.vault
+            .euph_older_unseen_msg_id(self.room.clone(), *id)
+            .await
     }
 
     async fn newer_unseen_msg_id(&self, id: &Snowflake) -> Option<Snowflake> {
-        // TODO vault::Error
-        let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::GetNewerUnseenMsgId {
-            room: self.room.clone(),
-            id: *id,
-            result: tx,
-        };
-        let _ = self.vault.tx.send(request.into());
-        rx.await.unwrap()
+        self.vault
+            .euph_newer_unseen_msg_id(self.room.clone(), *id)
+            .await
     }
 
     async fn unseen_msgs_count(&self) -> usize {
-        // TODO vault::Error
-        let (tx, rx) = oneshot::channel();
-        let request = EuphRequest::GetUnseenMsgsCount {
-            room: self.room.clone(),
-            result: tx,
-        };
-        let _ = self.vault.tx.send(request.into());
-        rx.await.unwrap()
+        self.vault.euph_unseen_msgs_count(self.room.clone()).await
     }
 
     async fn set_seen(&self, id: &Snowflake, seen: bool) {
-        let request = EuphRequest::SetSeen {
-            room: self.room.clone(),
-            id: *id,
-            seen,
-        };
-        let _ = self.vault.tx.send(request.into());
+        self.vault.euph_set_seen(self.room.clone(), *id, seen);
     }
 
     async fn set_older_seen(&self, id: &Snowflake, seen: bool) {
-        let request = EuphRequest::SetOlderSeen {
-            room: self.room.clone(),
-            id: *id,
-            seen,
-        };
-        let _ = self.vault.tx.send(request.into());
+        self.vault.euph_set_older_seen(self.room.clone(), *id, seen);
     }
 }
 
-pub(super) enum EuphRequest {
-    /////////////
-    // Cookies //
-    /////////////
-    GetCookies {
-        result: oneshot::Sender<CookieJar>,
-    },
-    SetCookies {
-        cookies: CookieJar,
-    },
-
-    ///////////
-    // Rooms //
-    ///////////
-    GetRooms {
-        result: oneshot::Sender<Vec<String>>,
-    },
-    Join {
-        room: String,
-        time: Time,
-    },
-    Delete {
-        room: String,
-    },
-
-    //////////////
-    // Messages //
-    //////////////
-    AddMsg {
-        room: String,
-        msg: Box<Message>,
-        prev_msg: Option<Snowflake>,
-        own_user_id: Option<UserId>,
-    },
-    AddMsgs {
-        room: String,
-        msgs: Vec<Message>,
-        next_msg: Option<Snowflake>,
-        own_user_id: Option<UserId>,
-    },
-    GetLastSpan {
-        room: String,
-        result: oneshot::Sender<Option<(Option<Snowflake>, Option<Snowflake>)>>,
-    },
-    GetPath {
-        room: String,
-        id: Snowflake,
-        result: oneshot::Sender<Path<Snowflake>>,
-    },
-    GetMsg {
-        room: String,
-        id: Snowflake,
-        result: oneshot::Sender<Option<SmallMessage>>,
-    },
-    GetFullMsg {
-        room: String,
-        id: Snowflake,
-        result: oneshot::Sender<Option<Message>>,
-    },
-    GetTree {
-        room: String,
-        root: Snowflake,
-        result: oneshot::Sender<Tree<SmallMessage>>,
-    },
-    GetFirstTreeId {
-        room: String,
-        result: oneshot::Sender<Option<Snowflake>>,
-    },
-    GetLastTreeId {
-        room: String,
-        result: oneshot::Sender<Option<Snowflake>>,
-    },
-    GetPrevTreeId {
-        room: String,
-        root: Snowflake,
-        result: oneshot::Sender<Option<Snowflake>>,
-    },
-    GetNextTreeId {
-        room: String,
-        root: Snowflake,
-        result: oneshot::Sender<Option<Snowflake>>,
-    },
-    GetOldestMsgId {
-        room: String,
-        result: oneshot::Sender<Option<Snowflake>>,
-    },
-    GetNewestMsgId {
-        room: String,
-        result: oneshot::Sender<Option<Snowflake>>,
-    },
-    GetOlderMsgId {
-        room: String,
-        id: Snowflake,
-        result: oneshot::Sender<Option<Snowflake>>,
-    },
-    GetNewerMsgId {
-        room: String,
-        id: Snowflake,
-        result: oneshot::Sender<Option<Snowflake>>,
-    },
-    GetOlderUnseenMsgId {
-        room: String,
-        id: Snowflake,
-        result: oneshot::Sender<Option<Snowflake>>,
-    },
-    GetOldestUnseenMsgId {
-        room: String,
-        result: oneshot::Sender<Option<Snowflake>>,
-    },
-    GetNewestUnseenMsgId {
-        room: String,
-        result: oneshot::Sender<Option<Snowflake>>,
-    },
-    GetNewerUnseenMsgId {
-        room: String,
-        id: Snowflake,
-        result: oneshot::Sender<Option<Snowflake>>,
-    },
-    GetUnseenMsgsCount {
-        room: String,
-        result: oneshot::Sender<usize>,
-    },
-    SetSeen {
-        room: String,
-        id: Snowflake,
-        seen: bool,
-    },
-    SetOlderSeen {
-        room: String,
-        id: Snowflake,
-        seen: bool,
-    },
-    GetChunkAtOffset {
-        room: String,
-        amount: usize,
-        offset: usize,
-        result: oneshot::Sender<Vec<Message>>,
-    },
+trait Request {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()>;
 }
 
-impl EuphRequest {
-    pub(super) fn perform(self, conn: &mut Connection) {
-        let result = match self {
-            Self::GetCookies { result } => Self::get_cookies(conn, result),
-            Self::SetCookies { cookies } => Self::set_cookies(conn, cookies),
-            Self::GetRooms { result } => Self::get_rooms(conn, result),
-            Self::Join { room, time } => Self::join(conn, room, time),
-            Self::Delete { room } => Self::delete(conn, room),
-            Self::AddMsg {
-                room,
-                msg,
-                prev_msg,
-                own_user_id,
-            } => Self::add_msg(conn, room, *msg, prev_msg, own_user_id),
-            Self::AddMsgs {
-                room,
-                msgs,
-                next_msg,
-                own_user_id,
-            } => Self::add_msgs(conn, room, msgs, next_msg, own_user_id),
-            Self::GetLastSpan { room, result } => Self::get_last_span(conn, room, result),
-            Self::GetPath { room, id, result } => Self::get_path(conn, room, id, result),
-            Self::GetMsg { room, id, result } => Self::get_msg(conn, room, id, result),
-            Self::GetFullMsg { room, id, result } => Self::get_full_msg(conn, room, id, result),
-            Self::GetTree { room, root, result } => Self::get_tree(conn, room, root, result),
-            Self::GetFirstTreeId { room, result } => Self::get_first_tree_id(conn, room, result),
-            Self::GetLastTreeId { room, result } => Self::get_last_tree_id(conn, room, result),
-            Self::GetPrevTreeId { room, root, result } => {
-                Self::get_prev_tree_id(conn, room, root, result)
-            }
-            Self::GetNextTreeId { room, root, result } => {
-                Self::get_next_tree_id(conn, room, root, result)
-            }
-            Self::GetOldestMsgId { room, result } => Self::get_oldest_msg_id(conn, room, result),
-            Self::GetNewestMsgId { room, result } => Self::get_newest_msg_id(conn, room, result),
-            Self::GetOlderMsgId { room, id, result } => {
-                Self::get_older_msg_id(conn, room, id, result)
-            }
-            Self::GetNewerMsgId { room, id, result } => {
-                Self::get_newer_msg_id(conn, room, id, result)
-            }
-            Self::GetOldestUnseenMsgId { room, result } => {
-                Self::get_oldest_unseen_msg_id(conn, room, result)
-            }
-            Self::GetNewestUnseenMsgId { room, result } => {
-                Self::get_newest_unseen_msg_id(conn, room, result)
-            }
-            Self::GetOlderUnseenMsgId { room, id, result } => {
-                Self::get_older_unseen_msg_id(conn, room, id, result)
-            }
-            Self::GetNewerUnseenMsgId { room, id, result } => {
-                Self::get_newer_unseen_msg_id(conn, room, id, result)
-            }
-            Self::GetUnseenMsgsCount { room, result } => {
-                Self::get_unseen_msgs_count(conn, room, result)
-            }
-            Self::SetSeen { room, id, seen } => Self::set_seen(conn, room, id, seen),
-            Self::SetOlderSeen { room, id, seen } => Self::set_older_seen(conn, room, id, seen),
-            Self::GetChunkAtOffset {
-                room,
-                amount,
-                offset,
-                result,
-            } => Self::get_chunk_at_offset(conn, room, amount, offset, result),
-        };
-        if let Err(e) = result {
-            // If an error occurs here, the rest of the UI will likely panic and
-            // crash soon. By printing this to stderr instead of logging it, we
-            // can filter it out and read it later.
-            // TODO Better vault error handling
-            eprintln!("{e}");
+macro_rules! requests_helper {
+    ( $var:ident : $fn:ident( $( $arg:ident : $ty:ty ),* ) ) => {
+        pub fn $fn(&self, $( $arg: $ty ),* ) {
+            let request = EuphRequest::$var($var { $( $arg, )* });
+            let _ = self.tx.send(request.into());
         }
-    }
+    };
+    ( $var:ident : $fn:ident( $( $arg:ident : $ty:ty ),* ) -> $res:ty ) => {
+        pub async fn $fn(&self, $( $arg: $ty ),* ) -> $res {
+            let (tx, rx) = oneshot::channel();
+            let request = EuphRequest::$var($var {
+                $( $arg, )*
+                result: tx,
+            });
+            let _ = self.tx.send(request.into());
+            rx.await.unwrap()
+        }
+    };
+}
 
-    fn get_cookies(
-        conn: &mut Connection,
-        result: oneshot::Sender<CookieJar>,
-    ) -> rusqlite::Result<()> {
+macro_rules! requests {
+    ( $(
+        $var:ident : $fn:ident( $( $arg:ident : $ty:ty ),* ) $( -> $res:ty )? ;
+    )* ) => {
+        $(
+            pub(super) struct $var {
+                $( $arg: $ty, )*
+                $( result: oneshot::Sender<$res>, )?
+            }
+        )*
+
+        pub(super) enum EuphRequest {
+            $( $var($var), )*
+        }
+
+        impl EuphRequest {
+            pub(super) fn perform(self, conn: &mut Connection) {
+                // TODO Handle this result
+                let _ = match self {
+                    $( Self::$var(request) => request.perform(conn), )*
+                };
+            }
+        }
+
+        impl super::Vault {
+            $( requests_helper!($var : $fn( $( $arg: $ty ),* ) $( -> $res )? );)*
+        }
+    };
+}
+
+requests! {
+    // Cookies
+    GetCookies : euph_cookies() -> CookieJar;
+    SetCookies : euph_set_cookies(cookies: CookieJar);
+
+    // Rooms
+    GetRooms : euph_rooms() -> Vec<String>;
+    Join : euph_join(room: String, time: Time);
+    Delete : euph_delete(room: String);
+
+    // Message
+    AddMsg : euph_add_msg(room: String, msg: Box<Message>, prev_msg_id: Option<Snowflake>, own_user_id: Option<UserId>);
+    AddMsgs : euph_add_msgs(room: String, msgs: Vec<Message>, next_msg_id: Option<Snowflake>, own_user_id: Option<UserId>);
+    GetLastSpan : euph_last_span(room: String) -> Option<(Option<Snowflake>, Option<Snowflake>)>;
+    GetPath : euph_path(room: String, id: Snowflake) -> Path<Snowflake>;
+    GetMsg : euph_msg(room: String, id: Snowflake) -> Option<SmallMessage>;
+    GetFullMsg : euph_full_msg(room: String, id: Snowflake) -> Option<Message>;
+    GetTree : euph_tree(room: String, root: Snowflake) -> Tree<SmallMessage>;
+    GetFirstTreeId : euph_first_tree_id(room: String) -> Option<Snowflake>;
+    GetLastTreeId : euph_last_tree_id(room: String) -> Option<Snowflake>;
+    GetPrevTreeId : euph_prev_tree_id(room: String, root: Snowflake) -> Option<Snowflake>;
+    GetNextTreeId : euph_next_tree_id(room: String, root: Snowflake) -> Option<Snowflake>;
+    GetOldestMsgId : euph_oldest_msg_id(room: String) -> Option<Snowflake>;
+    GetNewestMsgId : euph_newest_msg_id(room: String) -> Option<Snowflake>;
+    GetOlderMsgId : euph_older_msg_id(room: String, id: Snowflake) -> Option<Snowflake>;
+    GetNewerMsgId : euph_newer_msg_id(room: String, id: Snowflake) -> Option<Snowflake>;
+    GetOldestUnseenMsgId : euph_oldest_unseen_msg_id(room: String) -> Option<Snowflake>;
+    GetNewestUnseenMsgId : euph_newest_unseen_msg_id(room: String) -> Option<Snowflake>;
+    GetOlderUnseenMsgId : euph_older_unseen_msg_id(room: String, id: Snowflake) -> Option<Snowflake>;
+    GetNewerUnseenMsgId : euph_newer_unseen_msg_id(room: String, id: Snowflake) -> Option<Snowflake>;
+    GetUnseenMsgsCount : euph_unseen_msgs_count(room: String) -> usize;
+    SetSeen : euph_set_seen(room: String, id: Snowflake, seen: bool);
+    SetOlderSeen : euph_set_older_seen(room: String, id: Snowflake, seen: bool);
+    GetChunkAtOffset : euph_chunk_at_offset(room: String, amount: usize, offset: usize) -> Vec<Message>;
+}
+
+impl Request for GetCookies {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let cookies = conn
             .prepare(
                 "
@@ -616,11 +307,13 @@ impl EuphRequest {
             cookie_jar.add_original(cookie);
         }
 
-        let _ = result.send(cookie_jar);
+        let _ = self.result.send(cookie_jar);
         Ok(())
     }
+}
 
-    fn set_cookies(conn: &mut Connection, cookies: CookieJar) -> rusqlite::Result<()> {
+impl Request for SetCookies {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let tx = conn.transaction()?;
 
         // Since euphoria sets all cookies on every response, we can just delete
@@ -633,7 +326,7 @@ impl EuphRequest {
             VALUES (?)
             ",
         )?;
-        for cookie in cookies.iter() {
+        for cookie in self.cookies.iter() {
             insert_cookie.execute([format!("{cookie}")])?;
         }
         drop(insert_cookie);
@@ -641,11 +334,10 @@ impl EuphRequest {
         tx.commit()?;
         Ok(())
     }
+}
 
-    fn get_rooms(
-        conn: &mut Connection,
-        result: oneshot::Sender<Vec<String>>,
-    ) -> rusqlite::Result<()> {
+impl Request for GetRooms {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let rooms = conn
             .prepare(
                 "
@@ -655,11 +347,13 @@ impl EuphRequest {
             )?
             .query_map([], |row| row.get(0))?
             .collect::<rusqlite::Result<_>>()?;
-        let _ = result.send(rooms);
+        let _ = self.result.send(rooms);
         Ok(())
     }
+}
 
-    fn join(conn: &mut Connection, room: String, time: Time) -> rusqlite::Result<()> {
+impl Request for Join {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         conn.execute(
             "
             INSERT INTO euph_rooms (room, first_joined, last_joined)
@@ -667,12 +361,15 @@ impl EuphRequest {
             ON CONFLICT (room) DO UPDATE
             SET last_joined = :time
             ",
-            named_params! {":room": room, ":time": WTime(time)},
+            named_params! {":room": self.room, ":time": WTime(self.time)},
         )?;
         Ok(())
     }
+}
 
-    fn delete(conn: &mut Connection, room: String) -> rusqlite::Result<()> {
+impl Request for Delete {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
+        // TODO Clean up
         let tx = conn.transaction()?;
 
         tx.execute(
@@ -680,211 +377,201 @@ impl EuphRequest {
             DELETE FROM euph_rooms
             WHERE room = ?
             ",
-            [&room],
+            [&self.room],
         )?;
 
         tx.commit()?;
         Ok(())
     }
+}
 
-    fn insert_msgs(
-        tx: &Transaction<'_>,
-        room: &str,
-        own_user_id: &Option<UserId>,
-        msgs: Vec<Message>,
-    ) -> rusqlite::Result<()> {
-        let mut insert_msg = tx.prepare(
-            "
-            INSERT INTO euph_msgs (
-                room, id, parent, previous_edit_id, time, content, encryption_key_id, edited, deleted, truncated,
-                user_id, name, server_id, server_era, session_id, is_staff, is_manager, client_address, real_client_address,
-                seen
-            )
-            VALUES (
-                :room, :id, :parent, :previous_edit_id, :time, :content, :encryption_key_id, :edited, :deleted, :truncated,
-                :user_id, :name, :server_id, :server_era, :session_id, :is_staff, :is_manager, :client_address, :real_client_address,
-                (:user_id == :own_user_id OR EXISTS(
-                    SELECT 1
-                    FROM euph_rooms
-                    WHERE room = :room
-                    AND :time < first_joined
-                ))
-            )
-            ON CONFLICT (room, id) DO UPDATE
-            SET
-                room = :room,
-                id = :id,
-                parent = :parent,
-                previous_edit_id = :previous_edit_id,
-                time = :time,
-                content = :content,
-                encryption_key_id = :encryption_key_id,
-                edited = :edited,
-                deleted = :deleted,
-                truncated = :truncated,
+fn insert_msgs(
+    tx: &Transaction<'_>,
+    room: &str,
+    own_user_id: &Option<UserId>,
+    msgs: Vec<Message>,
+) -> rusqlite::Result<()> {
+    let mut insert_msg = tx.prepare(
+        "
+        INSERT INTO euph_msgs (
+            room, id, parent, previous_edit_id, time, content, encryption_key_id, edited, deleted, truncated,
+            user_id, name, server_id, server_era, session_id, is_staff, is_manager, client_address, real_client_address,
+            seen
+        )
+        VALUES (
+            :room, :id, :parent, :previous_edit_id, :time, :content, :encryption_key_id, :edited, :deleted, :truncated,
+            :user_id, :name, :server_id, :server_era, :session_id, :is_staff, :is_manager, :client_address, :real_client_address,
+            (:user_id == :own_user_id OR EXISTS(
+                SELECT 1
+                FROM euph_rooms
+                WHERE room = :room
+                AND :time < first_joined
+            ))
+        )
+        ON CONFLICT (room, id) DO UPDATE
+        SET
+            room = :room,
+            id = :id,
+            parent = :parent,
+            previous_edit_id = :previous_edit_id,
+            time = :time,
+            content = :content,
+            encryption_key_id = :encryption_key_id,
+            edited = :edited,
+            deleted = :deleted,
+            truncated = :truncated,
 
-                user_id = :user_id,
-                name = :name,
-                server_id = :server_id,
-                server_era = :server_era,
-                session_id = :session_id,
-                is_staff = :is_staff,
-                is_manager = :is_manager,
-                client_address = :client_address,
-                real_client_address = :real_client_address
-            "
-        )?;
+            user_id = :user_id,
+            name = :name,
+            server_id = :server_id,
+            server_era = :server_era,
+            session_id = :session_id,
+            is_staff = :is_staff,
+            is_manager = :is_manager,
+            client_address = :client_address,
+            real_client_address = :real_client_address
+        "
+    )?;
 
-        let own_user_id = own_user_id.as_ref().map(|u| &u.0);
-        for msg in msgs {
-            insert_msg.execute(named_params! {
-                ":room": room,
-                ":id": WSnowflake(msg.id),
-                ":parent": msg.parent.map(WSnowflake),
-                ":previous_edit_id": msg.previous_edit_id.map(WSnowflake),
-                ":time": WTime(msg.time),
-                ":content": msg.content,
-                ":encryption_key_id": msg.encryption_key_id,
-                ":edited": msg.edited.map(WTime),
-                ":deleted": msg.deleted.map(WTime),
-                ":truncated": msg.truncated,
-                ":user_id": msg.sender.id.0,
-                ":name": msg.sender.name,
-                ":server_id": msg.sender.server_id,
-                ":server_era": msg.sender.server_era,
-                ":session_id": msg.sender.session_id,
-                ":is_staff": msg.sender.is_staff,
-                ":is_manager": msg.sender.is_manager,
-                ":client_address": msg.sender.client_address,
-                ":real_client_address": msg.sender.real_client_address,
-                ":own_user_id": own_user_id, // May be NULL
-            })?;
-        }
-
-        Ok(())
+    let own_user_id = own_user_id.as_ref().map(|u| &u.0);
+    for msg in msgs {
+        insert_msg.execute(named_params! {
+            ":room": room,
+            ":id": WSnowflake(msg.id),
+            ":parent": msg.parent.map(WSnowflake),
+            ":previous_edit_id": msg.previous_edit_id.map(WSnowflake),
+            ":time": WTime(msg.time),
+            ":content": msg.content,
+            ":encryption_key_id": msg.encryption_key_id,
+            ":edited": msg.edited.map(WTime),
+            ":deleted": msg.deleted.map(WTime),
+            ":truncated": msg.truncated,
+            ":user_id": msg.sender.id.0,
+            ":name": msg.sender.name,
+            ":server_id": msg.sender.server_id,
+            ":server_era": msg.sender.server_era,
+            ":session_id": msg.sender.session_id,
+            ":is_staff": msg.sender.is_staff,
+            ":is_manager": msg.sender.is_manager,
+            ":client_address": msg.sender.client_address,
+            ":real_client_address": msg.sender.real_client_address,
+            ":own_user_id": own_user_id, // May be NULL
+        })?;
     }
 
-    fn add_span(
-        tx: &Transaction<'_>,
-        room: &str,
-        start: Option<Snowflake>,
-        end: Option<Snowflake>,
-    ) -> rusqlite::Result<()> {
-        // Retrieve all spans for the room
-        let mut spans = tx
-            .prepare(
-                "
-                SELECT start, end
-                FROM euph_spans
-                WHERE room = ?
-                ",
-            )?
-            .query_map([room], |row| {
-                let start = row.get::<_, Option<WSnowflake>>(0)?.map(|s| s.0);
-                let end = row.get::<_, Option<WSnowflake>>(1)?.map(|s| s.0);
-                Ok((start, end))
-            })?
-            .collect::<Result<Vec<_>, _>>()?;
+    Ok(())
+}
 
-        // Add new span and sort spans lexicographically
-        spans.push((start, end));
-        spans.sort_unstable();
-
-        // Combine overlapping spans (including newly added span)
-        let mut cur_span: Option<(Option<Snowflake>, Option<Snowflake>)> = None;
-        let mut result = vec![];
-        for mut span in spans {
-            if let Some(cur_span) = &mut cur_span {
-                if span.0 <= cur_span.1 {
-                    // Since spans are sorted lexicographically, we know that
-                    // cur_span.0 <= span.0, which means that span starts inside
-                    // of cur_span.
-                    cur_span.1 = cur_span.1.max(span.1);
-                } else {
-                    // Since span doesn't overlap cur_span, we know that no
-                    // later span will overlap cur_span either. The size of
-                    // cur_span is thus final.
-                    mem::swap(cur_span, &mut span);
-                    result.push(span);
-                }
-            } else {
-                cur_span = Some(span);
-            }
-        }
-        if let Some(cur_span) = cur_span {
-            result.push(cur_span);
-        }
-
-        // Delete all spans for the room
-        tx.execute(
+fn add_span(
+    tx: &Transaction<'_>,
+    room: &str,
+    start: Option<Snowflake>,
+    end: Option<Snowflake>,
+) -> rusqlite::Result<()> {
+    // Retrieve all spans for the room
+    let mut spans = tx
+        .prepare(
             "
-            DELETE FROM euph_spans
+            SELECT start, end
+            FROM euph_spans
             WHERE room = ?
             ",
-            [room],
-        )?;
+        )?
+        .query_map([room], |row| {
+            let start = row.get::<_, Option<WSnowflake>>(0)?.map(|s| s.0);
+            let end = row.get::<_, Option<WSnowflake>>(1)?.map(|s| s.0);
+            Ok((start, end))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
 
-        // Re-insert combined spans for the room
-        let mut stmt = tx.prepare(
-            "
-            INSERT INTO euph_spans (room, start, end)
-            VALUES (?, ?, ?)
-            ",
-        )?;
-        for (start, end) in result {
-            stmt.execute(params![room, start.map(WSnowflake), end.map(WSnowflake)])?;
-        }
+    // Add new span and sort spans lexicographically
+    spans.push((start, end));
+    spans.sort_unstable();
 
-        Ok(())
-    }
-
-    fn add_msg(
-        conn: &mut Connection,
-        room: String,
-        msg: Message,
-        prev_msg: Option<Snowflake>,
-        own_user_id: Option<UserId>,
-    ) -> rusqlite::Result<()> {
-        let tx = conn.transaction()?;
-
-        let end = msg.id;
-        Self::insert_msgs(&tx, &room, &own_user_id, vec![msg])?;
-        Self::add_span(&tx, &room, prev_msg, Some(end))?;
-
-        tx.commit()?;
-        Ok(())
-    }
-
-    fn add_msgs(
-        conn: &mut Connection,
-        room: String,
-        msgs: Vec<Message>,
-        next_msg_id: Option<Snowflake>,
-        own_user_id: Option<UserId>,
-    ) -> rusqlite::Result<()> {
-        let tx = conn.transaction()?;
-
-        if msgs.is_empty() {
-            Self::add_span(&tx, &room, None, next_msg_id)?;
+    // Combine overlapping spans (including newly added span)
+    let mut cur_span: Option<(Option<Snowflake>, Option<Snowflake>)> = None;
+    let mut result = vec![];
+    for mut span in spans {
+        if let Some(cur_span) = &mut cur_span {
+            if span.0 <= cur_span.1 {
+                // Since spans are sorted lexicographically, we know that
+                // cur_span.0 <= span.0, which means that span starts inside
+                // of cur_span.
+                cur_span.1 = cur_span.1.max(span.1);
+            } else {
+                // Since span doesn't overlap cur_span, we know that no
+                // later span will overlap cur_span either. The size of
+                // cur_span is thus final.
+                mem::swap(cur_span, &mut span);
+                result.push(span);
+            }
         } else {
-            let first_msg_id = msgs.first().unwrap().id;
-            let last_msg_id = msgs.last().unwrap().id;
+            cur_span = Some(span);
+        }
+    }
+    if let Some(cur_span) = cur_span {
+        result.push(cur_span);
+    }
 
-            Self::insert_msgs(&tx, &room, &own_user_id, msgs)?;
+    // Delete all spans for the room
+    tx.execute(
+        "
+        DELETE FROM euph_spans
+        WHERE room = ?
+        ",
+        [room],
+    )?;
 
-            let end = next_msg_id.unwrap_or(last_msg_id);
-            Self::add_span(&tx, &room, Some(first_msg_id), Some(end))?;
+    // Re-insert combined spans for the room
+    let mut stmt = tx.prepare(
+        "
+        INSERT INTO euph_spans (room, start, end)
+        VALUES (?, ?, ?)
+        ",
+    )?;
+    for (start, end) in result {
+        stmt.execute(params![room, start.map(WSnowflake), end.map(WSnowflake)])?;
+    }
+
+    Ok(())
+}
+
+impl Request for AddMsg {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
+        let tx = conn.transaction()?;
+
+        let end = self.msg.id;
+        insert_msgs(&tx, &self.room, &self.own_user_id, vec![*self.msg])?;
+        add_span(&tx, &self.room, self.prev_msg_id, Some(end))?;
+
+        tx.commit()?;
+        Ok(())
+    }
+}
+
+impl Request for AddMsgs {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
+        let tx = conn.transaction()?;
+
+        if self.msgs.is_empty() {
+            add_span(&tx, &self.room, None, self.next_msg_id)?;
+        } else {
+            let first_msg_id = self.msgs.first().unwrap().id;
+            let last_msg_id = self.msgs.last().unwrap().id;
+
+            insert_msgs(&tx, &self.room, &self.own_user_id, self.msgs)?;
+
+            let end = self.next_msg_id.unwrap_or(last_msg_id);
+            add_span(&tx, &self.room, Some(first_msg_id), Some(end))?;
         }
 
         tx.commit()?;
         Ok(())
     }
+}
 
-    fn get_last_span(
-        conn: &Connection,
-        room: String,
-        result: oneshot::Sender<Option<(Option<Snowflake>, Option<Snowflake>)>>,
-    ) -> rusqlite::Result<()> {
+impl Request for GetLastSpan {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let span = conn
             .prepare(
                 "
@@ -895,23 +582,20 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row([room], |row| {
+            .query_row([self.room], |row| {
                 Ok((
                     row.get::<_, Option<WSnowflake>>(0)?.map(|s| s.0),
                     row.get::<_, Option<WSnowflake>>(1)?.map(|s| s.0),
                 ))
             })
             .optional()?;
-        let _ = result.send(span);
+        let _ = self.result.send(span);
         Ok(())
     }
+}
 
-    fn get_path(
-        conn: &Connection,
-        room: String,
-        id: Snowflake,
-        result: oneshot::Sender<Path<Snowflake>>,
-    ) -> rusqlite::Result<()> {
+impl Request for GetPath {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let path = conn
             .prepare(
                 "
@@ -929,21 +613,18 @@ impl EuphRequest {
                 ORDER BY id ASC
                 ",
             )?
-            .query_map(params![room, WSnowflake(id)], |row| {
+            .query_map(params![self.room, WSnowflake(self.id)], |row| {
                 row.get::<_, WSnowflake>(0).map(|s| s.0)
             })?
             .collect::<rusqlite::Result<_>>()?;
         let path = Path::new(path);
-        let _ = result.send(path);
+        let _ = self.result.send(path);
         Ok(())
     }
+}
 
-    fn get_msg(
-        conn: &Connection,
-        room: String,
-        id: Snowflake,
-        result: oneshot::Sender<Option<SmallMessage>>,
-    ) -> rusqlite::Result<()> {
+impl Request for GetMsg {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let msg = conn
             .query_row(
                 "
@@ -952,7 +633,7 @@ impl EuphRequest {
                 WHERE room = ?
                 AND id = ?
                 ",
-                params![room, WSnowflake(id)],
+                params![self.room, WSnowflake(self.id)],
                 |row| {
                     Ok(SmallMessage {
                         id: row.get::<_, WSnowflake>(0)?.0,
@@ -965,16 +646,13 @@ impl EuphRequest {
                 },
             )
             .optional()?;
-        let _ = result.send(msg);
+        let _ = self.result.send(msg);
         Ok(())
     }
+}
 
-    fn get_full_msg(
-        conn: &Connection,
-        room: String,
-        id: Snowflake,
-        result: oneshot::Sender<Option<Message>>,
-    ) -> rusqlite::Result<()> {
+impl Request for GetFullMsg {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let mut query = conn.prepare(
             "
             SELECT
@@ -987,7 +665,7 @@ impl EuphRequest {
         )?;
 
         let msg = query
-            .query_row(params![room, WSnowflake(id)], |row| {
+            .query_row(params![self.room, WSnowflake(self.id)], |row| {
                 Ok(Message {
                     id: row.get::<_, WSnowflake>(0)?.0,
                     parent: row.get::<_, Option<WSnowflake>>(1)?.map(|s| s.0),
@@ -1012,16 +690,13 @@ impl EuphRequest {
                 })
             })
             .optional()?;
-        let _ = result.send(msg);
+        let _ = self.result.send(msg);
         Ok(())
     }
+}
 
-    fn get_tree(
-        conn: &Connection,
-        room: String,
-        root: Snowflake,
-        result: oneshot::Sender<Tree<SmallMessage>>,
-    ) -> rusqlite::Result<()> {
+impl Request for GetTree {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let msgs = conn
             .prepare(
                 "
@@ -1041,7 +716,7 @@ impl EuphRequest {
                 ORDER BY id ASC
                 ",
             )?
-            .query_map(params![room, WSnowflake(root)], |row| {
+            .query_map(params![self.room, WSnowflake(self.root)], |row| {
                 Ok(SmallMessage {
                     id: row.get::<_, WSnowflake>(0)?.0,
                     parent: row.get::<_, Option<WSnowflake>>(1)?.map(|s| s.0),
@@ -1052,16 +727,14 @@ impl EuphRequest {
                 })
             })?
             .collect::<rusqlite::Result<_>>()?;
-        let tree = Tree::new(root, msgs);
-        let _ = result.send(tree);
+        let tree = Tree::new(self.root, msgs);
+        let _ = self.result.send(tree);
         Ok(())
     }
+}
 
-    fn get_first_tree_id(
-        conn: &Connection,
-        room: String,
-        result: oneshot::Sender<Option<Snowflake>>,
-    ) -> rusqlite::Result<()> {
+impl Request for GetFirstTreeId {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let tree = conn
             .prepare(
                 "
@@ -1072,17 +745,15 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row([room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
+            .query_row([self.room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
             .optional()?;
-        let _ = result.send(tree);
+        let _ = self.result.send(tree);
         Ok(())
     }
+}
 
-    fn get_last_tree_id(
-        conn: &Connection,
-        room: String,
-        result: oneshot::Sender<Option<Snowflake>>,
-    ) -> rusqlite::Result<()> {
+impl Request for GetLastTreeId {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let tree = conn
             .prepare(
                 "
@@ -1093,18 +764,15 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row([room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
+            .query_row([self.room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
             .optional()?;
-        let _ = result.send(tree);
+        let _ = self.result.send(tree);
         Ok(())
     }
+}
 
-    fn get_prev_tree_id(
-        conn: &Connection,
-        room: String,
-        root: Snowflake,
-        result: oneshot::Sender<Option<Snowflake>>,
-    ) -> rusqlite::Result<()> {
+impl Request for GetPrevTreeId {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let tree = conn
             .prepare(
                 "
@@ -1116,20 +784,17 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row(params![room, WSnowflake(root)], |row| {
+            .query_row(params![self.room, WSnowflake(self.root)], |row| {
                 row.get::<_, WSnowflake>(0).map(|s| s.0)
             })
             .optional()?;
-        let _ = result.send(tree);
+        let _ = self.result.send(tree);
         Ok(())
     }
+}
 
-    fn get_next_tree_id(
-        conn: &Connection,
-        room: String,
-        root: Snowflake,
-        result: oneshot::Sender<Option<Snowflake>>,
-    ) -> rusqlite::Result<()> {
+impl Request for GetNextTreeId {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let tree = conn
             .prepare(
                 "
@@ -1141,19 +806,17 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row(params![room, WSnowflake(root)], |row| {
+            .query_row(params![self.room, WSnowflake(self.root)], |row| {
                 row.get::<_, WSnowflake>(0).map(|s| s.0)
             })
             .optional()?;
-        let _ = result.send(tree);
+        let _ = self.result.send(tree);
         Ok(())
     }
+}
 
-    fn get_oldest_msg_id(
-        conn: &Connection,
-        room: String,
-        result: oneshot::Sender<Option<Snowflake>>,
-    ) -> rusqlite::Result<()> {
+impl Request for GetOldestMsgId {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let tree = conn
             .prepare(
                 "
@@ -1164,17 +827,15 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row([room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
+            .query_row([self.room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
             .optional()?;
-        let _ = result.send(tree);
+        let _ = self.result.send(tree);
         Ok(())
     }
+}
 
-    fn get_newest_msg_id(
-        conn: &Connection,
-        room: String,
-        result: oneshot::Sender<Option<Snowflake>>,
-    ) -> rusqlite::Result<()> {
+impl Request for GetNewestMsgId {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let tree = conn
             .prepare(
                 "
@@ -1185,18 +846,15 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row([room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
+            .query_row([self.room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
             .optional()?;
-        let _ = result.send(tree);
+        let _ = self.result.send(tree);
         Ok(())
     }
+}
 
-    fn get_older_msg_id(
-        conn: &Connection,
-        room: String,
-        id: Snowflake,
-        result: oneshot::Sender<Option<Snowflake>>,
-    ) -> rusqlite::Result<()> {
+impl Request for GetOlderMsgId {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let tree = conn
             .prepare(
                 "
@@ -1208,20 +866,16 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row(params![room, WSnowflake(id)], |row| {
+            .query_row(params![self.room, WSnowflake(self.id)], |row| {
                 row.get::<_, WSnowflake>(0).map(|s| s.0)
             })
             .optional()?;
-        let _ = result.send(tree);
+        let _ = self.result.send(tree);
         Ok(())
     }
-
-    fn get_newer_msg_id(
-        conn: &Connection,
-        room: String,
-        id: Snowflake,
-        result: oneshot::Sender<Option<Snowflake>>,
-    ) -> rusqlite::Result<()> {
+}
+impl Request for GetNewerMsgId {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let tree = conn
             .prepare(
                 "
@@ -1233,19 +887,17 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row(params![room, WSnowflake(id)], |row| {
+            .query_row(params![self.room, WSnowflake(self.id)], |row| {
                 row.get::<_, WSnowflake>(0).map(|s| s.0)
             })
             .optional()?;
-        let _ = result.send(tree);
+        let _ = self.result.send(tree);
         Ok(())
     }
+}
 
-    fn get_oldest_unseen_msg_id(
-        conn: &Connection,
-        room: String,
-        result: oneshot::Sender<Option<Snowflake>>,
-    ) -> rusqlite::Result<()> {
+impl Request for GetOldestUnseenMsgId {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let tree = conn
             .prepare(
                 "
@@ -1257,17 +909,15 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row([room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
+            .query_row([self.room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
             .optional()?;
-        let _ = result.send(tree);
+        let _ = self.result.send(tree);
         Ok(())
     }
+}
 
-    fn get_newest_unseen_msg_id(
-        conn: &Connection,
-        room: String,
-        result: oneshot::Sender<Option<Snowflake>>,
-    ) -> rusqlite::Result<()> {
+impl Request for GetNewestUnseenMsgId {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let tree = conn
             .prepare(
                 "
@@ -1279,18 +929,15 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row([room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
+            .query_row([self.room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
             .optional()?;
-        let _ = result.send(tree);
+        let _ = self.result.send(tree);
         Ok(())
     }
+}
 
-    fn get_older_unseen_msg_id(
-        conn: &Connection,
-        room: String,
-        id: Snowflake,
-        result: oneshot::Sender<Option<Snowflake>>,
-    ) -> rusqlite::Result<()> {
+impl Request for GetOlderUnseenMsgId {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let tree = conn
             .prepare(
                 "
@@ -1303,20 +950,17 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row(params![room, WSnowflake(id)], |row| {
+            .query_row(params![self.room, WSnowflake(self.id)], |row| {
                 row.get::<_, WSnowflake>(0).map(|s| s.0)
             })
             .optional()?;
-        let _ = result.send(tree);
+        let _ = self.result.send(tree);
         Ok(())
     }
+}
 
-    fn get_newer_unseen_msg_id(
-        conn: &Connection,
-        room: String,
-        id: Snowflake,
-        result: oneshot::Sender<Option<Snowflake>>,
-    ) -> rusqlite::Result<()> {
+impl Request for GetNewerUnseenMsgId {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let tree = conn
             .prepare(
                 "
@@ -1329,19 +973,17 @@ impl EuphRequest {
                 LIMIT 1
                 ",
             )?
-            .query_row(params![room, WSnowflake(id)], |row| {
+            .query_row(params![self.room, WSnowflake(self.id)], |row| {
                 row.get::<_, WSnowflake>(0).map(|s| s.0)
             })
             .optional()?;
-        let _ = result.send(tree);
+        let _ = self.result.send(tree);
         Ok(())
     }
+}
 
-    fn get_unseen_msgs_count(
-        conn: &Connection,
-        room: String,
-        result: oneshot::Sender<usize>,
-    ) -> rusqlite::Result<()> {
+impl Request for GetUnseenMsgsCount {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let amount = conn
             .prepare(
                 "
@@ -1350,19 +992,16 @@ impl EuphRequest {
                 WHERE room = ?
                 ",
             )?
-            .query_row(params![room], |row| row.get(0))
+            .query_row(params![self.room], |row| row.get(0))
             .optional()?
             .unwrap_or(0);
-        let _ = result.send(amount);
+        let _ = self.result.send(amount);
         Ok(())
     }
+}
 
-    fn set_seen(
-        conn: &Connection,
-        room: String,
-        id: Snowflake,
-        seen: bool,
-    ) -> rusqlite::Result<()> {
+impl Request for SetSeen {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         conn.execute(
             "
             UPDATE euph_msgs
@@ -1370,17 +1009,14 @@ impl EuphRequest {
             WHERE room = :room
             AND id = :id
             ",
-            named_params! { ":room": room, ":id": WSnowflake(id), ":seen": seen },
+            named_params! { ":room": self.room, ":id": WSnowflake(self.id), ":seen": self.seen },
         )?;
         Ok(())
     }
+}
 
-    fn set_older_seen(
-        conn: &Connection,
-        room: String,
-        id: Snowflake,
-        seen: bool,
-    ) -> rusqlite::Result<()> {
+impl Request for SetOlderSeen {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         conn.execute(
             "
             UPDATE euph_msgs
@@ -1389,18 +1025,14 @@ impl EuphRequest {
             AND id <= :id
             AND seen != :seen
             ",
-            named_params! { ":room": room, ":id": WSnowflake(id), ":seen": seen },
+            named_params! { ":room": self.room, ":id": WSnowflake(self.id), ":seen": self.seen },
         )?;
         Ok(())
     }
+}
 
-    fn get_chunk_at_offset(
-        conn: &Connection,
-        room: String,
-        amount: usize,
-        offset: usize,
-        result: oneshot::Sender<Vec<Message>>,
-    ) -> rusqlite::Result<()> {
+impl Request for GetChunkAtOffset {
+    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let mut query = conn.prepare(
             "
             SELECT
@@ -1415,7 +1047,7 @@ impl EuphRequest {
         )?;
 
         let messages = query
-            .query_map(params![room, amount, offset], |row| {
+            .query_map(params![self.room, self.amount, self.offset], |row| {
                 Ok(Message {
                     id: row.get::<_, WSnowflake>(0)?.0,
                     parent: row.get::<_, Option<WSnowflake>>(1)?.map(|s| s.0),
@@ -1440,7 +1072,7 @@ impl EuphRequest {
                 })
             })?
             .collect::<rusqlite::Result<_>>()?;
-        let _ = result.send(messages);
+        let _ = self.result.send(messages);
         Ok(())
     }
 }

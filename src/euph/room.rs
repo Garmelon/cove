@@ -160,7 +160,7 @@ impl State {
             }
         }
 
-        vault.set_euph_cookies(cookie_jar);
+        vault.euph_set_cookies(cookie_jar);
     }
 
     async fn connect(vault: &EuphVault, name: &str) -> anyhow::Result<Option<(ConnTx, ConnRx)>> {
