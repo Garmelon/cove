@@ -32,6 +32,7 @@ use clap::Parser;
 use cookie::CookieJar;
 use directories::{BaseDirs, ProjectDirs};
 use log::info;
+use tokio::sync::mpsc;
 use toss::terminal::Terminal;
 use ui::Ui;
 use vault::Vault;
@@ -117,6 +118,8 @@ fn set_offline(config: &mut Config, args_offline: bool) {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let (logger, logger_guard, logger_rx) = Logger::init(log::Level::Debug);
+
     let args = Args::parse();
     let dirs = ProjectDirs::from("de", "plugh", "cove").expect("unable to determine directories");
 
@@ -142,7 +145,7 @@ async fn main() -> anyhow::Result<()> {
     };
 
     match args.command.unwrap_or_default() {
-        Command::Run => run(config, &vault, args.measure_widths).await?,
+        Command::Run => run(logger, logger_rx, config, &vault, args.measure_widths).await?,
         Command::Export(args) => export::export(&vault.euph(), args).await?,
         Command::Gc => {
             println!("Cleaning up and compacting vault");
@@ -157,12 +160,22 @@ async fn main() -> anyhow::Result<()> {
 
     vault.close().await;
 
+    // Print all logged errors. This should always happen, even if cove panics,
+    // because the errors may be key in diagnosing what happened. Because of
+    // this, it is not implemented via a normal function call.
+    drop(logger_guard);
+
     println!("Goodbye!");
     Ok(())
 }
 
-async fn run(config: &'static Config, vault: &Vault, measure_widths: bool) -> anyhow::Result<()> {
-    let (logger, logger_rx) = Logger::init(log::Level::Debug);
+async fn run(
+    logger: Logger,
+    logger_rx: mpsc::UnboundedReceiver<()>,
+    config: &'static Config,
+    vault: &Vault,
+    measure_widths: bool,
+) -> anyhow::Result<()> {
     info!(
         "Welcome to {} {}",
         env!("CARGO_PKG_NAME"),
@@ -172,7 +185,7 @@ async fn run(config: &'static Config, vault: &Vault, measure_widths: bool) -> an
     let mut terminal = Terminal::new()?;
     terminal.set_measuring(measure_widths);
     Ui::run(config, &mut terminal, vault.clone(), logger, logger_rx).await?;
-    drop(terminal); // So the vault can print again
+    drop(terminal); // So other things can print again
 
     Ok(())
 }

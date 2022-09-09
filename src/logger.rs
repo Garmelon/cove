@@ -67,6 +67,30 @@ impl ChatMsg for LogMsg {
     }
 }
 
+/// Prints all error messages when dropped.
+pub struct LoggerGuard {
+    messages: Arc<Mutex<Vec<LogMsg>>>,
+}
+
+impl Drop for LoggerGuard {
+    fn drop(&mut self) {
+        let guard = self.messages.lock();
+        let mut error_encountered = false;
+        for msg in &*guard {
+            if msg.level == Level::Error {
+                if !error_encountered {
+                    eprintln!();
+                    eprintln!("The following errors occurred while cove was running:");
+                    eprintln!();
+                }
+                error_encountered = true;
+                eprintln!("{}", msg.content);
+                eprintln!();
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Logger {
     event_tx: mpsc::UnboundedSender<()>,
@@ -178,16 +202,19 @@ impl Log for Logger {
 }
 
 impl Logger {
-    pub fn init(level: Level) -> (Self, mpsc::UnboundedReceiver<()>) {
+    pub fn init(level: Level) -> (Self, LoggerGuard, mpsc::UnboundedReceiver<()>) {
         let (event_tx, event_rx) = mpsc::unbounded_channel();
         let logger = Self {
             event_tx,
             messages: Arc::new(Mutex::new(Vec::new())),
         };
+        let guard = LoggerGuard {
+            messages: logger.messages.clone(),
+        };
 
         log::set_boxed_logger(Box::new(logger.clone())).expect("logger already set");
         log::set_max_level(level.to_level_filter());
 
-        (logger, event_rx)
+        (logger, guard, event_rx)
     }
 }
