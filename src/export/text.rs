@@ -7,27 +7,24 @@ use time::macros::format_description;
 use unicode_width::UnicodeWidthStr;
 
 use crate::euph::SmallMessage;
-use crate::store::{MsgStore, Tree};
-use crate::vault::Vault;
+use crate::store::Tree;
+use crate::vault::EuphRoomVault;
 
 const TIME_FORMAT: &[FormatItem<'_>] =
     format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
 const TIME_EMPTY: &str = "                   ";
 
 pub async fn export_to_file(
-    vault: &Vault,
-    room: String,
+    vault: &EuphRoomVault,
     file: &mut BufWriter<File>,
 ) -> anyhow::Result<()> {
-    let vault = vault.euph(room);
-
     let mut exported_trees = 0;
     let mut exported_msgs = 0;
     let mut tree_id = vault.first_tree_id().await;
     while let Some(some_tree_id) = tree_id {
-        let tree = vault.tree(&some_tree_id).await;
+        let tree = vault.tree(some_tree_id).await;
         write_tree(file, &tree, some_tree_id, 0)?;
-        tree_id = vault.next_tree_id(&some_tree_id).await;
+        tree_id = vault.next_tree_id(some_tree_id).await;
 
         exported_trees += 1;
         exported_msgs += tree.len();

@@ -82,7 +82,7 @@ impl Rooms {
         self.euph_rooms.entry(name.clone()).or_insert_with(|| {
             EuphRoom::new(
                 self.config.euph_room(&name),
-                self.vault.euph(name),
+                self.vault.euph().room(name),
                 self.ui_event_tx.clone(),
             )
         })
@@ -97,7 +97,8 @@ impl Rooms {
     async fn stabilize_rooms(&mut self) {
         let mut rooms_set = self
             .vault
-            .euph_rooms()
+            .euph()
+            .rooms()
             .await
             .into_iter()
             .collect::<HashSet<_>>();
@@ -484,7 +485,7 @@ impl Rooms {
                 key!(Esc) => self.state = State::ShowList,
                 key!(Enter) if editor.text() == *name => {
                     self.euph_rooms.remove(name);
-                    self.vault.euph(name.clone()).delete();
+                    self.vault.euph().room(name.clone()).delete();
                     self.state = State::ShowList;
                 }
                 _ => {

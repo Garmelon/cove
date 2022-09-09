@@ -9,7 +9,7 @@ use rusqlite::Connection;
 use tokio::sync::{mpsc, oneshot};
 
 use self::euph::EuphRequest;
-pub use self::euph::EuphVault;
+pub use self::euph::{EuphRoomVault, EuphVault};
 
 enum Request {
     Close(oneshot::Sender<()>),
@@ -40,11 +40,8 @@ impl Vault {
         let _ = rx.await;
     }
 
-    pub fn euph(&self, room: String) -> EuphVault {
-        EuphVault {
-            vault: self.clone(),
-            room,
-        }
+    pub fn euph(&self) -> EuphVault {
+        EuphVault::new(self.clone())
     }
 }
 

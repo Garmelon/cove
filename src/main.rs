@@ -143,7 +143,7 @@ async fn main() -> anyhow::Result<()> {
 
     match args.command.unwrap_or_default() {
         Command::Run => run(config, &vault, args.measure_widths).await?,
-        Command::Export(args) => export::export(&vault, args).await?,
+        Command::Export(args) => export::export(&vault.euph(), args).await?,
         Command::Gc => {
             println!("Cleaning up and compacting vault");
             println!("This may take a while...");
@@ -151,7 +151,7 @@ async fn main() -> anyhow::Result<()> {
         }
         Command::ClearCookies => {
             println!("Clearing cookies");
-            vault.euph_set_cookies(CookieJar::new());
+            vault.euph().set_cookies(CookieJar::new());
         }
     }
 

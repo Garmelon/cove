@@ -6,7 +6,7 @@ mod text;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
-use crate::vault::Vault;
+use crate::vault::EuphVault;
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
 pub enum Format {
@@ -60,13 +60,13 @@ pub struct Args {
     out: String,
 }
 
-pub async fn export(vault: &Vault, mut args: Args) -> anyhow::Result<()> {
+pub async fn export(vault: &EuphVault, mut args: Args) -> anyhow::Result<()> {
     if args.out.ends_with('/') {
         args.out.push_str("%r.%e");
     }
 
     let rooms = if args.all {
-        let mut rooms = vault.euph_rooms().await;
+        let mut rooms = vault.rooms().await;
         rooms.sort_unstable();
         rooms
     } else {
@@ -83,10 +83,11 @@ pub async fn export(vault: &Vault, mut args: Args) -> anyhow::Result<()> {
         let out = format_out(&args.out, &room, args.format);
         println!("Exporting &{room} as {} to {out}", args.format.name());
 
+        let vault = vault.room(room);
         let mut file = BufWriter::new(File::create(out)?);
         match args.format {
-            Format::Text => text::export_to_file(vault, room, &mut file).await?,
-            Format::Json => json::export_to_file(vault, room, &mut file).await?,
+            Format::Text => text::export_to_file(&vault, &mut file).await?,
+            Format::Json => json::export_to_file(&vault, &mut file).await?,
         }
         file.flush()?;
     }

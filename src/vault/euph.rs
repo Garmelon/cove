@@ -54,146 +54,114 @@ impl From<EuphRequest> for super::Request {
 
 #[derive(Debug, Clone)]
 pub struct EuphVault {
-    pub(super) vault: super::Vault,
-    pub(super) room: String,
+    vault: super::Vault,
 }
 
 impl EuphVault {
+    pub(crate) fn new(vault: super::Vault) -> Self {
+        Self { vault }
+    }
+
     pub fn vault(&self) -> &super::Vault {
+        &self.vault
+    }
+
+    pub fn room(&self, name: String) -> EuphRoomVault {
+        EuphRoomVault {
+            vault: self.clone(),
+            room: name,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct EuphRoomVault {
+    vault: EuphVault,
+    room: String,
+}
+
+impl EuphRoomVault {
+    pub fn vault(&self) -> &EuphVault {
         &self.vault
     }
 
     pub fn room(&self) -> &str {
         &self.room
     }
-
-    pub fn join(&self, time: Time) {
-        self.vault.euph_join(self.room.clone(), time);
-    }
-
-    pub fn delete(self) {
-        self.vault.euph_delete(self.room.clone());
-    }
-
-    pub fn add_message(
-        &self,
-        msg: Message,
-        prev_msg_id: Option<Snowflake>,
-        own_user_id: Option<UserId>,
-    ) {
-        self.vault
-            .euph_add_msg(self.room.clone(), Box::new(msg), prev_msg_id, own_user_id);
-    }
-
-    pub fn add_messages(
-        &self,
-        msgs: Vec<Message>,
-        next_msg_id: Option<Snowflake>,
-        own_user_id: Option<UserId>,
-    ) {
-        self.vault
-            .euph_add_msgs(self.room.clone(), msgs, next_msg_id, own_user_id);
-    }
-
-    pub async fn last_span(&self) -> Option<(Option<Snowflake>, Option<Snowflake>)> {
-        self.vault.euph_last_span(self.room.clone()).await
-    }
-
-    pub async fn full_msg(&self, id: Snowflake) -> Option<Message> {
-        self.vault.euph_full_msg(self.room.clone(), id).await
-    }
-
-    pub async fn chunk_at_offset(&self, amount: usize, offset: usize) -> Vec<Message> {
-        self.vault
-            .euph_chunk_at_offset(self.room.clone(), amount, offset)
-            .await
-    }
 }
 
 #[async_trait]
-impl MsgStore<SmallMessage> for EuphVault {
+impl MsgStore<SmallMessage> for EuphRoomVault {
     async fn path(&self, id: &Snowflake) -> Path<Snowflake> {
-        self.vault.euph_path(self.room.clone(), *id).await
+        self.path(*id).await
     }
 
     async fn msg(&self, id: &Snowflake) -> Option<SmallMessage> {
-        self.vault.euph_msg(self.room.clone(), *id).await
+        self.msg(*id).await
     }
 
     async fn tree(&self, tree_id: &Snowflake) -> Tree<SmallMessage> {
-        self.vault.euph_tree(self.room.clone(), *tree_id).await
+        self.tree(*tree_id).await
     }
 
     async fn first_tree_id(&self) -> Option<Snowflake> {
-        self.vault.euph_first_tree_id(self.room.clone()).await
+        self.first_tree_id().await
     }
 
     async fn last_tree_id(&self) -> Option<Snowflake> {
-        self.vault.euph_last_tree_id(self.room.clone()).await
+        self.last_tree_id().await
     }
 
     async fn prev_tree_id(&self, tree_id: &Snowflake) -> Option<Snowflake> {
-        self.vault
-            .euph_prev_tree_id(self.room.clone(), *tree_id)
-            .await
+        self.prev_tree_id(*tree_id).await
     }
 
     async fn next_tree_id(&self, tree_id: &Snowflake) -> Option<Snowflake> {
-        self.vault
-            .euph_next_tree_id(self.room.clone(), *tree_id)
-            .await
+        self.next_tree_id(*tree_id).await
     }
 
     async fn oldest_msg_id(&self) -> Option<Snowflake> {
-        self.vault.euph_oldest_msg_id(self.room.clone()).await
+        self.oldest_msg_id().await
     }
 
     async fn newest_msg_id(&self) -> Option<Snowflake> {
-        self.vault.euph_newest_msg_id(self.room.clone()).await
+        self.newest_msg_id().await
     }
 
     async fn older_msg_id(&self, id: &Snowflake) -> Option<Snowflake> {
-        self.vault.euph_older_msg_id(self.room.clone(), *id).await
+        self.older_msg_id(*id).await
     }
 
     async fn newer_msg_id(&self, id: &Snowflake) -> Option<Snowflake> {
-        self.vault.euph_newer_msg_id(self.room.clone(), *id).await
+        self.newer_msg_id(*id).await
     }
 
     async fn oldest_unseen_msg_id(&self) -> Option<Snowflake> {
-        self.vault
-            .euph_oldest_unseen_msg_id(self.room.clone())
-            .await
+        self.oldest_unseen_msg_id().await
     }
 
     async fn newest_unseen_msg_id(&self) -> Option<Snowflake> {
-        self.vault
-            .euph_newest_unseen_msg_id(self.room.clone())
-            .await
+        self.newest_unseen_msg_id().await
     }
 
     async fn older_unseen_msg_id(&self, id: &Snowflake) -> Option<Snowflake> {
-        self.vault
-            .euph_older_unseen_msg_id(self.room.clone(), *id)
-            .await
+        self.older_unseen_msg_id(*id).await
     }
 
     async fn newer_unseen_msg_id(&self, id: &Snowflake) -> Option<Snowflake> {
-        self.vault
-            .euph_newer_unseen_msg_id(self.room.clone(), *id)
-            .await
+        self.newer_unseen_msg_id(*id).await
     }
 
     async fn unseen_msgs_count(&self) -> usize {
-        self.vault.euph_unseen_msgs_count(self.room.clone()).await
+        self.unseen_msgs_count().await
     }
 
     async fn set_seen(&self, id: &Snowflake, seen: bool) {
-        self.vault.euph_set_seen(self.room.clone(), *id, seen);
+        self.set_seen(*id, seen);
     }
 
     async fn set_older_seen(&self, id: &Snowflake, seen: bool) {
-        self.vault.euph_set_older_seen(self.room.clone(), *id, seen);
+        self.set_older_seen(*id, seen);
     }
 }
 
@@ -201,29 +169,47 @@ trait Request {
     fn perform(self, conn: &mut Connection) -> rusqlite::Result<()>;
 }
 
-macro_rules! requests_helper {
+macro_rules! requests_vault_fn {
     ( $var:ident : $fn:ident( $( $arg:ident : $ty:ty ),* ) ) => {
-        pub fn $fn(&self, $( $arg: $ty ),* ) {
+        pub fn $fn(&self $( , $arg: $ty )* ) {
             let request = EuphRequest::$var($var { $( $arg, )* });
-            let _ = self.tx.send(request.into());
+            let _ = self.vault.tx.send(request.into());
         }
     };
     ( $var:ident : $fn:ident( $( $arg:ident : $ty:ty ),* ) -> $res:ty ) => {
-        pub async fn $fn(&self, $( $arg: $ty ),* ) -> $res {
+        pub async fn $fn(&self $( , $arg: $ty )* ) -> $res {
             let (tx, rx) = oneshot::channel();
             let request = EuphRequest::$var($var {
                 $( $arg, )*
                 result: tx,
             });
-            let _ = self.tx.send(request.into());
+            let _ = self.vault.tx.send(request.into());
             rx.await.unwrap()
         }
     };
 }
 
+// This doesn't match the type of the `room` argument because that's apparently
+// impossible to match to `String`. See also the readme of
+// https://github.com/danielhenrymantilla/rust-defile for a description of this
+// phenomenon and some examples.
+macro_rules! requests_room_vault_fn {
+    ( $fn:ident ( room: $mustbestring:ty $( , $arg:ident : $ty:ty )* ) ) => {
+        pub fn $fn(&self $( , $arg: $ty )* ) {
+            self.vault.$fn(self.room.clone() $( , $arg )* );
+        }
+    };
+    ( $fn:ident ( room: $mustbestring:ty $( , $arg:ident : $ty:ty )* ) -> $res:ty ) => {
+        pub async fn $fn(&self $( , $arg: $ty )* ) -> $res {
+            self.vault.$fn(self.room.clone() $( , $arg )* ).await
+        }
+    };
+    ( $( $tt:tt )* ) => { };
+}
+
 macro_rules! requests {
     ( $(
-        $var:ident : $fn:ident( $( $arg:ident : $ty:ty ),* ) $( -> $res:ty )? ;
+        $var:ident : $fn:ident ( $( $arg:ident : $ty:ty ),* ) $( -> $res:ty )? ;
     )* ) => {
         $(
             pub(super) struct $var {
@@ -245,46 +231,51 @@ macro_rules! requests {
             }
         }
 
-        impl super::Vault {
-            $( requests_helper!($var : $fn( $( $arg: $ty ),* ) $( -> $res )? );)*
+        impl EuphVault {
+            $( requests_vault_fn!($var : $fn( $( $arg: $ty ),* ) $( -> $res )? ); )*
+        }
+
+        impl EuphRoomVault {
+            $( requests_room_vault_fn!($fn( $( $arg: $ty ),* ) $( -> $res )? ); )*
         }
     };
 }
 
+// TODO Rename `root` to `root_id` or `tree_id`
 requests! {
     // Cookies
-    GetCookies : euph_cookies() -> CookieJar;
-    SetCookies : euph_set_cookies(cookies: CookieJar);
+    GetCookies : cookies() -> CookieJar;
+    SetCookies : set_cookies(cookies: CookieJar);
 
     // Rooms
-    GetRooms : euph_rooms() -> Vec<String>;
-    Join : euph_join(room: String, time: Time);
-    Delete : euph_delete(room: String);
+    GetRooms : rooms() -> Vec<String>;
+    Join : join(room: String, time: Time);
+    Delete : delete(room: String);
 
     // Message
-    AddMsg : euph_add_msg(room: String, msg: Box<Message>, prev_msg_id: Option<Snowflake>, own_user_id: Option<UserId>);
-    AddMsgs : euph_add_msgs(room: String, msgs: Vec<Message>, next_msg_id: Option<Snowflake>, own_user_id: Option<UserId>);
-    GetLastSpan : euph_last_span(room: String) -> Option<(Option<Snowflake>, Option<Snowflake>)>;
-    GetPath : euph_path(room: String, id: Snowflake) -> Path<Snowflake>;
-    GetMsg : euph_msg(room: String, id: Snowflake) -> Option<SmallMessage>;
-    GetFullMsg : euph_full_msg(room: String, id: Snowflake) -> Option<Message>;
-    GetTree : euph_tree(room: String, root: Snowflake) -> Tree<SmallMessage>;
-    GetFirstTreeId : euph_first_tree_id(room: String) -> Option<Snowflake>;
-    GetLastTreeId : euph_last_tree_id(room: String) -> Option<Snowflake>;
-    GetPrevTreeId : euph_prev_tree_id(room: String, root: Snowflake) -> Option<Snowflake>;
-    GetNextTreeId : euph_next_tree_id(room: String, root: Snowflake) -> Option<Snowflake>;
-    GetOldestMsgId : euph_oldest_msg_id(room: String) -> Option<Snowflake>;
-    GetNewestMsgId : euph_newest_msg_id(room: String) -> Option<Snowflake>;
-    GetOlderMsgId : euph_older_msg_id(room: String, id: Snowflake) -> Option<Snowflake>;
-    GetNewerMsgId : euph_newer_msg_id(room: String, id: Snowflake) -> Option<Snowflake>;
-    GetOldestUnseenMsgId : euph_oldest_unseen_msg_id(room: String) -> Option<Snowflake>;
-    GetNewestUnseenMsgId : euph_newest_unseen_msg_id(room: String) -> Option<Snowflake>;
-    GetOlderUnseenMsgId : euph_older_unseen_msg_id(room: String, id: Snowflake) -> Option<Snowflake>;
-    GetNewerUnseenMsgId : euph_newer_unseen_msg_id(room: String, id: Snowflake) -> Option<Snowflake>;
-    GetUnseenMsgsCount : euph_unseen_msgs_count(room: String) -> usize;
-    SetSeen : euph_set_seen(room: String, id: Snowflake, seen: bool);
-    SetOlderSeen : euph_set_older_seen(room: String, id: Snowflake, seen: bool);
-    GetChunkAtOffset : euph_chunk_at_offset(room: String, amount: usize, offset: usize) -> Vec<Message>;
+    AddMsg : add_msg(room: String, msg: Box<Message>, prev_msg_id: Option<Snowflake>, own_user_id: Option<UserId>);
+    AddMsgs : add_msgs(room: String, msgs: Vec<Message>, next_msg_id: Option<Snowflake>, own_user_id: Option<UserId>);
+    GetLastSpan : last_span(room: String) -> Option<(Option<Snowflake>, Option<Snowflake>)>;
+    GetPath : path(room: String, id: Snowflake) -> Path<Snowflake>;
+    GetMsg : msg(room: String, id: Snowflake) -> Option<SmallMessage>;
+    GetFullMsg : full_msg(room: String, id: Snowflake) -> Option<Message>;
+    GetTree : tree(room: String, root: Snowflake) -> Tree<SmallMessage>;
+    GetFirstTreeId : first_tree_id(room: String) -> Option<Snowflake>;
+    GetLastTreeId : last_tree_id(room: String) -> Option<Snowflake>;
+    GetPrevTreeId : prev_tree_id(room: String, root: Snowflake) -> Option<Snowflake>;
+    GetNextTreeId : next_tree_id(room: String, root: Snowflake) -> Option<Snowflake>;
+    GetOldestMsgId : oldest_msg_id(room: String) -> Option<Snowflake>;
+    GetNewestMsgId : newest_msg_id(room: String) -> Option<Snowflake>;
+    GetOlderMsgId : older_msg_id(room: String, id: Snowflake) -> Option<Snowflake>;
+    GetNewerMsgId : newer_msg_id(room: String, id: Snowflake) -> Option<Snowflake>;
+    GetOldestUnseenMsgId : oldest_unseen_msg_id(room: String) -> Option<Snowflake>;
+    GetNewestUnseenMsgId : newest_unseen_msg_id(room: String) -> Option<Snowflake>;
+    GetOlderUnseenMsgId : older_unseen_msg_id(room: String, id: Snowflake) -> Option<Snowflake>;
+    GetNewerUnseenMsgId : newer_unseen_msg_id(room: String, id: Snowflake) -> Option<Snowflake>;
+    GetUnseenMsgsCount : unseen_msgs_count(room: String) -> usize;
+    SetSeen : set_seen(room: String, id: Snowflake, seen: bool);
+    SetOlderSeen : set_older_seen(room: String, id: Snowflake, seen: bool);
+    GetChunkAtOffset : chunk_at_offset(room: String, amount: usize, offset: usize) -> Vec<Message>;
 }
 
 impl Request for GetCookies {

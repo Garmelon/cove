@@ -13,7 +13,6 @@ use toss::terminal::Terminal;
 use crate::config;
 use crate::euph::{self, EuphRoomEvent};
 use crate::macros::{ok_or_return, some_or_return};
-use crate::store::MsgStore;
 use crate::ui::chat::{ChatState, Reaction};
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
 use crate::ui::widgets::border::Border;
@@ -25,7 +24,7 @@ use crate::ui::widgets::padding::Padding;
 use crate::ui::widgets::text::Text;
 use crate::ui::widgets::BoxedWidget;
 use crate::ui::UiEvent;
-use crate::vault::EuphVault;
+use crate::vault::EuphRoomVault;
 
 use super::account::{self, AccountUiState};
 use super::links::{self, LinksState};
@@ -65,13 +64,13 @@ pub struct EuphRoom {
 
     ui_event_tx: mpsc::UnboundedSender<UiEvent>,
 
-    vault: EuphVault,
+    vault: EuphRoomVault,
     room: Option<euph::Room>,
 
     state: State,
     popups: VecDeque<RoomPopup>,
 
-    chat: ChatState<euph::SmallMessage, EuphVault>,
+    chat: ChatState<euph::SmallMessage, EuphRoomVault>,
     last_msg_sent: Option<oneshot::Receiver<Snowflake>>,
 
     nick_list: ListState<String>,
@@ -80,7 +79,7 @@ pub struct EuphRoom {
 impl EuphRoom {
     pub fn new(
         config: config::EuphRoom,
-        vault: EuphVault,
+        vault: EuphRoomVault,
         ui_event_tx: mpsc::UnboundedSender<UiEvent>,
     ) -> Self {
         Self {
@@ -368,7 +367,7 @@ impl EuphRoom {
                 }
                 key!('I') => {
                     if let Some(id) = self.chat.cursor().await {
-                        if let Some(msg) = self.vault.msg(&id).await {
+                        if let Some(msg) = self.vault.msg(id).await {
                             self.state = State::Links(LinksState::new(&msg.content));
                         }
                     }
@@ -415,7 +414,7 @@ impl EuphRoom {
 
             if let key!('I') = event {
                 if let Some(id) = self.chat.cursor().await {
-                    if let Some(msg) = self.vault.msg(&id).await {
+                    if let Some(msg) = self.vault.msg(id).await {
                         self.state = State::Links(LinksState::new(&msg.content));
                     }
                 }

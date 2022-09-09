@@ -20,7 +20,7 @@ use tokio_tungstenite::tungstenite::handshake::client::Response;
 use tokio_tungstenite::tungstenite::http::{header, HeaderValue};
 
 use crate::macros::ok_or_return;
-use crate::vault::{EuphVault, Vault};
+use crate::vault::{EuphRoomVault, EuphVault};
 
 const TIMEOUT: Duration = Duration::from_secs(30);
 const RECONNECT_INTERVAL: Duration = Duration::from_secs(5);
@@ -61,7 +61,7 @@ struct State {
     username: Option<String>,
     force_username: bool,
     password: Option<String>,
-    vault: EuphVault,
+    vault: EuphRoomVault,
 
     conn_tx: Option<ConnTx>,
     /// `None` before any `snapshot-event`, then either `Some(None)` or
@@ -107,7 +107,7 @@ impl State {
     }
 
     async fn reconnect(
-        vault: &EuphVault,
+        vault: &EuphRoomVault,
         name: &str,
         event_tx: &mpsc::UnboundedSender<Event>,
     ) -> anyhow::Result<()> {
@@ -140,8 +140,8 @@ impl State {
         }
     }
 
-    async fn get_cookies(vault: &Vault) -> String {
-        let cookie_jar = vault.euph_cookies().await;
+    async fn get_cookies(vault: &EuphVault) -> String {
+        let cookie_jar = vault.cookies().await;
         let cookies = cookie_jar
             .iter()
             .map(|c| format!("{}", c.stripped()))
@@ -149,7 +149,7 @@ impl State {
         cookies.join("; ")
     }
 
-    fn update_cookies(vault: &Vault, response: &Response) {
+    fn update_cookies(vault: &EuphVault, response: &Response) {
         let mut cookie_jar = CookieJar::new();
 
         for (name, value) in response.headers() {
@@ -160,10 +160,13 @@ impl State {
             }
         }
 
-        vault.euph_set_cookies(cookie_jar);
+        vault.set_cookies(cookie_jar);
     }
 
-    async fn connect(vault: &EuphVault, name: &str) -> anyhow::Result<Option<(ConnTx, ConnRx)>> {
+    async fn connect(
+        vault: &EuphRoomVault,
+        name: &str,
+    ) -> anyhow::Result<Option<(ConnTx, ConnRx)>> {
         let uri = format!("wss://euphoria.io/room/{name}/ws?h=1");
         let mut request = uri.into_client_request().expect("valid request");
         let cookies = Self::get_cookies(vault.vault()).await;
@@ -304,7 +307,7 @@ impl State {
                 if let Some(last_msg_id) = &mut self.last_msg_id {
                     let id = d.0.id;
                     self.vault
-                        .add_message(d.0.clone(), *last_msg_id, own_user_id);
+                        .add_msg(Box::new(d.0.clone()), *last_msg_id, own_user_id);
                     *last_msg_id = Some(id);
                 } else {
                     bail!("send event before snapshot event");
@@ -315,7 +318,7 @@ impl State {
                 self.vault.join(Time::now());
                 self.last_msg_id = Some(d.log.last().map(|m| m.id));
                 let own_user_id = self.own_user_id().await;
-                self.vault.add_messages(d.log.clone(), None, own_user_id);
+                self.vault.add_msgs(d.log.clone(), None, own_user_id);
 
                 if let Some(username) = &self.username {
                     if self.force_username || d.nick.is_none() {
@@ -325,15 +328,14 @@ impl State {
             }
             Data::LogReply(d) => {
                 let own_user_id = self.own_user_id().await;
-                self.vault
-                    .add_messages(d.log.clone(), d.before, own_user_id);
+                self.vault.add_msgs(d.log.clone(), d.before, own_user_id);
             }
             Data::SendReply(d) => {
                 let own_user_id = self.own_user_id().await;
                 if let Some(last_msg_id) = &mut self.last_msg_id {
                     let id = d.0.id;
                     self.vault
-                        .add_message(d.0.clone(), *last_msg_id, own_user_id);
+                        .add_msg(Box::new(d.0.clone()), *last_msg_id, own_user_id);
                     *last_msg_id = Some(id);
                 } else {
                     bail!("send reply before snapshot event");
@@ -378,7 +380,7 @@ impl State {
         }
     }
 
-    async fn request_logs(vault: EuphVault, conn_tx: ConnTx) -> anyhow::Result<()> {
+    async fn request_logs(vault: EuphRoomVault, conn_tx: ConnTx) -> anyhow::Result<()> {
         let before = match vault.last_span().await {
             Some((None, _)) => return Ok(()), // Already at top of room history
             Some((Some(before), _)) => Some(before),
@@ -457,7 +459,7 @@ pub struct Room {
 
 impl Room {
     pub fn new(
-        vault: EuphVault,
+        vault: EuphRoomVault,
         username: Option<String>,
         force_username: bool,
         password: Option<String>,
@@ -465,7 +467,7 @@ impl Room {
         let (canary_tx, canary_rx) = oneshot::channel();
         let (event_tx, event_rx) = mpsc::unbounded_channel();
         let (euph_room_event_tx, euph_room_event_rx) = mpsc::unbounded_channel();
-        let ephemeral = vault.vault().ephemeral();
+        let ephemeral = vault.vault().vault().ephemeral();
 
         let state = State {
             name: vault.room().to_string(),

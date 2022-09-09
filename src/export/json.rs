@@ -1,17 +1,14 @@
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
-use crate::vault::Vault;
+use crate::vault::EuphRoomVault;
 
 const CHUNK_SIZE: usize = 10000;
 
 pub async fn export_to_file(
-    vault: &Vault,
-    room: String,
+    vault: &EuphRoomVault,
     file: &mut BufWriter<File>,
 ) -> anyhow::Result<()> {
-    let vault = vault.euph(room);
-
     write!(file, "[")?;
 
     let mut total = 0;
