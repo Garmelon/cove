@@ -181,15 +181,15 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
 
         while blocks.blocks().top_line > top_line {
             let top_root = blocks.top_root();
-            let prev_tree_id = match top_root {
-                Root::Bottom => self.store.last_tree_id().await,
-                Root::Tree(tree_id) => self.store.prev_tree_id(tree_id).await,
+            let prev_root_id = match top_root {
+                Root::Bottom => self.store.last_root_id().await,
+                Root::Tree(root_id) => self.store.prev_root_id(root_id).await,
             };
-            let prev_tree_id = match prev_tree_id {
-                Some(tree_id) => tree_id,
+            let prev_root_id = match prev_root_id {
+                Some(id) => id,
                 None => break,
             };
-            let prev_tree = self.store.tree(&prev_tree_id).await;
+            let prev_tree = self.store.tree(&prev_root_id).await;
             blocks.prepend(self.layout_tree(nick, frame, prev_tree));
         }
     }
@@ -204,12 +204,12 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
 
         while blocks.blocks().bottom_line < bottom_line {
             let bottom_root = blocks.bottom_root();
-            let next_tree_id = match bottom_root {
+            let next_root_id = match bottom_root {
                 Root::Bottom => break,
-                Root::Tree(tree_id) => self.store.next_tree_id(tree_id).await,
+                Root::Tree(root_id) => self.store.next_root_id(root_id).await,
             };
-            if let Some(next_tree_id) = next_tree_id {
-                let next_tree = self.store.tree(&next_tree_id).await;
+            if let Some(next_root_id) = next_root_id {
+                let next_tree = self.store.tree(&next_root_id).await;
                 blocks.append(self.layout_tree(nick, frame, next_tree));
             } else {
                 blocks.append(self.layout_bottom(nick, frame));

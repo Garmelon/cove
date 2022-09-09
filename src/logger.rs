@@ -83,48 +83,48 @@ impl MsgStore<LogMsg> for Logger {
         self.messages.lock().get(*id).cloned()
     }
 
-    async fn tree(&self, tree_id: &usize) -> Tree<LogMsg> {
+    async fn tree(&self, root_id: &usize) -> Tree<LogMsg> {
         let msgs = self
             .messages
             .lock()
-            .get(*tree_id)
+            .get(*root_id)
             .map(|msg| vec![msg.clone()])
             .unwrap_or_default();
-        Tree::new(*tree_id, msgs)
+        Tree::new(*root_id, msgs)
     }
 
-    async fn first_tree_id(&self) -> Option<usize> {
+    async fn first_root_id(&self) -> Option<usize> {
         let empty = self.messages.lock().is_empty();
         Some(0).filter(|_| !empty)
     }
 
-    async fn last_tree_id(&self) -> Option<usize> {
+    async fn last_root_id(&self) -> Option<usize> {
         self.messages.lock().len().checked_sub(1)
     }
 
-    async fn prev_tree_id(&self, tree_id: &usize) -> Option<usize> {
-        tree_id.checked_sub(1)
+    async fn prev_root_id(&self, root_id: &usize) -> Option<usize> {
+        root_id.checked_sub(1)
     }
 
-    async fn next_tree_id(&self, tree_id: &usize) -> Option<usize> {
+    async fn next_root_id(&self, root_id: &usize) -> Option<usize> {
         let len = self.messages.lock().len();
-        tree_id.checked_add(1).filter(|t| *t < len)
+        root_id.checked_add(1).filter(|t| *t < len)
     }
 
     async fn oldest_msg_id(&self) -> Option<usize> {
-        self.first_tree_id().await
+        self.first_root_id().await
     }
 
     async fn newest_msg_id(&self) -> Option<usize> {
-        self.last_tree_id().await
+        self.last_root_id().await
     }
 
     async fn older_msg_id(&self, id: &usize) -> Option<usize> {
-        self.prev_tree_id(id).await
+        self.prev_root_id(id).await
     }
 
     async fn newer_msg_id(&self, id: &usize) -> Option<usize> {
-        self.next_tree_id(id).await
+        self.next_root_id(id).await
     }
 
     async fn oldest_unseen_msg_id(&self) -> Option<usize> {

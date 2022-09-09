@@ -134,11 +134,11 @@ impl<M: Msg> Tree<M> {
 pub trait MsgStore<M: Msg> {
     async fn path(&self, id: &M::Id) -> Path<M::Id>;
     async fn msg(&self, id: &M::Id) -> Option<M>;
-    async fn tree(&self, tree_id: &M::Id) -> Tree<M>;
-    async fn first_tree_id(&self) -> Option<M::Id>;
-    async fn last_tree_id(&self) -> Option<M::Id>;
-    async fn prev_tree_id(&self, tree_id: &M::Id) -> Option<M::Id>;
-    async fn next_tree_id(&self, tree_id: &M::Id) -> Option<M::Id>;
+    async fn tree(&self, root_id: &M::Id) -> Tree<M>;
+    async fn first_root_id(&self) -> Option<M::Id>;
+    async fn last_root_id(&self) -> Option<M::Id>;
+    async fn prev_root_id(&self, root_id: &M::Id) -> Option<M::Id>;
+    async fn next_root_id(&self, root_id: &M::Id) -> Option<M::Id>;
     async fn oldest_msg_id(&self) -> Option<M::Id>;
     async fn newest_msg_id(&self) -> Option<M::Id>;
     async fn older_msg_id(&self, id: &M::Id) -> Option<M::Id>;

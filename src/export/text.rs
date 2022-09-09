@@ -20,11 +20,11 @@ pub async fn export_to_file(
 ) -> anyhow::Result<()> {
     let mut exported_trees = 0;
     let mut exported_msgs = 0;
-    let mut tree_id = vault.first_tree_id().await;
-    while let Some(some_tree_id) = tree_id {
-        let tree = vault.tree(some_tree_id).await;
-        write_tree(file, &tree, some_tree_id, 0)?;
-        tree_id = vault.next_tree_id(some_tree_id).await;
+    let mut root_id = vault.first_root_id().await;
+    while let Some(some_root_id) = root_id {
+        let tree = vault.tree(some_root_id).await;
+        write_tree(file, &tree, some_root_id, 0)?;
+        root_id = vault.next_root_id(some_root_id).await;
 
         exported_trees += 1;
         exported_msgs += tree.len();

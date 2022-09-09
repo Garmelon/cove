@@ -100,24 +100,24 @@ impl MsgStore<SmallMessage> for EuphRoomVault {
         self.msg(*id).await
     }
 
-    async fn tree(&self, tree_id: &Snowflake) -> Tree<SmallMessage> {
-        self.tree(*tree_id).await
+    async fn tree(&self, root_id: &Snowflake) -> Tree<SmallMessage> {
+        self.tree(*root_id).await
     }
 
-    async fn first_tree_id(&self) -> Option<Snowflake> {
-        self.first_tree_id().await
+    async fn first_root_id(&self) -> Option<Snowflake> {
+        self.first_root_id().await
     }
 
-    async fn last_tree_id(&self) -> Option<Snowflake> {
-        self.last_tree_id().await
+    async fn last_root_id(&self) -> Option<Snowflake> {
+        self.last_root_id().await
     }
 
-    async fn prev_tree_id(&self, tree_id: &Snowflake) -> Option<Snowflake> {
-        self.prev_tree_id(*tree_id).await
+    async fn prev_root_id(&self, root_id: &Snowflake) -> Option<Snowflake> {
+        self.prev_root_id(*root_id).await
     }
 
-    async fn next_tree_id(&self, tree_id: &Snowflake) -> Option<Snowflake> {
-        self.next_tree_id(*tree_id).await
+    async fn next_root_id(&self, root_id: &Snowflake) -> Option<Snowflake> {
+        self.next_root_id(*root_id).await
     }
 
     async fn oldest_msg_id(&self) -> Option<Snowflake> {
@@ -241,7 +241,6 @@ macro_rules! requests {
     };
 }
 
-// TODO Rename `root` to `root_id` or `tree_id`
 requests! {
     // Cookies
     GetCookies : cookies() -> CookieJar;
@@ -259,11 +258,11 @@ requests! {
     GetPath : path(room: String, id: Snowflake) -> Path<Snowflake>;
     GetMsg : msg(room: String, id: Snowflake) -> Option<SmallMessage>;
     GetFullMsg : full_msg(room: String, id: Snowflake) -> Option<Message>;
-    GetTree : tree(room: String, root: Snowflake) -> Tree<SmallMessage>;
-    GetFirstTreeId : first_tree_id(room: String) -> Option<Snowflake>;
-    GetLastTreeId : last_tree_id(room: String) -> Option<Snowflake>;
-    GetPrevTreeId : prev_tree_id(room: String, root: Snowflake) -> Option<Snowflake>;
-    GetNextTreeId : next_tree_id(room: String, root: Snowflake) -> Option<Snowflake>;
+    GetTree : tree(room: String, root_id: Snowflake) -> Tree<SmallMessage>;
+    GetFirstRootId : first_root_id(room: String) -> Option<Snowflake>;
+    GetLastRootId : last_root_id(room: String) -> Option<Snowflake>;
+    GetPrevRootId : prev_root_id(room: String, root_id: Snowflake) -> Option<Snowflake>;
+    GetNextRootId : next_root_id(room: String, root_id: Snowflake) -> Option<Snowflake>;
     GetOldestMsgId : oldest_msg_id(room: String) -> Option<Snowflake>;
     GetNewestMsgId : newest_msg_id(room: String) -> Option<Snowflake>;
     GetOlderMsgId : older_msg_id(room: String, id: Snowflake) -> Option<Snowflake>;
@@ -707,7 +706,7 @@ impl Request for GetTree {
                 ORDER BY id ASC
                 ",
             )?
-            .query_map(params![self.room, WSnowflake(self.root)], |row| {
+            .query_map(params![self.room, WSnowflake(self.root_id)], |row| {
                 Ok(SmallMessage {
                     id: row.get::<_, WSnowflake>(0)?.0,
                     parent: row.get::<_, Option<WSnowflake>>(1)?.map(|s| s.0),
@@ -718,13 +717,13 @@ impl Request for GetTree {
                 })
             })?
             .collect::<rusqlite::Result<_>>()?;
-        let tree = Tree::new(self.root, msgs);
+        let tree = Tree::new(self.root_id, msgs);
         let _ = self.result.send(tree);
         Ok(())
     }
 }
 
-impl Request for GetFirstTreeId {
+impl Request for GetFirstRootId {
     fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let tree = conn
             .prepare(
@@ -743,7 +742,7 @@ impl Request for GetFirstTreeId {
     }
 }
 
-impl Request for GetLastTreeId {
+impl Request for GetLastRootId {
     fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let tree = conn
             .prepare(
@@ -762,7 +761,7 @@ impl Request for GetLastTreeId {
     }
 }
 
-impl Request for GetPrevTreeId {
+impl Request for GetPrevRootId {
     fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let tree = conn
             .prepare(
@@ -775,7 +774,7 @@ impl Request for GetPrevTreeId {
                 LIMIT 1
                 ",
             )?
-            .query_row(params![self.room, WSnowflake(self.root)], |row| {
+            .query_row(params![self.room, WSnowflake(self.root_id)], |row| {
                 row.get::<_, WSnowflake>(0).map(|s| s.0)
             })
             .optional()?;
@@ -784,7 +783,7 @@ impl Request for GetPrevTreeId {
     }
 }
 
-impl Request for GetNextTreeId {
+impl Request for GetNextRootId {
     fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
         let tree = conn
             .prepare(
@@ -797,7 +796,7 @@ impl Request for GetNextTreeId {
                 LIMIT 1
                 ",
             )?
-            .query_row(params![self.room, WSnowflake(self.root)], |row| {
+            .query_row(params![self.room, WSnowflake(self.root_id)], |row| {
                 row.get::<_, WSnowflake>(0).map(|s| s.0)
             })
             .optional()?;
