@@ -217,11 +217,10 @@ macro_rules! requests {
         }
 
         impl EuphRequest {
-            pub(super) fn perform(self, conn: &mut Connection) {
-                // TODO Handle this result
-                let _ = match self {
+            pub(super) fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
+                match self {
                     $( Self::$var(request) => request.perform(conn), )*
-                };
+                }
             }
         }
 

@@ -5,6 +5,7 @@ mod prepare;
 use std::path::Path;
 use std::{fs, thread};
 
+use log::error;
 use rusqlite::Connection;
 use tokio::sync::{mpsc, oneshot};
 
@@ -50,7 +51,9 @@ fn run(mut conn: Connection, mut rx: mpsc::UnboundedReceiver<Request>) {
         match request {
             Request::Close(tx) => {
                 println!("Closing vault");
-                let _ = conn.execute_batch("PRAGMA optimize");
+                if let Err(e) = conn.execute_batch("PRAGMA optimize") {
+                    error!("{e}");
+                }
                 // Ensure `Vault::close` exits only after the sqlite connection
                 // has been closed properly.
                 drop(conn);
@@ -58,10 +61,16 @@ fn run(mut conn: Connection, mut rx: mpsc::UnboundedReceiver<Request>) {
                 break;
             }
             Request::Gc(tx) => {
-                let _ = conn.execute_batch("ANALYZE; VACUUM;");
+                if let Err(e) = conn.execute_batch("ANALYZE; VACUUM;") {
+                    error!("{e}");
+                }
                 drop(tx);
             }
-            Request::Euph(r) => r.perform(&mut conn),
+            Request::Euph(r) => {
+                if let Err(e) = r.perform(&mut conn) {
+                    error!("{e}");
+                }
+            }
         }
     }
 }
