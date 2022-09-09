@@ -485,7 +485,7 @@ impl Rooms {
                 key!(Esc) => self.state = State::ShowList,
                 key!(Enter) if editor.text() == *name => {
                     self.euph_rooms.remove(name);
-                    self.vault.euph().room(name.clone()).delete();
+                    self.vault.euph().delete(name.clone());
                     self.state = State::ShowList;
                 }
                 _ => {

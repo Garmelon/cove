@@ -224,10 +224,12 @@ macro_rules! requests {
             }
         }
 
+        #[allow(dead_code)]
         impl EuphVault {
             $( requests_vault_fn!($var : $fn( $( $arg: $ty ),* ) $( -> $res )? ); )*
         }
 
+        #[allow(dead_code)]
         impl EuphRoomVault {
             $( requests_room_vault_fn!($fn( $( $arg: $ty ),* ) $( -> $res )? ); )*
         }
