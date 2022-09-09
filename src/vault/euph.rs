@@ -46,12 +46,6 @@ impl FromSql for WTime {
     }
 }
 
-impl From<EuphRequest> for super::Request {
-    fn from(r: EuphRequest) -> Self {
-        Self::Euph(r)
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct EuphVault {
     vault: super::Vault,
@@ -173,7 +167,7 @@ macro_rules! requests_vault_fn {
     ( $var:ident : $fn:ident( $( $arg:ident : $ty:ty ),* ) ) => {
         pub fn $fn(&self $( , $arg: $ty )* ) {
             let request = EuphRequest::$var($var { $( $arg, )* });
-            let _ = self.vault.tx.send(request.into());
+            let _ = self.vault.tx.send(super::Request::Euph(request));
         }
     };
     ( $var:ident : $fn:ident( $( $arg:ident : $ty:ty ),* ) -> $res:ty ) => {
@@ -183,7 +177,7 @@ macro_rules! requests_vault_fn {
                 $( $arg, )*
                 result: tx,
             });
-            let _ = self.vault.tx.send(request.into());
+            let _ = self.vault.tx.send(super::Request::Euph(request));
             rx.await.unwrap()
         }
     };
@@ -359,18 +353,13 @@ impl Request for Join {
 
 impl Request for Delete {
     fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
-        // TODO Clean up
-        let tx = conn.transaction()?;
-
-        tx.execute(
+        conn.execute(
             "
             DELETE FROM euph_rooms
             WHERE room = ?
             ",
             [&self.room],
         )?;
-
-        tx.commit()?;
         Ok(())
     }
 }
