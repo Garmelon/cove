@@ -125,7 +125,7 @@ Whether to automatically join this room on startup.
 ### `euph.rooms.<room>.username`
 
 **Type:** String  
-**Default:** Not st
+**Default:** Not set
 
 If set, cove will set this username upon joining if there is no username
 associated with the current session.
@@ -142,7 +142,7 @@ session.
 ### `euph.rooms.<room>.password`
 
 **Type:** String  
-**Default:** Not st
+**Default:** Not set
 
 If set, cove will try once to use this password to authenticate, should the room
 be password-protected.
