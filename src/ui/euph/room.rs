@@ -298,6 +298,33 @@ impl EuphRoom {
         Text::new(info).into()
     }
 
+    fn list_inspect_initiating_key_bindings(&self, bindings: &mut KeyBindingsList) {
+        bindings.binding("i", "inspect message");
+        bindings.binding("I", "show message links");
+    }
+
+    async fn handle_inspect_initiating_input_event(&mut self, event: &InputEvent) -> bool {
+        match event {
+            key!('i') => {
+                if let Some(id) = self.chat.cursor().await {
+                    if let Some(msg) = self.vault.full_msg(id).await {
+                        self.state = State::InspectMessage(msg);
+                    }
+                }
+                true
+            }
+            key!('I') => {
+                if let Some(id) = self.chat.cursor().await {
+                    if let Some(msg) = self.vault.msg(id).await {
+                        self.state = State::Links(LinksState::new(&msg.content));
+                    }
+                }
+                true
+            }
+            _ => false,
+        }
+    }
+
     pub async fn list_normal_key_bindings(&self, bindings: &mut KeyBindingsList) {
         bindings.binding("esc", "leave room");
 
@@ -321,8 +348,7 @@ impl EuphRoom {
             false
         };
 
-        bindings.binding("i", "inspect message");
-        bindings.binding("I", "show message links");
+        self.list_inspect_initiating_key_bindings(bindings);
 
         bindings.empty();
         self.chat.list_key_bindings(bindings, can_compose).await;
@@ -356,24 +382,8 @@ impl EuphRoom {
                 }
             }
 
-            match event {
-                key!('i') => {
-                    if let Some(id) = self.chat.cursor().await {
-                        if let Some(msg) = self.vault.full_msg(id).await {
-                            self.state = State::InspectMessage(msg);
-                        }
-                    }
-                    return true;
-                }
-                key!('I') => {
-                    if let Some(id) = self.chat.cursor().await {
-                        if let Some(msg) = self.vault.msg(id).await {
-                            self.state = State::Links(LinksState::new(&msg.content));
-                        }
-                    }
-                    return true;
-                }
-                _ => {}
+            if self.handle_inspect_initiating_input_event(event).await {
+                return true;
             }
 
             match status.ok().flatten() {
@@ -412,12 +422,7 @@ impl EuphRoom {
                 return true;
             }
 
-            if let key!('I') = event {
-                if let Some(id) = self.chat.cursor().await {
-                    if let Some(msg) = self.vault.msg(id).await {
-                        self.state = State::Links(LinksState::new(&msg.content));
-                    }
-                }
+            if self.handle_inspect_initiating_input_event(event).await {
                 return true;
             }
 
