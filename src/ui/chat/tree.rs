@@ -370,10 +370,11 @@ impl<M: Msg, S: MsgStore<M>> TreeViewState<M, S> {
         Self(Arc::new(Mutex::new(InnerTreeViewState::new(store))))
     }
 
-    pub fn widget(&self, nick: String) -> TreeView<M, S> {
+    pub fn widget(&self, nick: String, focused: bool) -> TreeView<M, S> {
         TreeView {
             inner: self.0.clone(),
             nick,
+            focused,
         }
     }
 
@@ -411,6 +412,7 @@ impl<M: Msg, S: MsgStore<M>> TreeViewState<M, S> {
 pub struct TreeView<M: Msg, S: MsgStore<M>> {
     inner: Arc<Mutex<InnerTreeViewState<M, S>>>,
     nick: String,
+    focused: bool,
 }
 
 #[async_trait]
@@ -426,7 +428,7 @@ where
 
     async fn render(self: Box<Self>, frame: &mut Frame) {
         let mut guard = self.inner.lock().await;
-        let blocks = guard.relayout(&self.nick, frame).await;
+        let blocks = guard.relayout(self.nick, self.focused, frame).await;
 
         let size = frame.size();
         for block in blocks.into_blocks().blocks {
