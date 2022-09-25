@@ -1,5 +1,5 @@
-use std::iter;
 use std::sync::Arc;
+use std::{io, iter};
 
 use async_trait::async_trait;
 use crossterm::style::{ContentStyle, Stylize};
@@ -404,15 +404,30 @@ impl EditorState {
         self.0.lock().move_cursor_down(frame);
     }
 
-    pub fn edit_externally(&self, terminal: &mut Terminal, crossterm_lock: &Arc<FairMutex<()>>) {
+    pub fn edit_externally(
+        &self,
+        terminal: &mut Terminal,
+        crossterm_lock: &Arc<FairMutex<()>>,
+    ) -> io::Result<()> {
         let mut guard = self.0.lock();
-        if let Some(text) = util::prompt(terminal, crossterm_lock, &guard.text) {
-            if let Some(text) = text.strip_suffix('\n') {
-                guard.set_text(terminal.frame(), text.to_string());
-            } else {
-                guard.set_text(terminal.frame(), text);
-            }
+        let text = util::prompt(terminal, crossterm_lock, &guard.text)?;
+
+        if text.trim().is_empty() {
+            // The user likely wanted to abort the edit and has deleted the
+            // entire text (bar whitespace left over by some editors).
+            return Ok(());
         }
+
+        if let Some(text) = text.strip_suffix('\n') {
+            // Some editors like vim add a trailing newline that would look out
+            // of place in cove's editor. To intentionally add a trailing
+            // newline, simply add two in-editor.
+            guard.set_text(terminal.frame(), text.to_string());
+        } else {
+            guard.set_text(terminal.frame(), text);
+        }
+
+        Ok(())
     }
 }
 

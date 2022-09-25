@@ -1,6 +1,3 @@
-use std::sync::Arc;
-
-use parking_lot::FairMutex;
 use toss::terminal::Terminal;
 
 use crate::euph::Room;
@@ -23,7 +20,7 @@ pub fn widget(editor: &EditorState) -> BoxedWidget {
 pub fn list_key_bindings(bindings: &mut KeyBindingsList) {
     bindings.binding("esc", "abort");
     bindings.binding("enter", "authenticate");
-    util::list_editor_key_bindings(bindings, |_| true, false);
+    util::list_editor_key_bindings(bindings, |_| true);
 }
 
 pub enum EventResult {
@@ -34,7 +31,6 @@ pub enum EventResult {
 
 pub fn handle_input_event(
     terminal: &mut Terminal,
-    crossterm_lock: &Arc<FairMutex<()>>,
     event: &InputEvent,
     room: &Option<Room>,
     editor: &EditorState,
@@ -48,14 +44,7 @@ pub fn handle_input_event(
             EventResult::ResetState
         }
         _ => {
-            if util::handle_editor_input_event(
-                editor,
-                terminal,
-                crossterm_lock,
-                event,
-                |_| true,
-                false,
-            ) {
+            if util::handle_editor_input_event(editor, terminal, event, |_| true) {
                 EventResult::Handled
             } else {
                 EventResult::NotHandled

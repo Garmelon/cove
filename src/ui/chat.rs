@@ -5,6 +5,7 @@
 mod blocks;
 mod tree;
 
+use std::io;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -79,6 +80,7 @@ pub enum Reaction<M: Msg> {
         parent: Option<M::Id>,
         content: String,
     },
+    ComposeError(io::Error),
 }
 
 impl<M: Msg> Reaction<M> {

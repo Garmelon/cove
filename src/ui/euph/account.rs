@@ -1,9 +1,6 @@
-use std::sync::Arc;
-
 use crossterm::style::{ContentStyle, Stylize};
 use euphoxide::api::PersonalAccountView;
 use euphoxide::conn::Status;
-use parking_lot::FairMutex;
 use toss::terminal::Terminal;
 
 use crate::euph::Room;
@@ -133,7 +130,7 @@ impl AccountUiState {
                     Focus::Password => bindings.binding("enter", "log in"),
                 }
                 bindings.binding("tab", "switch focus");
-                util::list_editor_key_bindings(bindings, |c| c != '\n', false);
+                util::list_editor_key_bindings(bindings, |c| c != '\n');
             }
             Self::LoggedIn(_) => bindings.binding("L", "log out"),
         }
@@ -142,7 +139,6 @@ impl AccountUiState {
     pub fn handle_input_event(
         &mut self,
         terminal: &mut Terminal,
-        crossterm_lock: &Arc<FairMutex<()>>,
         event: &InputEvent,
         room: &Option<Room>,
     ) -> EventResult {
@@ -170,10 +166,8 @@ impl AccountUiState {
                         if util::handle_editor_input_event(
                             &logged_out.email,
                             terminal,
-                            crossterm_lock,
                             event,
                             |c| c != '\n',
-                            false,
                         ) {
                             EventResult::Handled
                         } else {
@@ -192,10 +186,8 @@ impl AccountUiState {
                         if util::handle_editor_input_event(
                             &logged_out.password,
                             terminal,
-                            crossterm_lock,
                             event,
                             |c| c != '\n',
-                            false,
                         ) {
                             EventResult::Handled
                         } else {

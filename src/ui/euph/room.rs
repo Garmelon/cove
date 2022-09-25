@@ -380,6 +380,13 @@ impl EuphRoom {
                     }
                     return true;
                 }
+                Reaction::ComposeError(e) => {
+                    self.popups.push_front(RoomPopup::Error {
+                        description: "Failed to use external editor".to_string(),
+                        reason: format!("{e}"),
+                    });
+                    return true;
+                }
             }
 
             if self.handle_inspect_initiating_input_event(event).await {
@@ -470,8 +477,7 @@ impl EuphRoom {
                     .await
             }
             State::Auth(editor) => {
-                match auth::handle_input_event(terminal, crossterm_lock, event, &self.room, editor)
-                {
+                match auth::handle_input_event(terminal, event, &self.room, editor) {
                     auth::EventResult::NotHandled => false,
                     auth::EventResult::Handled => true,
                     auth::EventResult::ResetState => {
@@ -481,8 +487,7 @@ impl EuphRoom {
                 }
             }
             State::Nick(editor) => {
-                match nick::handle_input_event(terminal, crossterm_lock, event, &self.room, editor)
-                {
+                match nick::handle_input_event(terminal, event, &self.room, editor) {
                     nick::EventResult::NotHandled => false,
                     nick::EventResult::Handled => true,
                     nick::EventResult::ResetState => {
@@ -492,7 +497,7 @@ impl EuphRoom {
                 }
             }
             State::Account(account) => {
-                match account.handle_input_event(terminal, crossterm_lock, event, &self.room) {
+                match account.handle_input_event(terminal, event, &self.room) {
                     account::EventResult::NotHandled => false,
                     account::EventResult::Handled => true,
                     account::EventResult::ResetState => {

@@ -225,7 +225,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     fn list_editor_key_bindings(&self, bindings: &mut KeyBindingsList) {
         bindings.binding("esc", "close editor");
         bindings.binding("enter", "send message");
-        util::list_editor_key_bindings(bindings, |_| true, true);
+        util::list_editor_key_bindings_allowing_external_editing(bindings, |_| true);
     }
 
     fn handle_editor_input_event(
@@ -256,16 +256,17 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             }
 
             _ => {
-                let handled = util::handle_editor_input_event(
+                let handled = util::handle_editor_input_event_allowing_external_editing(
                     &self.editor,
                     terminal,
                     crossterm_lock,
                     event,
                     |_| true,
-                    true,
                 );
-                if !handled {
-                    return Reaction::NotHandled;
+                match handled {
+                    Ok(true) => {}
+                    Ok(false) => return Reaction::NotHandled,
+                    Err(e) => return Reaction::ComposeError(e),
                 }
             }
         }

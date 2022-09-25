@@ -1,7 +1,4 @@
-use std::sync::Arc;
-
 use euphoxide::conn::Joined;
-use parking_lot::FairMutex;
 use toss::styled::Styled;
 use toss::terminal::Terminal;
 
@@ -34,7 +31,7 @@ fn nick_char(c: char) -> bool {
 pub fn list_key_bindings(bindings: &mut KeyBindingsList) {
     bindings.binding("esc", "abort");
     bindings.binding("enter", "set nick");
-    util::list_editor_key_bindings(bindings, nick_char, false);
+    util::list_editor_key_bindings(bindings, nick_char);
 }
 
 pub enum EventResult {
@@ -45,7 +42,6 @@ pub enum EventResult {
 
 pub fn handle_input_event(
     terminal: &mut Terminal,
-    crossterm_lock: &Arc<FairMutex<()>>,
     event: &InputEvent,
     room: &Option<Room>,
     editor: &EditorState,
@@ -59,14 +55,7 @@ pub fn handle_input_event(
             EventResult::ResetState
         }
         _ => {
-            if util::handle_editor_input_event(
-                editor,
-                terminal,
-                crossterm_lock,
-                event,
-                nick_char,
-                false,
-            ) {
+            if util::handle_editor_input_event(editor, terminal, event, nick_char) {
                 EventResult::Handled
             } else {
                 EventResult::NotHandled

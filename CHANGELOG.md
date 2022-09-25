@@ -17,6 +17,7 @@ Procedure when bumping the version number:
 ### Added
 - Room deletion confirmation popup
 - Message inspection popup
+- Error popup when external editor fails
 
 ### Fixed
 - Cursor being visible through popups

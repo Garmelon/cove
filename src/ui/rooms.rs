@@ -352,13 +352,13 @@ impl Rooms {
                 bindings.heading("Rooms");
                 bindings.binding("esc", "abort");
                 bindings.binding("enter", "connect to room");
-                util::list_editor_key_bindings(bindings, Self::room_char, false);
+                util::list_editor_key_bindings(bindings, Self::room_char);
             }
             State::Delete(_, _) => {
                 bindings.heading("Rooms");
                 bindings.binding("esc", "abort");
                 bindings.binding("enter", "delete room");
-                util::list_editor_key_bindings(bindings, Self::room_char, false);
+                util::list_editor_key_bindings(bindings, Self::room_char);
             }
         }
     }
@@ -470,16 +470,7 @@ impl Rooms {
                         self.state = State::ShowRoom(name);
                     }
                 }
-                _ => {
-                    return util::handle_editor_input_event(
-                        ed,
-                        terminal,
-                        crossterm_lock,
-                        event,
-                        Self::room_char,
-                        false,
-                    )
-                }
+                _ => return util::handle_editor_input_event(ed, terminal, event, Self::room_char),
             },
             State::Delete(name, editor) => match event {
                 key!(Esc) => self.state = State::ShowList,
@@ -492,10 +483,8 @@ impl Rooms {
                     return util::handle_editor_input_event(
                         editor,
                         terminal,
-                        crossterm_lock,
                         event,
                         Self::room_char,
-                        false,
                     )
                 }
             },
