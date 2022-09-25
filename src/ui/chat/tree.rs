@@ -160,9 +160,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
     }
 
     pub fn list_edit_initiating_key_bindings(&self, bindings: &mut KeyBindingsList) {
-        bindings.empty();
-        bindings.binding("r", "reply to message");
-        bindings.binding_ctd("(inline if possible, otherwise directly)");
+        bindings.binding("r", "reply to message (inline if possible, else directly)");
         bindings.binding("R", "reply to message (opposite of R)");
         bindings.binding("t", "start a new thread");
     }
@@ -197,8 +195,10 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
 
     pub fn list_normal_key_bindings(&self, bindings: &mut KeyBindingsList, can_compose: bool) {
         self.list_movement_key_bindings(bindings);
+        bindings.empty();
         self.list_action_key_bindings(bindings);
         if can_compose {
+            bindings.empty();
             self.list_edit_initiating_key_bindings(bindings);
         }
     }

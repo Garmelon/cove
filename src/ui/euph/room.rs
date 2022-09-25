@@ -497,7 +497,6 @@ impl EuphRoom {
 
     pub async fn list_normal_key_bindings(&self, bindings: &mut KeyBindingsList) {
         // Handled in rooms list, not here
-        // TODO Move to rooms list?
         bindings.binding("esc", "leave room");
 
         let status = self.status().await;
@@ -512,6 +511,8 @@ impl EuphRoom {
             }
             Focus::NickList => {
                 bindings.binding("tab", "focus on chat");
+                bindings.empty();
+                bindings.heading("Nick list");
                 self.list_nick_list_focus_key_bindings(bindings);
             }
         }
