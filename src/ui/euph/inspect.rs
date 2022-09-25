@@ -1,5 +1,5 @@
 use crossterm::style::{ContentStyle, Stylize};
-use euphoxide::api::Message;
+use euphoxide::api::{Message, SessionView};
 use toss::styled::Styled;
 
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
@@ -38,10 +38,32 @@ macro_rules! line {
     };
 }
 
-pub fn message_widget(msg: &Message) -> BoxedWidget {
-    let heading_style = ContentStyle::default().bold();
+fn session_lines(mut text: Styled, session: &SessionView) -> Styled {
+    line!(text, "id", session.id);
+    line!(text, "name", session.name);
+    line!(text, "name (raw)", session.name, debug);
+    line!(text, "server_id", session.server_id);
+    line!(text, "server_era", session.server_era);
+    line!(text, "session_id", session.session_id);
+    line!(text, "is_staff", session.is_staff, yes or no);
+    line!(text, "is_manager", session.is_manager, yes or no);
+    line!(
+        text,
+        "client_address",
+        session.client_address.as_ref(),
+        optional
+    );
+    line!(
+        text,
+        "real_client_address",
+        session.real_client_address.as_ref(),
+        optional
+    );
 
-    let mut text = Styled::new("Message", heading_style).then_plain("\n");
+    text
+}
+
+fn message_lines(mut text: Styled, msg: &Message) -> Styled {
     line!(text, "id", msg.id);
     line!(text, "parent", msg.parent, optional);
     line!(text, "previous_edit_id", msg.previous_edit_id, optional);
@@ -50,29 +72,29 @@ pub fn message_widget(msg: &Message) -> BoxedWidget {
     line!(text, "edited", msg.edited.map(|t| t.0), optional);
     line!(text, "deleted", msg.deleted.map(|t| t.0), optional);
     line!(text, "truncated", msg.truncated, yes or no);
-    text = text.then_plain("\n");
 
-    text = text.then("Sender", heading_style).then_plain("\n");
-    line!(text, "id", msg.sender.id);
-    line!(text, "name", msg.sender.name);
-    line!(text, "name (raw)", msg.sender.name, debug);
-    line!(text, "server_id", msg.sender.server_id);
-    line!(text, "server_era", msg.sender.server_era);
-    line!(text, "session_id", msg.sender.session_id);
-    line!(text, "is_staff", msg.sender.is_staff, yes or no);
-    line!(text, "is_manager", msg.sender.is_manager, yes or no);
-    line!(
-        text,
-        "client_address",
-        msg.sender.client_address.as_ref(),
-        optional
-    );
-    line!(
-        text,
-        "real_client_address",
-        msg.sender.real_client_address.as_ref(),
-        optional
-    );
+    text
+}
+
+pub fn session_widget(session: &SessionView) -> BoxedWidget {
+    let text = session_lines(Styled::default(), session);
+
+    Popup::new(Text::new(text)).title("Inspect session").build()
+}
+
+pub fn message_widget(msg: &Message) -> BoxedWidget {
+    let heading_style = ContentStyle::default().bold();
+
+    let mut text = Styled::new("Message", heading_style).then_plain("\n");
+
+    text = message_lines(text, msg);
+
+    text = text
+        .then_plain("\n")
+        .then("Sender", heading_style)
+        .then_plain("\n");
+
+    text = session_lines(text, &msg.sender);
 
     Popup::new(Text::new(text)).title("Inspect message").build()
 }

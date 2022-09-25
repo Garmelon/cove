@@ -1,7 +1,7 @@
 use std::iter;
 
 use crossterm::style::{Color, ContentStyle, Stylize};
-use euphoxide::api::{SessionType, SessionView};
+use euphoxide::api::{SessionType, SessionView, UserId};
 use euphoxide::conn::Joined;
 use toss::styled::Styled;
 
@@ -12,13 +12,13 @@ use crate::ui::widgets::list::{List, ListState};
 use crate::ui::widgets::text::Text;
 use crate::ui::widgets::BoxedWidget;
 
-pub fn widget(state: &ListState<String>, joined: &Joined, focused: bool) -> BoxedWidget {
+pub fn widget(state: &ListState<UserId>, joined: &Joined, focused: bool) -> BoxedWidget {
     let mut list = state.widget().focus(focused);
     render_rows(&mut list, joined);
     list.into()
 }
 
-fn render_rows(list: &mut List<String>, joined: &Joined) {
+fn render_rows(list: &mut List<UserId>, joined: &Joined) {
     let mut people = vec![];
     let mut bots = vec![];
     let mut lurkers = vec![];
@@ -49,7 +49,7 @@ fn render_rows(list: &mut List<String>, joined: &Joined) {
 }
 
 fn render_section(
-    list: &mut List<String>,
+    list: &mut List<UserId>,
     name: &str,
     sessions: &[&SessionView],
     own_session: &SessionView,
@@ -74,9 +74,7 @@ fn render_section(
     }
 }
 
-fn render_row(list: &mut List<String>, session: &SessionView, own_session: &SessionView) {
-    let id = session.session_id.clone();
-
+fn render_row(list: &mut List<UserId>, session: &SessionView, own_session: &SessionView) {
     let (name, style, style_inv, perms_style_inv) = if session.name.is_empty() {
         let name = "lurk";
         let style = ContentStyle::default().grey();
@@ -113,7 +111,7 @@ fn render_row(list: &mut List<String>, session: &SessionView, own_session: &Sess
         .then(name, style_inv)
         .then(perms, perms_style_inv);
     list.add_sel(
-        id,
+        session.id.clone(),
         Text::new(normal),
         Background::new(Text::new(selected)).style(style_inv),
     );

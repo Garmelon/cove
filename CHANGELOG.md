@@ -15,8 +15,10 @@ Procedure when bumping the version number:
 ## Unreleased
 
 ### Added
+- Key bindings to navigate nick list
 - Room deletion confirmation popup
 - Message inspection popup
+- Session inspection popup
 - Error popup when external editor fails
 
 ### Fixed

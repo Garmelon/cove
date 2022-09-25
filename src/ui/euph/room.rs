@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 
 use crossterm::style::{ContentStyle, Stylize};
-use euphoxide::api::{Data, Message, PacketType, Snowflake};
+use euphoxide::api::{Data, Message, PacketType, SessionView, Snowflake, UserId};
 use euphoxide::conn::{Joined, Joining, Status};
 use parking_lot::FairMutex;
 use tokio::sync::oneshot::error::TryRecvError;
@@ -45,7 +45,7 @@ enum State {
     Account(AccountUiState),
     Links(LinksState),
     InspectMessage(Message),
-    // TODO Inspect users
+    InspectSession(SessionView),
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -80,7 +80,7 @@ pub struct EuphRoom {
     chat: ChatState<euph::SmallMessage, EuphRoomVault>,
     last_msg_sent: Option<oneshot::Receiver<Snowflake>>,
 
-    nick_list: ListState<String>,
+    nick_list: ListState<UserId>,
 }
 
 impl EuphRoom {
@@ -243,6 +243,7 @@ impl EuphRoom {
             State::Account(account) => layers.push(account.widget()),
             State::Links(links) => layers.push(links.widget()),
             State::InspectMessage(message) => layers.push(inspect::message_widget(message)),
+            State::InspectSession(session) => layers.push(inspect::session_widget(session)),
         }
 
         for popup in &self.popups {
@@ -483,14 +484,32 @@ impl EuphRoom {
 
     fn list_nick_list_focus_key_bindings(&self, bindings: &mut KeyBindingsList) {
         util::list_list_key_bindings(bindings);
+
+        bindings.binding("i", "inspect session");
     }
 
-    fn handle_nick_list_focus_input_event(&mut self, event: &InputEvent) -> bool {
+    fn handle_nick_list_focus_input_event(
+        &mut self,
+        event: &InputEvent,
+        status: &RoomStatus,
+    ) -> bool {
         if util::handle_list_input_event(&mut self.nick_list, event) {
             return true;
         }
 
-        // TODO Inspect users
+        if let key!('i') = event {
+            if let RoomStatus::Connected(Status::Joined(joined)) = status {
+                // TODO Fix euphoxide to use session_id as hash
+                if let Some(id) = self.nick_list.cursor() {
+                    if id == joined.session.id {
+                        self.state = State::InspectSession(joined.session.clone());
+                    } else if let Some(session) = joined.listing.get(&id) {
+                        self.state = State::InspectSession(session.clone());
+                    }
+                }
+            }
+            return true;
+        }
 
         false
     }
@@ -550,7 +569,7 @@ impl EuphRoom {
                     return true;
                 }
 
-                if self.handle_nick_list_focus_input_event(event) {
+                if self.handle_nick_list_focus_input_event(event, &status) {
                     return true;
                 }
             }
@@ -573,7 +592,9 @@ impl EuphRoom {
             State::Nick(_) => nick::list_key_bindings(bindings),
             State::Account(account) => account.list_key_bindings(bindings),
             State::Links(links) => links.list_key_bindings(bindings),
-            State::InspectMessage(_) => inspect::list_key_bindings(bindings),
+            State::InspectMessage(_) | State::InspectSession(_) => {
+                inspect::list_key_bindings(bindings)
+            }
         }
     }
 
@@ -643,13 +664,15 @@ impl EuphRoom {
                     true
                 }
             },
-            State::InspectMessage(_) => match inspect::handle_input_event(event) {
-                inspect::EventResult::NotHandled => false,
-                inspect::EventResult::Close => {
-                    self.state = State::Normal;
-                    true
+            State::InspectMessage(_) | State::InspectSession(_) => {
+                match inspect::handle_input_event(event) {
+                    inspect::EventResult::NotHandled => false,
+                    inspect::EventResult::Close => {
+                        self.state = State::Normal;
+                        true
+                    }
                 }
-            },
+            }
         }
     }
 
