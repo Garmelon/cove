@@ -15,7 +15,6 @@
 #![warn(clippy::use_self)]
 
 // TODO Enable warn(unreachable_pub)?
-// TODO Clean up use and manipulation of toss Pos and Size
 // TODO Remove unnecessary Debug impls and compare compile times
 
 mod config;

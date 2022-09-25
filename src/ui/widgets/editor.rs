@@ -497,11 +497,7 @@ impl Editor {
 impl Widget for Editor {
     fn size(&self, frame: &mut Frame, max_width: Option<u16>, max_height: Option<u16>) -> Size {
         if let Some(placeholder) = &self.hidden {
-            let mut size = if self.text.text().is_empty() {
-                Size::new(1, 1)
-            } else {
-                placeholder.size(frame, max_width, max_height)
-            };
+            let mut size = placeholder.size(frame, max_width, max_height);
 
             // Cursor needs to fit regardless of focus
             size.width = size.width.max(1);
