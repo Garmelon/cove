@@ -13,8 +13,7 @@ use crate::ui::widgets::text::Text;
 use crate::ui::widgets::BoxedWidget;
 
 pub fn widget(state: &ListState<String>, joined: &Joined, focused: bool) -> BoxedWidget {
-    // TODO Handle focus
-    let mut list = state.widget();
+    let mut list = state.widget().focus(focused);
     render_rows(&mut list, joined);
     list.into()
 }
