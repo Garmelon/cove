@@ -1,3 +1,5 @@
+// TODO Reduce need to pass Terminal when only width db is needed
+
 mod chat;
 mod euph;
 mod input;

@@ -264,7 +264,6 @@ impl EuphRoom {
     }
 
     async fn status_widget(&self, status: &RoomStatus) -> BoxedWidget {
-        // TODO Include unread message count
         let room = self.chat.store().room();
         let room_style = ContentStyle::default().bold().blue();
         let mut info = Styled::new(format!("&{room}"), room_style);
