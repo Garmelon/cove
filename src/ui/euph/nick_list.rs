@@ -77,18 +77,19 @@ fn render_section(
 fn render_row(list: &mut List<String>, session: &SessionView, own_session: &SessionView) {
     let id = session.session_id.clone();
 
-    let (name, style, style_inv) = if session.name.is_empty() {
+    let (name, style, style_inv, perms_style_inv) = if session.name.is_empty() {
         let name = "lurk";
         let style = ContentStyle::default().grey();
         let style_inv = ContentStyle::default().black().on_grey();
-        (name, style, style_inv)
+        (name, style, style_inv, style_inv)
     } else {
         let name = &session.name as &str;
         let (r, g, b) = euph::nick_color(name);
         let color = Color::Rgb { r, g, b };
         let style = ContentStyle::default().bold().with(color);
         let style_inv = ContentStyle::default().bold().black().on(color);
-        (name, style, style_inv)
+        let perms_style_inv = ContentStyle::default().black().on(color);
+        (name, style, style_inv, perms_style_inv)
     };
 
     let perms = if session.is_staff {
@@ -110,7 +111,7 @@ fn render_row(list: &mut List<String>, session: &SessionView, own_session: &Sess
     let normal = Styled::new_plain(owner).then(name, style).then_plain(perms);
     let selected = Styled::new_plain(owner)
         .then(name, style_inv)
-        .then_plain(perms);
+        .then(perms, perms_style_inv);
     list.add_sel(
         id,
         Text::new(normal),
