@@ -6,6 +6,7 @@ use toss::terminal::Terminal;
 
 use super::input::{key, InputEvent, KeyBindingsList};
 use super::widgets::editor::EditorState;
+use super::widgets::list::ListState;
 
 pub fn prompt(
     terminal: &mut Terminal,
@@ -22,6 +23,35 @@ pub fn prompt(
 
     content
 }
+
+//////////
+// List //
+//////////
+
+pub fn list_list_key_bindings(bindings: &mut KeyBindingsList) {
+    bindings.binding("j/k, ↓/↑", "move cursor up/down");
+    bindings.binding("g, home", "move cursor to top");
+    bindings.binding("G, end", "move cursor to bottom");
+    bindings.binding("ctrl+y/e", "scroll up/down");
+}
+
+pub fn handle_list_input_event<Id: Clone>(list: &mut ListState<Id>, event: &InputEvent) -> bool {
+    match event {
+        key!('k') | key!(Up) => list.move_cursor_up(),
+        key!('j') | key!(Down) => list.move_cursor_down(),
+        key!('g') | key!(Home) => list.move_cursor_to_top(),
+        key!('G') | key!(End) => list.move_cursor_to_bottom(),
+        key!(Ctrl + 'y') => list.scroll_up(1),
+        key!(Ctrl + 'e') => list.scroll_down(1),
+        _ => return false,
+    }
+
+    true
+}
+
+////////////
+// Editor //
+////////////
 
 fn list_editor_editing_key_bindings(
     bindings: &mut KeyBindingsList,

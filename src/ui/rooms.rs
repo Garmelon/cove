@@ -313,27 +313,112 @@ impl Rooms {
         c.is_ascii_alphanumeric() || c == '_'
     }
 
+    fn list_showlist_key_bindings(bindings: &mut KeyBindingsList) {
+        bindings.heading("Rooms");
+        util::list_list_key_bindings(bindings);
+        bindings.empty();
+        bindings.binding("enter", "enter selected room");
+        bindings.binding("c", "connect to selected room");
+        bindings.binding("C", "connect to all rooms");
+        bindings.binding("d", "disconnect from selected room");
+        bindings.binding("D", "disconnect from all rooms");
+        bindings.binding("a", "connect to all autojoin room");
+        bindings.binding("A", "disconnect from all non-autojoin rooms");
+        bindings.binding("n", "connect to new room");
+        bindings.binding("X", "delete room");
+        bindings.empty();
+        bindings.binding("s", "change sort order");
+    }
+
+    fn handle_showlist_input_event(&mut self, event: &InputEvent) -> bool {
+        if util::handle_list_input_event(&mut self.list, event) {
+            return true;
+        }
+
+        match event {
+            key!(Enter) => {
+                if let Some(name) = self.list.cursor() {
+                    self.state = State::ShowRoom(name);
+                }
+                return true;
+            }
+            key!('c') => {
+                if let Some(name) = self.list.cursor() {
+                    if let Some(room) = self.euph_rooms.get_mut(&name) {
+                        room.connect();
+                    }
+                }
+                return true;
+            }
+            key!('C') => {
+                for room in self.euph_rooms.values_mut() {
+                    room.connect();
+                }
+                return true;
+            }
+            key!('d') => {
+                if let Some(name) = self.list.cursor() {
+                    if let Some(room) = self.euph_rooms.get_mut(&name) {
+                        room.disconnect();
+                    }
+                }
+                return true;
+            }
+            key!('D') => {
+                for room in self.euph_rooms.values_mut() {
+                    room.disconnect();
+                }
+                return true;
+            }
+            key!('a') => {
+                for (name, options) in &self.config.euph.rooms {
+                    if options.autojoin {
+                        self.get_or_insert_room(name.clone()).connect();
+                    }
+                }
+                return true;
+            }
+            key!('A') => {
+                for (name, room) in &mut self.euph_rooms {
+                    let autojoin = self
+                        .config
+                        .euph
+                        .rooms
+                        .get(name)
+                        .map(|r| r.autojoin)
+                        .unwrap_or(false);
+                    if !autojoin {
+                        room.disconnect();
+                    }
+                }
+                return true;
+            }
+            key!('n') => {
+                self.state = State::Connect(EditorState::new());
+                return true;
+            }
+            key!('X') => {
+                if let Some(name) = self.list.cursor() {
+                    self.state = State::Delete(name, EditorState::new());
+                }
+                return true;
+            }
+            key!('s') => {
+                self.order = match self.order {
+                    Order::Alphabet => Order::Importance,
+                    Order::Importance => Order::Alphabet,
+                };
+                return true;
+            }
+            _ => {}
+        }
+
+        false
+    }
+
     pub async fn list_key_bindings(&self, bindings: &mut KeyBindingsList) {
         match &self.state {
-            State::ShowList => {
-                bindings.heading("Rooms");
-                bindings.binding("j/k, ↓/↑", "move cursor up/down");
-                bindings.binding("g, home", "move cursor to top");
-                bindings.binding("G, end", "move cursor to bottom");
-                bindings.binding("ctrl+y/e", "scroll up/down");
-                bindings.empty();
-                bindings.binding("enter", "enter selected room");
-                bindings.binding("c", "connect to selected room");
-                bindings.binding("C", "connect to all rooms");
-                bindings.binding("d", "disconnect from selected room");
-                bindings.binding("D", "disconnect from all rooms");
-                bindings.binding("a", "connect to all autojoin room");
-                bindings.binding("A", "disconnect from all non-autojoin rooms");
-                bindings.binding("n", "connect to new room");
-                bindings.binding("X", "delete room");
-                bindings.empty();
-                bindings.binding("s", "change sort order");
-            }
+            State::ShowList => Self::list_showlist_key_bindings(bindings),
             State::ShowRoom(name) => {
                 // Key bindings for leaving the room are a part of the room's
                 // list_key_bindings function since they may be shadowed by the
@@ -372,78 +457,11 @@ impl Rooms {
         self.stabilize_rooms().await;
 
         match &self.state {
-            State::ShowList => match event {
-                key!('k') | key!(Up) => self.list.move_cursor_up(),
-                key!('j') | key!(Down) => self.list.move_cursor_down(),
-                key!('g') | key!(Home) => self.list.move_cursor_to_top(),
-                key!('G') | key!(End) => self.list.move_cursor_to_bottom(),
-                key!(Ctrl + 'y') => self.list.scroll_up(1),
-                key!(Ctrl + 'e') => self.list.scroll_down(1),
-
-                key!(Enter) => {
-                    if let Some(name) = self.list.cursor() {
-                        self.state = State::ShowRoom(name);
-                    }
+            State::ShowList => {
+                if self.handle_showlist_input_event(event) {
+                    return true;
                 }
-                key!('c') => {
-                    if let Some(name) = self.list.cursor() {
-                        if let Some(room) = self.euph_rooms.get_mut(&name) {
-                            room.connect();
-                        }
-                    }
-                }
-                key!('C') => {
-                    for room in self.euph_rooms.values_mut() {
-                        room.connect();
-                    }
-                }
-                key!('d') => {
-                    if let Some(name) = self.list.cursor() {
-                        if let Some(room) = self.euph_rooms.get_mut(&name) {
-                            room.disconnect();
-                        }
-                    }
-                }
-                key!('D') => {
-                    for room in self.euph_rooms.values_mut() {
-                        room.disconnect();
-                    }
-                }
-                key!('a') => {
-                    for (name, options) in &self.config.euph.rooms {
-                        if options.autojoin {
-                            self.get_or_insert_room(name.clone()).connect();
-                        }
-                    }
-                }
-                key!('A') => {
-                    for (name, room) in &mut self.euph_rooms {
-                        let autojoin = self
-                            .config
-                            .euph
-                            .rooms
-                            .get(name)
-                            .map(|r| r.autojoin)
-                            .unwrap_or(false);
-                        if !autojoin {
-                            room.disconnect();
-                        }
-                    }
-                }
-                key!('n') => self.state = State::Connect(EditorState::new()),
-                key!('X') => {
-                    if let Some(name) = self.list.cursor() {
-                        self.state = State::Delete(name, EditorState::new());
-                    }
-                }
-                key!('s') => {
-                    self.order = match self.order {
-                        Order::Alphabet => Order::Importance,
-                        Order::Importance => Order::Alphabet,
-                    };
-                }
-                _ => return false,
-            },
+            }
             State::ShowRoom(name) => {
                 if let Some(room) = self.euph_rooms.get_mut(name) {
                     if room
@@ -458,39 +476,46 @@ impl Rooms {
                         return true;
                     }
                 }
-
-                return false;
             }
             State::Connect(ed) => match event {
-                key!(Esc) => self.state = State::ShowList,
+                key!(Esc) => {
+                    self.state = State::ShowList;
+                    return true;
+                }
                 key!(Enter) => {
                     let name = ed.text();
                     if !name.is_empty() {
                         self.get_or_insert_room(name.clone()).connect();
                         self.state = State::ShowRoom(name);
                     }
+                    return true;
                 }
-                _ => return util::handle_editor_input_event(ed, terminal, event, Self::room_char),
+                _ => {
+                    if util::handle_editor_input_event(ed, terminal, event, Self::room_char) {
+                        return true;
+                    }
+                }
             },
             State::Delete(name, editor) => match event {
-                key!(Esc) => self.state = State::ShowList,
+                key!(Esc) => {
+                    self.state = State::ShowList;
+                    return true;
+                }
                 key!(Enter) if editor.text() == *name => {
                     self.euph_rooms.remove(name);
                     self.vault.euph().delete(name.clone());
                     self.state = State::ShowList;
+                    return true;
                 }
                 _ => {
-                    return util::handle_editor_input_event(
-                        editor,
-                        terminal,
-                        event,
-                        Self::room_char,
-                    )
+                    if util::handle_editor_input_event(editor, terminal, event, Self::room_char) {
+                        return true;
+                    }
                 }
             },
         }
 
-        true
+        false
     }
 
     pub fn handle_euph_room_event(&mut self, name: String, event: EuphRoomEvent) -> bool {
