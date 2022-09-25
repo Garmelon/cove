@@ -66,7 +66,8 @@ impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
         &self.store
     }
 
-    pub fn widget(&self, nick: String) -> Chat<M, S> {
+    pub fn widget(&self, nick: String, focus: bool) -> Chat<M, S> {
+        // TODO Handle focus
         match self.mode {
             Mode::Tree => Chat::Tree(self.tree.widget(nick)),
         }

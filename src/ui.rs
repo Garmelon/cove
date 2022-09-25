@@ -188,7 +188,7 @@ impl Ui {
     async fn widget(&mut self) -> BoxedWidget {
         let widget = match self.mode {
             Mode::Main => self.rooms.widget().await,
-            Mode::Log => self.log_chat.widget(String::new()).into(),
+            Mode::Log => self.log_chat.widget(String::new(), true).into(),
         };
 
         if let Some(key_bindings_list) = &self.key_bindings_list {

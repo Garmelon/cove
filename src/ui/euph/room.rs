@@ -31,6 +31,12 @@ use super::links::{self, LinksState};
 use super::popup::RoomPopup;
 use super::{auth, inspect, nick, nick_list};
 
+#[derive(Debug, PartialEq, Eq)]
+enum Focus {
+    Chat,
+    NickList,
+}
+
 #[allow(clippy::large_enum_variant)]
 enum State {
     Normal,
@@ -67,6 +73,7 @@ pub struct EuphRoom {
     vault: EuphRoomVault,
     room: Option<euph::Room>,
 
+    focus: Focus,
     state: State,
     popups: VecDeque<RoomPopup>,
 
@@ -87,6 +94,7 @@ impl EuphRoom {
             ui_event_tx,
             vault: vault.clone(),
             room: None,
+            focus: Focus::Chat,
             state: State::Normal,
             popups: VecDeque::new(),
             chat: ChatState::new(vault),
@@ -178,6 +186,13 @@ impl EuphRoom {
         }
     }
 
+    fn stabilize_focus(&mut self, status: &RoomStatus) {
+        match status {
+            RoomStatus::Connected(Status::Joined(_)) => {}
+            _ => self.focus = Focus::Chat, // There is no nick list to focus on
+        }
+    }
+
     fn stabilize_state(&mut self, status: &RoomStatus) {
         match &mut self.state {
             State::Auth(_)
@@ -205,6 +220,7 @@ impl EuphRoom {
 
     async fn stabilize(&mut self, status: &RoomStatus) {
         self.stabilize_pseudo_msg().await;
+        self.stabilize_focus(status);
         self.stabilize_state(status);
     }
 
@@ -242,7 +258,7 @@ impl EuphRoom {
                 Padding::new(self.status_widget(status).await).horizontal(1),
             )),
             // TODO Use last known nick?
-            Segment::new(self.chat.widget(String::new())).expanding(true),
+            Segment::new(self.chat.widget(String::new(), true)).expanding(true),
         ])
         .into()
     }
@@ -253,11 +269,20 @@ impl EuphRoom {
                 Segment::new(Border::new(
                     Padding::new(self.status_widget(status).await).horizontal(1),
                 )),
-                Segment::new(self.chat.widget(joined.session.name.clone())).expanding(true),
+                Segment::new(
+                    self.chat
+                        .widget(joined.session.name.clone(), self.focus == Focus::Chat),
+                )
+                .expanding(true),
             ]))
             .expanding(true),
             Segment::new(Border::new(
-                Padding::new(nick_list::widget(&self.nick_list, joined)).right(1),
+                Padding::new(nick_list::widget(
+                    &self.nick_list,
+                    joined,
+                    self.focus == Focus::NickList,
+                ))
+                .right(1),
             )),
         ])
         .into()

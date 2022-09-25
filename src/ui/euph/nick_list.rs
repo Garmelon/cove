@@ -12,7 +12,8 @@ use crate::ui::widgets::list::{List, ListState};
 use crate::ui::widgets::text::Text;
 use crate::ui::widgets::BoxedWidget;
 
-pub fn widget(state: &ListState<String>, joined: &Joined) -> BoxedWidget {
+pub fn widget(state: &ListState<String>, joined: &Joined, focus: bool) -> BoxedWidget {
+    // TODO Handle focus
     let mut list = state.widget();
     render_rows(&mut list, joined);
     list.into()
