@@ -1,5 +1,3 @@
-// TODO Fix scrolling by focusing on the cursor like in chat::tree
-
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -36,7 +34,10 @@ impl<Id> Cursor<Id> {
 #[derive(Debug)]
 struct InnerListState<Id> {
     rows: Vec<Option<Id>>,
+
+    /// Offset of the first line visible on the screen.
     offset: usize,
+
     cursor: Option<Cursor<Id>>,
     make_cursor_visible: bool,
 }
@@ -47,7 +48,7 @@ impl<Id> InnerListState<Id> {
             rows: vec![],
             offset: 0,
             cursor: None,
-            make_cursor_visible: false,
+            make_cursor_visible: true,
         }
     }
 }
@@ -172,7 +173,7 @@ impl<Id: Clone + Eq> InnerListState<Id> {
             self.clamp_scrolling(height);
             self.move_cursor_to_make_it_visible(height);
         }
-        self.make_cursor_visible = false;
+        self.make_cursor_visible = true;
     }
 }
 
@@ -190,11 +191,13 @@ impl<Id> ListState<Id> {
     pub fn scroll_up(&mut self, amount: usize) {
         let mut guard = self.0.lock();
         guard.offset = guard.offset.saturating_sub(amount);
+        guard.make_cursor_visible = false;
     }
 
     pub fn scroll_down(&mut self, amount: usize) {
         let mut guard = self.0.lock();
         guard.offset = guard.offset.saturating_add(amount);
+        guard.make_cursor_visible = false;
     }
 }
 

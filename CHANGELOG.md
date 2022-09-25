@@ -21,6 +21,7 @@ Procedure when bumping the version number:
 
 ### Fixed
 - Cursor being visible through popups
+- Cursor in lists when highlighted item moves off-screen
 
 ## v0.4.0 - 2022-09-01
 
