@@ -23,7 +23,7 @@ use crate::ui::widgets::list::ListState;
 use crate::ui::widgets::padding::Padding;
 use crate::ui::widgets::text::Text;
 use crate::ui::widgets::BoxedWidget;
-use crate::ui::UiEvent;
+use crate::ui::{util, UiEvent};
 use crate::vault::EuphRoomVault;
 
 use super::account::{self, AccountUiState};
@@ -481,6 +481,20 @@ impl EuphRoom {
         false
     }
 
+    fn list_nick_list_focus_key_bindings(&self, bindings: &mut KeyBindingsList) {
+        util::list_list_key_bindings(bindings);
+    }
+
+    fn handle_nick_list_focus_input_event(&mut self, event: &InputEvent) -> bool {
+        if util::handle_list_input_event(&mut self.nick_list, event) {
+            return true;
+        }
+
+        // TODO Inspect users
+
+        false
+    }
+
     pub async fn list_normal_key_bindings(&self, bindings: &mut KeyBindingsList) {
         // Handled in rooms list, not here
         // TODO Move to rooms list?
@@ -498,6 +512,7 @@ impl EuphRoom {
             }
             Focus::NickList => {
                 bindings.binding("tab", "focus on chat");
+                self.list_nick_list_focus_key_bindings(bindings);
             }
         }
     }
@@ -531,6 +546,10 @@ impl EuphRoom {
             Focus::NickList => {
                 if let key!(Tab) = event {
                     self.focus = Focus::Chat;
+                    return true;
+                }
+
+                if self.handle_nick_list_focus_input_event(event) {
                     return true;
                 }
             }
