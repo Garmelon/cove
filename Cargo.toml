@@ -4,24 +4,24 @@ version = "0.4.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.63"
+anyhow = "1.0.65"
 async-trait = "0.1.57"
-clap = { version = "3.2.19", features = ["derive"] }
-cookie = "0.16.0"
+clap = { version = "3.2.22", features = ["derive"] }
+cookie = "0.16.1"
 crossterm = "0.25.0"
 directories = "4.0.1"
 edit = "0.1.4"
 log = { version = "0.4.17", features = ["std"] }
-open = "3.0.2"
+open = "3.0.3"
 parking_lot = "0.12.1"
 rusqlite = { version = "0.28.0", features = ["bundled", "time"] }
-serde = { version = "1.0.144", features = ["derive"] }
+serde = { version = "1.0.145", features = ["derive"] }
 serde_json = "1.0.85"
-thiserror = "1.0.33"
-tokio = { version = "1.20.1", features = ["full"] }
+thiserror = "1.0.36"
+tokio = { version = "1.21.1", features = ["full"] }
 toml = "0.5.9"
-unicode-segmentation = "1.9.0"
-unicode-width = "0.1.9"
+unicode-segmentation = "1.10.0"
+unicode-width = "0.1.10"
 linkify = "0.9.0"
 
 [dependencies.time]

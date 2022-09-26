@@ -24,6 +24,7 @@ Procedure when bumping the version number:
 
 ### Changed
 - Use nick changes to detect sessions for nick list
+- Support Unicode 15
 
 ### Fixed
 - Cursor being visible through popups
