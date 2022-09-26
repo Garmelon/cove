@@ -115,6 +115,22 @@ the rooms list.
 
 See also the `--offline` command line option.
 
+### `rooms_sort_order`
+
+**Type:** String, one of `alphabetic`, `importance`  
+**Default:** `alphabetic`
+
+Initial sort order of rooms list.
+
+`alphabetic` sorts rooms in alphabetic order.
+
+`importance` sorts rooms by the following criteria (in descending order of
+priority):
+
+1. connected rooms before unconnected rooms
+2. rooms with unread messages before rooms without
+3. alphabetic order
+
 ### `euph.rooms.<room>.autojoin`
 
 **Type:** Boolean  

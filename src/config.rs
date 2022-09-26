@@ -6,6 +6,14 @@ use serde::Deserialize;
 
 use crate::macros::ok_or_return;
 
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RoomsSortOrder {
+    #[default]
+    Alphabet,
+    Importance,
+}
+
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct EuphRoom {
     // TODO Mark favourite rooms via printable ascii characters
@@ -29,6 +37,8 @@ pub struct Config {
     pub ephemeral: bool,
     #[serde(default)]
     pub offline: bool,
+    #[serde(default)]
+    pub rooms_sort_order: RoomsSortOrder,
     // TODO Invoke external notification command?
     pub euph: Euph,
 }

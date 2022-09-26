@@ -20,6 +20,7 @@ Procedure when bumping the version number:
 - Message inspection popup
 - Session inspection popup
 - Error popup when external editor fails
+- `rooms_sort_order` config option
 
 ### Changed
 - Use nick changes to detect sessions for nick list

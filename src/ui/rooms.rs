@@ -10,7 +10,7 @@ use tokio::sync::mpsc;
 use toss::styled::Styled;
 use toss::terminal::Terminal;
 
-use crate::config::Config;
+use crate::config::{Config, RoomsSortOrder};
 use crate::euph::EuphRoomEvent;
 use crate::vault::Vault;
 
@@ -38,6 +38,15 @@ enum Order {
     Importance,
 }
 
+impl Order {
+    fn from_rooms_sort_order(order: RoomsSortOrder) -> Self {
+        match order {
+            RoomsSortOrder::Alphabet => Self::Alphabet,
+            RoomsSortOrder::Importance => Self::Importance,
+        }
+    }
+}
+
 pub struct Rooms {
     config: &'static Config,
 
@@ -63,7 +72,7 @@ impl Rooms {
             ui_event_tx,
             state: State::ShowList,
             list: ListState::new(),
-            order: Order::Alphabet,
+            order: Order::from_rooms_sort_order(config.rooms_sort_order),
             euph_rooms: HashMap::new(),
         };
 
