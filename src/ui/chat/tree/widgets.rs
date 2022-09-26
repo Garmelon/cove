@@ -3,8 +3,8 @@ mod seen;
 mod time;
 
 use crossterm::style::{ContentStyle, Stylize};
-use toss::frame::Frame;
 use toss::styled::Styled;
+use toss::widthdb::WidthDb;
 
 use super::super::ChatMsg;
 use crate::store::Msg;
@@ -111,14 +111,14 @@ pub fn msg_placeholder(
 }
 
 pub fn editor<M: ChatMsg>(
-    frame: &mut Frame,
+    widthdb: &mut WidthDb,
     indent: usize,
     nick: &str,
     editor: &EditorState,
 ) -> (BoxedWidget, usize) {
     let (nick, content) = M::edit(nick, &editor.text());
     let editor = editor.widget().highlight(|_| content);
-    let cursor_row = editor.cursor_row(frame);
+    let cursor_row = editor.cursor_row(widthdb);
 
     let widget = HJoin::new(vec![
         Segment::new(seen::widget(true)),

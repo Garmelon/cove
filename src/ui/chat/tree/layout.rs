@@ -75,7 +75,8 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         frame: &mut Frame,
         indent: usize,
     ) -> Block<BlockId<M::Id>> {
-        let (widget, cursor_row) = widgets::editor::<M>(frame, indent, &context.nick, &self.editor);
+        let (widget, cursor_row) =
+            widgets::editor::<M>(frame.widthdb(), indent, &context.nick, &self.editor);
         let cursor_row = cursor_row as i32;
         Block::new(frame, BlockId::Cursor, widget).focus(cursor_row..cursor_row + 1)
     }

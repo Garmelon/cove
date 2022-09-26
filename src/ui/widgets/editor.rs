@@ -7,6 +7,7 @@ use parking_lot::{FairMutex, Mutex};
 use toss::frame::{Frame, Pos, Size};
 use toss::styled::Styled;
 use toss::terminal::Terminal;
+use toss::widthdb::WidthDb;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::ui::util;
@@ -14,10 +15,10 @@ use crate::ui::util;
 use super::text::Text;
 use super::Widget;
 
-/// Like [`Frame::wrap`] but includes a final break index if the text ends with
-/// a newline.
-fn wrap(frame: &mut Frame, text: &str, width: usize) -> Vec<usize> {
-    let mut breaks = frame.wrap(text, width);
+/// Like [`WidthDb::wrap`] but includes a final break index if the text ends
+/// with a newline.
+fn wrap(widthdb: &mut WidthDb, text: &str, width: usize) -> Vec<usize> {
+    let mut breaks = widthdb.wrap(text, width);
     if text.ends_with('\n') {
         breaks.push(text.len())
     }
@@ -125,8 +126,8 @@ impl InnerEditorState {
         result
     }
 
-    fn cursor_col(&self, frame: &mut Frame, line_start: usize) -> usize {
-        frame.width(&self.text[line_start..self.idx])
+    fn cursor_col(&self, widthdb: &mut WidthDb, line_start: usize) -> usize {
+        widthdb.width(&self.text[line_start..self.idx])
     }
 
     fn line(&self, line: usize) -> (usize, usize) {
@@ -139,7 +140,7 @@ impl InnerEditorState {
             .expect("line exists")
     }
 
-    fn move_cursor_to_line_col(&mut self, frame: &mut Frame, line: usize, col: usize) {
+    fn move_cursor_to_line_col(&mut self, widthdb: &mut WidthDb, line: usize, col: usize) {
         let (start, end) = self.line(line);
         let line = &self.text[start..end];
 
@@ -147,7 +148,7 @@ impl InnerEditorState {
         for (gi, g) in line.grapheme_indices(true) {
             self.idx = start + gi;
             if col > width {
-                width += frame.grapheme_width(g, width) as usize;
+                width += widthdb.grapheme_width(g, width) as usize;
             } else {
                 return;
             }
@@ -158,10 +159,10 @@ impl InnerEditorState {
         }
     }
 
-    fn record_cursor_col(&mut self, frame: &mut Frame) {
+    fn record_cursor_col(&mut self, widthdb: &mut WidthDb) {
         let boundaries = self.line_boundaries();
         let (_, start, _) = self.cursor_line(&boundaries);
-        self.col = self.cursor_col(frame, start);
+        self.col = self.cursor_col(widthdb, start);
     }
 
     /////////////
@@ -174,36 +175,36 @@ impl InnerEditorState {
         self.col = 0;
     }
 
-    fn set_text(&mut self, frame: &mut Frame, text: String) {
+    fn set_text(&mut self, widthdb: &mut WidthDb, text: String) {
         self.text = text;
         self.move_cursor_to_grapheme_boundary();
-        self.record_cursor_col(frame);
+        self.record_cursor_col(widthdb);
     }
 
     /// Insert a character at the current cursor position and move the cursor
     /// accordingly.
-    fn insert_char(&mut self, frame: &mut Frame, ch: char) {
+    fn insert_char(&mut self, widthdb: &mut WidthDb, ch: char) {
         self.text.insert(self.idx, ch);
         self.idx += ch.len_utf8();
-        self.record_cursor_col(frame);
+        self.record_cursor_col(widthdb);
     }
 
     /// Insert a string at the current cursor position and move the cursor
     /// accordingly.
-    fn insert_str(&mut self, frame: &mut Frame, str: &str) {
+    fn insert_str(&mut self, widthdb: &mut WidthDb, str: &str) {
         self.text.insert_str(self.idx, str);
         self.idx += str.len();
-        self.record_cursor_col(frame);
+        self.record_cursor_col(widthdb);
     }
 
     /// Delete the grapheme before the cursor position.
-    fn backspace(&mut self, frame: &mut Frame) {
+    fn backspace(&mut self, widthdb: &mut WidthDb) {
         let boundaries = self.grapheme_boundaries();
         for (start, end) in boundaries.iter().zip(boundaries.iter().skip(1)) {
             if *end == self.idx {
                 self.text.replace_range(start..end, "");
                 self.idx = *start;
-                self.record_cursor_col(frame);
+                self.record_cursor_col(widthdb);
                 break;
             }
         }
@@ -224,29 +225,29 @@ impl InnerEditorState {
     // Cursor movement //
     /////////////////////
 
-    fn move_cursor_left(&mut self, frame: &mut Frame) {
+    fn move_cursor_left(&mut self, widthdb: &mut WidthDb) {
         let boundaries = self.grapheme_boundaries();
         for (start, end) in boundaries.iter().zip(boundaries.iter().skip(1)) {
             if *end == self.idx {
                 self.idx = *start;
-                self.record_cursor_col(frame);
+                self.record_cursor_col(widthdb);
                 break;
             }
         }
     }
 
-    fn move_cursor_right(&mut self, frame: &mut Frame) {
+    fn move_cursor_right(&mut self, widthdb: &mut WidthDb) {
         let boundaries = self.grapheme_boundaries();
         for (start, end) in boundaries.iter().zip(boundaries.iter().skip(1)) {
             if *start == self.idx {
                 self.idx = *end;
-                self.record_cursor_col(frame);
+                self.record_cursor_col(widthdb);
                 break;
             }
         }
     }
 
-    fn move_cursor_left_a_word(&mut self, frame: &mut Frame) {
+    fn move_cursor_left_a_word(&mut self, widthdb: &mut WidthDb) {
         let boundaries = self.grapheme_boundaries();
         let mut encountered_word = false;
         for (start, end) in boundaries.iter().zip(boundaries.iter().skip(1)).rev() {
@@ -261,10 +262,10 @@ impl InnerEditorState {
                 self.idx = *start;
             }
         }
-        self.record_cursor_col(frame);
+        self.record_cursor_col(widthdb);
     }
 
-    fn move_cursor_right_a_word(&mut self, frame: &mut Frame) {
+    fn move_cursor_right_a_word(&mut self, widthdb: &mut WidthDb) {
         let boundaries = self.grapheme_boundaries();
         let mut encountered_word = false;
         for (start, end) in boundaries.iter().zip(boundaries.iter().skip(1)) {
@@ -279,32 +280,32 @@ impl InnerEditorState {
                 self.idx = *end;
             }
         }
-        self.record_cursor_col(frame);
+        self.record_cursor_col(widthdb);
     }
 
-    fn move_cursor_to_start_of_line(&mut self, frame: &mut Frame) {
+    fn move_cursor_to_start_of_line(&mut self, widthdb: &mut WidthDb) {
         let boundaries = self.line_boundaries();
         let (line, _, _) = self.cursor_line(&boundaries);
-        self.move_cursor_to_line_col(frame, line, 0);
-        self.record_cursor_col(frame);
+        self.move_cursor_to_line_col(widthdb, line, 0);
+        self.record_cursor_col(widthdb);
     }
 
-    fn move_cursor_to_end_of_line(&mut self, frame: &mut Frame) {
+    fn move_cursor_to_end_of_line(&mut self, widthdb: &mut WidthDb) {
         let boundaries = self.line_boundaries();
         let (line, _, _) = self.cursor_line(&boundaries);
-        self.move_cursor_to_line_col(frame, line, usize::MAX);
-        self.record_cursor_col(frame);
+        self.move_cursor_to_line_col(widthdb, line, usize::MAX);
+        self.record_cursor_col(widthdb);
     }
 
-    fn move_cursor_up(&mut self, frame: &mut Frame) {
+    fn move_cursor_up(&mut self, widthdb: &mut WidthDb) {
         let boundaries = self.line_boundaries();
         let (line, _, _) = self.cursor_line(&boundaries);
         if line > 0 {
-            self.move_cursor_to_line_col(frame, line - 1, self.col);
+            self.move_cursor_to_line_col(widthdb, line - 1, self.col);
         }
     }
 
-    fn move_cursor_down(&mut self, frame: &mut Frame) {
+    fn move_cursor_down(&mut self, widthdb: &mut WidthDb) {
         let boundaries = self.line_boundaries();
 
         // There's always at least one line, and always at least two line
@@ -313,7 +314,7 @@ impl InnerEditorState {
 
         let (line, _, _) = self.cursor_line(&boundaries);
         if line + 1 < amount_of_lines {
-            self.move_cursor_to_line_col(frame, line + 1, self.col);
+            self.move_cursor_to_line_col(widthdb, line + 1, self.col);
         }
     }
 }
@@ -350,21 +351,21 @@ impl EditorState {
         self.0.lock().clear();
     }
 
-    pub fn set_text(&self, frame: &mut Frame, text: String) {
-        self.0.lock().set_text(frame, text);
+    pub fn set_text(&self, widthdb: &mut WidthDb, text: String) {
+        self.0.lock().set_text(widthdb, text);
     }
 
-    pub fn insert_char(&self, frame: &mut Frame, ch: char) {
-        self.0.lock().insert_char(frame, ch);
+    pub fn insert_char(&self, widthdb: &mut WidthDb, ch: char) {
+        self.0.lock().insert_char(widthdb, ch);
     }
 
-    pub fn insert_str(&self, frame: &mut Frame, str: &str) {
-        self.0.lock().insert_str(frame, str);
+    pub fn insert_str(&self, widthdb: &mut WidthDb, str: &str) {
+        self.0.lock().insert_str(widthdb, str);
     }
 
     /// Delete the grapheme before the cursor position.
-    pub fn backspace(&self, frame: &mut Frame) {
-        self.0.lock().backspace(frame);
+    pub fn backspace(&self, widthdb: &mut WidthDb) {
+        self.0.lock().backspace(widthdb);
     }
 
     /// Delete the grapheme after the cursor position.
@@ -372,36 +373,36 @@ impl EditorState {
         self.0.lock().delete();
     }
 
-    pub fn move_cursor_left(&self, frame: &mut Frame) {
-        self.0.lock().move_cursor_left(frame);
+    pub fn move_cursor_left(&self, widthdb: &mut WidthDb) {
+        self.0.lock().move_cursor_left(widthdb);
     }
 
-    pub fn move_cursor_right(&self, frame: &mut Frame) {
-        self.0.lock().move_cursor_right(frame);
+    pub fn move_cursor_right(&self, widthdb: &mut WidthDb) {
+        self.0.lock().move_cursor_right(widthdb);
     }
 
-    pub fn move_cursor_left_a_word(&self, frame: &mut Frame) {
-        self.0.lock().move_cursor_left_a_word(frame);
+    pub fn move_cursor_left_a_word(&self, widthdb: &mut WidthDb) {
+        self.0.lock().move_cursor_left_a_word(widthdb);
     }
 
-    pub fn move_cursor_right_a_word(&self, frame: &mut Frame) {
-        self.0.lock().move_cursor_right_a_word(frame);
+    pub fn move_cursor_right_a_word(&self, widthdb: &mut WidthDb) {
+        self.0.lock().move_cursor_right_a_word(widthdb);
     }
 
-    pub fn move_cursor_to_start_of_line(&self, frame: &mut Frame) {
-        self.0.lock().move_cursor_to_start_of_line(frame);
+    pub fn move_cursor_to_start_of_line(&self, widthdb: &mut WidthDb) {
+        self.0.lock().move_cursor_to_start_of_line(widthdb);
     }
 
-    pub fn move_cursor_to_end_of_line(&self, frame: &mut Frame) {
-        self.0.lock().move_cursor_to_end_of_line(frame);
+    pub fn move_cursor_to_end_of_line(&self, widthdb: &mut WidthDb) {
+        self.0.lock().move_cursor_to_end_of_line(widthdb);
     }
 
-    pub fn move_cursor_up(&self, frame: &mut Frame) {
-        self.0.lock().move_cursor_up(frame);
+    pub fn move_cursor_up(&self, widthdb: &mut WidthDb) {
+        self.0.lock().move_cursor_up(widthdb);
     }
 
-    pub fn move_cursor_down(&self, frame: &mut Frame) {
-        self.0.lock().move_cursor_down(frame);
+    pub fn move_cursor_down(&self, widthdb: &mut WidthDb) {
+        self.0.lock().move_cursor_down(widthdb);
     }
 
     pub fn edit_externally(
@@ -422,9 +423,9 @@ impl EditorState {
             // Some editors like vim add a trailing newline that would look out
             // of place in cove's editor. To intentionally add a trailing
             // newline, simply add two in-editor.
-            guard.set_text(terminal.frame(), text.to_string());
+            guard.set_text(terminal.widthdb(), text.to_string());
         } else {
-            guard.set_text(terminal.frame(), text);
+            guard.set_text(terminal.widthdb(), text);
         }
 
         Ok(())
@@ -484,10 +485,10 @@ impl Editor {
         (row, line_idx)
     }
 
-    pub fn cursor_row(&self, frame: &mut Frame) -> usize {
+    pub fn cursor_row(&self, widthdb: &mut WidthDb) -> usize {
         let width = self.state.lock().last_width;
         let text_width = (width - 1) as usize;
-        let indices = wrap(frame, self.text.text(), text_width);
+        let indices = wrap(widthdb, self.text.text(), text_width);
         let (row, _) = Self::wrapped_cursor(self.idx, &indices);
         row
     }
@@ -506,14 +507,16 @@ impl Widget for Editor {
             return size;
         }
 
+        let widthdb = frame.widthdb();
+
         let max_width = max_width.map(|w| w as usize).unwrap_or(usize::MAX).max(1);
         let max_text_width = max_width - 1;
-        let indices = wrap(frame, self.text.text(), max_text_width);
+        let indices = wrap(widthdb, self.text.text(), max_text_width);
         let lines = self.text.clone().split_at_indices(&indices);
 
         let min_width = lines
             .iter()
-            .map(|l| frame.width(l.text().trim_end()))
+            .map(|l| widthdb.width(l.text().trim_end()))
             .max()
             .unwrap_or(0)
             + 1;
@@ -532,15 +535,18 @@ impl Widget for Editor {
             return;
         }
 
-        let width = frame.size().width.max(1);
+        let size = frame.size();
+        let widthdb = frame.widthdb();
+
+        let width = size.width.max(1);
         let text_width = (width - 1) as usize;
-        let indices = wrap(frame, self.text.text(), text_width);
+        let indices = wrap(widthdb, self.text.text(), text_width);
         let lines = self.text.split_at_indices(&indices);
 
         // Determine cursor position now while we still have the lines.
         let cursor_pos = if self.focus {
             let (cursor_row, cursor_line_idx) = Self::wrapped_cursor(self.idx, &indices);
-            let cursor_col = frame.width(lines[cursor_row].text().split_at(cursor_line_idx).0);
+            let cursor_col = widthdb.width(lines[cursor_row].text().split_at(cursor_line_idx).0);
             let cursor_col = cursor_col.min(text_width);
             Some(Pos::new(cursor_col as i32, cursor_row as i32))
         } else {

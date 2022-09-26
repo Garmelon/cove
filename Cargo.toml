@@ -41,7 +41,7 @@ rev = "bdb17db5bf4796696d6375168abb76920ab11b87"
 
 [dependencies.toss]
 git = "https://github.com/Garmelon/toss.git"
-rev = "24fd0050fbfdd72ac2f03029148370b362291777"
+rev = "06aefd562bd66f5564f7c1ea73a4959f51be74e7"
 
 # [patch."https://github.com/Garmelon/toss.git"]
 # toss = { path = "../toss/" }

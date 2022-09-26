@@ -98,10 +98,10 @@ pub fn handle_editor_input_event(
         InputEvent::Key(crate::ui::input::KeyEvent {
             code: crossterm::event::KeyCode::Enter,
             ..
-        }) if char_filter('\n') => editor.insert_char(terminal.frame(), '\n'),
+        }) if char_filter('\n') => editor.insert_char(terminal.widthdb(), '\n'),
 
         // Editing
-        key!(Char ch) if char_filter(*ch) => editor.insert_char(terminal.frame(), *ch),
+        key!(Char ch) if char_filter(*ch) => editor.insert_char(terminal.widthdb(), *ch),
         key!(Paste str) => {
             // It seems that when pasting, '\n' are converted into '\r' for some
             // reason. I don't really know why, or at what point this happens.
@@ -109,25 +109,25 @@ pub fn handle_editor_input_event(
             // decided to mirror that behaviour.
             let str = str.replace('\r', "\n");
             if str.chars().all(char_filter) {
-                editor.insert_str(terminal.frame(), &str);
+                editor.insert_str(terminal.widthdb(), &str);
             } else {
                 return false;
             }
         }
-        key!(Ctrl + 'h') | key!(Backspace) => editor.backspace(terminal.frame()),
+        key!(Ctrl + 'h') | key!(Backspace) => editor.backspace(terminal.widthdb()),
         key!(Ctrl + 'd') | key!(Delete) => editor.delete(),
         key!(Ctrl + 'l') => editor.clear(),
         // TODO Key bindings to delete words
 
         // Cursor movement
-        key!(Ctrl + 'b') | key!(Left) => editor.move_cursor_left(terminal.frame()),
-        key!(Ctrl + 'f') | key!(Right) => editor.move_cursor_right(terminal.frame()),
-        key!(Alt + 'b') | key!(Ctrl + Left) => editor.move_cursor_left_a_word(terminal.frame()),
-        key!(Alt + 'f') | key!(Ctrl + Right) => editor.move_cursor_right_a_word(terminal.frame()),
-        key!(Ctrl + 'a') | key!(Home) => editor.move_cursor_to_start_of_line(terminal.frame()),
-        key!(Ctrl + 'e') | key!(End) => editor.move_cursor_to_end_of_line(terminal.frame()),
-        key!(Up) => editor.move_cursor_up(terminal.frame()),
-        key!(Down) => editor.move_cursor_down(terminal.frame()),
+        key!(Ctrl + 'b') | key!(Left) => editor.move_cursor_left(terminal.widthdb()),
+        key!(Ctrl + 'f') | key!(Right) => editor.move_cursor_right(terminal.widthdb()),
+        key!(Alt + 'b') | key!(Ctrl + Left) => editor.move_cursor_left_a_word(terminal.widthdb()),
+        key!(Alt + 'f') | key!(Ctrl + Right) => editor.move_cursor_right_a_word(terminal.widthdb()),
+        key!(Ctrl + 'a') | key!(Home) => editor.move_cursor_to_start_of_line(terminal.widthdb()),
+        key!(Ctrl + 'e') | key!(End) => editor.move_cursor_to_end_of_line(terminal.widthdb()),
+        key!(Up) => editor.move_cursor_up(terminal.widthdb()),
+        key!(Down) => editor.move_cursor_down(terminal.widthdb()),
 
         _ => return false,
     }

@@ -1214,7 +1214,7 @@ dependencies = [
 [[package]]
 name = "toss"
 version = "0.1.0"
-source = "git+https://github.com/Garmelon/toss.git?rev=24fd0050fbfdd72ac2f03029148370b362291777#24fd0050fbfdd72ac2f03029148370b362291777"
+source = "git+https://github.com/Garmelon/toss.git?rev=06aefd562bd66f5564f7c1ea73a4959f51be74e7#06aefd562bd66f5564f7c1ea73a4959f51be74e7"
 dependencies = [
  "crossterm",
  "unicode-linebreak",
