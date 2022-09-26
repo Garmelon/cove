@@ -2,8 +2,8 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 
 use crossterm::style::{ContentStyle, Stylize};
-use euphoxide::api::{Data, Message, MessageId, PacketType, SessionId, SessionView};
-use euphoxide::conn::{Joined, Joining, Status};
+use euphoxide::api::{Data, Message, MessageId, PacketType, SessionId};
+use euphoxide::conn::{Joined, Joining, SessionInfo, Status};
 use parking_lot::FairMutex;
 use tokio::sync::oneshot::error::TryRecvError;
 use tokio::sync::{mpsc, oneshot};
@@ -45,7 +45,7 @@ enum State {
     Account(AccountUiState),
     Links(LinksState),
     InspectMessage(Message),
-    InspectSession(SessionView),
+    InspectSession(SessionInfo),
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -499,10 +499,10 @@ impl EuphRoom {
 
         if let key!('i') = event {
             if let RoomStatus::Connected(Status::Joined(joined)) = status {
-                // TODO Fix euphoxide to use session_id as hash
                 if let Some(id) = self.nick_list.cursor() {
                     if id == joined.session.session_id {
-                        self.state = State::InspectSession(joined.session.clone());
+                        self.state =
+                            State::InspectSession(SessionInfo::Full(joined.session.clone()));
                     } else if let Some(session) = joined.listing.get(&id) {
                         self.state = State::InspectSession(session.clone());
                     }

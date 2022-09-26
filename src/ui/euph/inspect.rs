@@ -1,5 +1,6 @@
 use crossterm::style::{ContentStyle, Stylize};
-use euphoxide::api::{Message, SessionView};
+use euphoxide::api::{Message, NickEvent, SessionView};
+use euphoxide::conn::SessionInfo;
 use toss::styled::Styled;
 
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
@@ -38,7 +39,7 @@ macro_rules! line {
     };
 }
 
-fn session_lines(mut text: Styled, session: &SessionView) -> Styled {
+fn session_view_lines(mut text: Styled, session: &SessionView) -> Styled {
     line!(text, "id", session.id);
     line!(text, "name", session.name);
     line!(text, "name (raw)", session.name, debug);
@@ -63,6 +64,15 @@ fn session_lines(mut text: Styled, session: &SessionView) -> Styled {
     text
 }
 
+fn nick_event_lines(mut text: Styled, event: &NickEvent) -> Styled {
+    line!(text, "id", event.id);
+    line!(text, "name", event.to);
+    line!(text, "name (raw)", event.to, debug);
+    line!(text, "session_id", event.session_id.0);
+
+    text
+}
+
 fn message_lines(mut text: Styled, msg: &Message) -> Styled {
     line!(text, "id", msg.id.0);
     line!(text, "parent", msg.parent.map(|p| p.0), optional);
@@ -76,8 +86,19 @@ fn message_lines(mut text: Styled, msg: &Message) -> Styled {
     text
 }
 
-pub fn session_widget(session: &SessionView) -> BoxedWidget {
-    let text = session_lines(Styled::default(), session);
+pub fn session_widget(session: &SessionInfo) -> BoxedWidget {
+    let heading_style = ContentStyle::default().bold();
+
+    let text = match session {
+        SessionInfo::Full(session) => {
+            let text = Styled::new("Full session", heading_style).then_plain("\n");
+            session_view_lines(text, session)
+        }
+        SessionInfo::Partial(event) => {
+            let text = Styled::new("Partial session", heading_style).then_plain("\n");
+            nick_event_lines(text, event)
+        }
+    };
 
     Popup::new(Text::new(text)).title("Inspect session").build()
 }
@@ -94,7 +115,7 @@ pub fn message_widget(msg: &Message) -> BoxedWidget {
         .then("Sender", heading_style)
         .then_plain("\n");
 
-    text = session_lines(text, &msg.sender);
+    text = session_view_lines(text, &msg.sender);
 
     Popup::new(Text::new(text)).title("Inspect message").build()
 }

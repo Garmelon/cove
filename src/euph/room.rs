@@ -285,7 +285,6 @@ impl State {
                 info!("e&{}: network event ({})", self.name, d.r#type);
             }
             Data::NickEvent(d) => {
-                // TODO Add entry in nick list (probably in euphoxide instead of here)
                 info!("e&{}: {:?} renamed to {:?}", self.name, d.from, d.to);
             }
             Data::EditMessageEvent(_) => {

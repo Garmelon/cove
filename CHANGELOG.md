@@ -21,6 +21,9 @@ Procedure when bumping the version number:
 - Session inspection popup
 - Error popup when external editor fails
 
+### Changed
+- Use nick changes to detect sessions for nick list
+
 ### Fixed
 - Cursor being visible through popups
 - Cursor in lists when highlighted item moves off-screen

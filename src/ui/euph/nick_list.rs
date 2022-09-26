@@ -1,8 +1,8 @@
 use std::iter;
 
 use crossterm::style::{Color, ContentStyle, Stylize};
-use euphoxide::api::{SessionId, SessionType, SessionView};
-use euphoxide::conn::Joined;
+use euphoxide::api::{NickEvent, SessionId, SessionType, SessionView, UserId};
+use euphoxide::conn::{Joined, SessionInfo};
 use toss::styled::Styled;
 
 use crate::euph;
@@ -18,16 +18,55 @@ pub fn widget(state: &ListState<SessionId>, joined: &Joined, focused: bool) -> B
     list.into()
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct HalfSession {
+    name: String,
+    id: UserId,
+    session_id: SessionId,
+    is_staff: bool,
+    is_manager: bool,
+}
+
+impl HalfSession {
+    fn from_session_view(sess: &SessionView) -> Self {
+        Self {
+            name: sess.name.clone(),
+            id: sess.id.clone(),
+            session_id: sess.session_id.clone(),
+            is_staff: sess.is_staff,
+            is_manager: sess.is_manager,
+        }
+    }
+
+    fn from_nick_event(nick: &NickEvent) -> Self {
+        Self {
+            name: nick.to.clone(),
+            id: nick.id.clone(),
+            session_id: nick.session_id.clone(),
+            is_staff: false,
+            is_manager: false,
+        }
+    }
+
+    fn from_session_info(info: &SessionInfo) -> Self {
+        match info {
+            SessionInfo::Full(sess) => Self::from_session_view(sess),
+            SessionInfo::Partial(nick) => Self::from_nick_event(nick),
+        }
+    }
+}
+
 fn render_rows(list: &mut List<SessionId>, joined: &Joined) {
     let mut people = vec![];
     let mut bots = vec![];
     let mut lurkers = vec![];
     let mut nurkers = vec![];
 
-    let mut sessions = iter::once(&joined.session)
-        .chain(joined.listing.values())
-        .collect::<Vec<_>>();
-    sessions.sort_unstable_by_key(|s| &s.name);
+    let sessions = joined
+        .listing
+        .values()
+        .map(HalfSession::from_session_info)
+        .chain(iter::once(HalfSession::from_session_view(&joined.session)));
     for sess in sessions {
         match sess.id.session_type() {
             Some(SessionType::Bot) if sess.name.is_empty() => nurkers.push(sess),
@@ -37,10 +76,10 @@ fn render_rows(list: &mut List<SessionId>, joined: &Joined) {
         }
     }
 
-    people.sort_unstable_by_key(|s| (&s.name, &s.session_id));
-    bots.sort_unstable_by_key(|s| (&s.name, &s.session_id));
-    lurkers.sort_unstable_by_key(|s| &s.session_id);
-    nurkers.sort_unstable_by_key(|s| &s.session_id);
+    people.sort_unstable();
+    bots.sort_unstable();
+    lurkers.sort_unstable();
+    nurkers.sort_unstable();
 
     render_section(list, "People", &people, &joined.session);
     render_section(list, "Bots", &bots, &joined.session);
@@ -51,7 +90,7 @@ fn render_rows(list: &mut List<SessionId>, joined: &Joined) {
 fn render_section(
     list: &mut List<SessionId>,
     name: &str,
-    sessions: &[&SessionView],
+    sessions: &[HalfSession],
     own_session: &SessionView,
 ) {
     if sessions.is_empty() {
@@ -74,7 +113,7 @@ fn render_section(
     }
 }
 
-fn render_row(list: &mut List<SessionId>, session: &SessionView, own_session: &SessionView) {
+fn render_row(list: &mut List<SessionId>, session: &HalfSession, own_session: &SessionView) {
     let (name, style, style_inv, perms_style_inv) = if session.name.is_empty() {
         let name = "lurk";
         let style = ContentStyle::default().grey();

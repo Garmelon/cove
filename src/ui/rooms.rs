@@ -191,11 +191,20 @@ impl Rooms {
         let mut b = 0_usize;
         let mut l = 0_usize;
         let mut n = 0_usize;
-        for sess in iter::once(&joined.session).chain(joined.listing.values()) {
-            match sess.id.session_type() {
-                Some(SessionType::Bot) if sess.name.is_empty() => n += 1,
+
+        let sessions = joined
+            .listing
+            .values()
+            .map(|s| (s.id(), s.name()))
+            .chain(iter::once((
+                &joined.session.id,
+                &joined.session.name as &str,
+            )));
+        for (user_id, name) in sessions {
+            match user_id.session_type() {
+                Some(SessionType::Bot) if name.is_empty() => n += 1,
                 Some(SessionType::Bot) => b += 1,
-                _ if sess.name.is_empty() => l += 1,
+                _ if name.is_empty() => l += 1,
                 _ => p += 1,
             }
         }
