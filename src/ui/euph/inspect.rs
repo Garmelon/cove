@@ -44,7 +44,7 @@ fn session_lines(mut text: Styled, session: &SessionView) -> Styled {
     line!(text, "name (raw)", session.name, debug);
     line!(text, "server_id", session.server_id);
     line!(text, "server_era", session.server_era);
-    line!(text, "session_id", session.session_id);
+    line!(text, "session_id", session.session_id.0);
     line!(text, "is_staff", session.is_staff, yes or no);
     line!(text, "is_manager", session.is_manager, yes or no);
     line!(
@@ -64,8 +64,8 @@ fn session_lines(mut text: Styled, session: &SessionView) -> Styled {
 }
 
 fn message_lines(mut text: Styled, msg: &Message) -> Styled {
-    line!(text, "id", msg.id);
-    line!(text, "parent", msg.parent, optional);
+    line!(text, "id", msg.id.0);
+    line!(text, "parent", msg.parent.map(|p| p.0), optional);
     line!(text, "previous_edit_id", msg.previous_edit_id, optional);
     line!(text, "time", msg.time.0);
     line!(text, "encryption_key_id", &msg.encryption_key_id, optional);

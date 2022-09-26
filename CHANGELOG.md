@@ -24,6 +24,7 @@ Procedure when bumping the version number:
 ### Fixed
 - Cursor being visible through popups
 - Cursor in lists when highlighted item moves off-screen
+- User disappearing from nick list when only one of their sessions disconnects
 
 ## v0.4.0 - 2022-09-01
 

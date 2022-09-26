@@ -7,7 +7,7 @@ use anyhow::bail;
 use cookie::{Cookie, CookieJar};
 use euphoxide::api::packet::ParsedPacket;
 use euphoxide::api::{
-    Auth, AuthOption, Data, Log, Login, Logout, Nick, Send, Snowflake, Time, UserId,
+    Auth, AuthOption, Data, Log, Login, Logout, MessageId, Nick, Send, Time, UserId,
 };
 use euphoxide::conn::{ConnRx, ConnTx, Joining, Status};
 use log::{error, info, warn};
@@ -50,7 +50,7 @@ enum Event {
     RequestLogs,
     Auth(String),
     Nick(String),
-    Send(Option<Snowflake>, String, oneshot::Sender<Snowflake>),
+    Send(Option<MessageId>, String, oneshot::Sender<MessageId>),
     Login { email: String, password: String },
     Logout,
 }
@@ -66,7 +66,7 @@ struct State {
     conn_tx: Option<ConnTx>,
     /// `None` before any `snapshot-event`, then either `Some(None)` or
     /// `Some(Some(id))`.
-    last_msg_id: Option<Option<Snowflake>>,
+    last_msg_id: Option<Option<MessageId>>,
     requesting_logs: Arc<Mutex<bool>>,
 }
 
@@ -419,9 +419,9 @@ impl State {
 
     fn on_send(
         &self,
-        parent: Option<Snowflake>,
+        parent: Option<MessageId>,
         content: String,
-        id_tx: oneshot::Sender<Snowflake>,
+        id_tx: oneshot::Sender<MessageId>,
     ) {
         if let Some(conn_tx) = &self.conn_tx {
             let conn_tx = conn_tx.clone();
@@ -527,9 +527,9 @@ impl Room {
 
     pub fn send(
         &self,
-        parent: Option<Snowflake>,
+        parent: Option<MessageId>,
         content: String,
-    ) -> Result<oneshot::Receiver<Snowflake>, Error> {
+    ) -> Result<oneshot::Receiver<MessageId>, Error> {
         let (id_tx, id_rx) = oneshot::channel();
         self.event_tx
             .send(Event::Send(parent, content, id_tx))

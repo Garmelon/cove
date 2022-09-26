@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
-use euphoxide::api::Snowflake;
+use euphoxide::api::MessageId;
 use time::format_description::FormatItem;
 use time::macros::format_description;
 use unicode_width::UnicodeWidthStr;
@@ -41,7 +41,7 @@ pub async fn export_to_file(
 fn write_tree(
     file: &mut BufWriter<File>,
     tree: &Tree<SmallMessage>,
-    id: Snowflake,
+    id: MessageId,
     indent: usize,
 ) -> anyhow::Result<()> {
     let indent_string = "| ".repeat(indent);

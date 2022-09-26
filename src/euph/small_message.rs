@@ -1,5 +1,5 @@
 use crossterm::style::{Color, ContentStyle, Stylize};
-use euphoxide::api::{Snowflake, Time};
+use euphoxide::api::{MessageId, Snowflake, Time};
 use time::OffsetDateTime;
 use toss::styled::Styled;
 
@@ -89,8 +89,8 @@ fn highlight_content(content: &str, base_style: ContentStyle) -> Styled {
 
 #[derive(Debug, Clone)]
 pub struct SmallMessage {
-    pub id: Snowflake,
-    pub parent: Option<Snowflake>,
+    pub id: MessageId,
+    pub parent: Option<MessageId>,
     pub time: Time,
     pub nick: String,
     pub content: String,
@@ -135,7 +135,7 @@ fn styled_editor_content(content: &str) -> Styled {
 }
 
 impl Msg for SmallMessage {
-    type Id = Snowflake;
+    type Id = MessageId;
 
     fn id(&self) -> Self::Id {
         self.id
@@ -150,7 +150,7 @@ impl Msg for SmallMessage {
     }
 
     fn last_possible_id() -> Self::Id {
-        Snowflake::MAX
+        MessageId(Snowflake::MAX)
     }
 }
 

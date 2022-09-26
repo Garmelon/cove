@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use async_trait::async_trait;
 use cookie::{Cookie, CookieJar};
-use euphoxide::api::{Message, SessionView, Snowflake, Time, UserId};
+use euphoxide::api::{Message, MessageId, SessionId, SessionView, Snowflake, Time, UserId};
 use rusqlite::types::{FromSql, FromSqlError, ToSqlOutput, Value, ValueRef};
 use rusqlite::{named_params, params, Connection, OptionalExtension, ToSql, Transaction};
 use time::OffsetDateTime;
@@ -86,63 +86,63 @@ impl EuphRoomVault {
 
 #[async_trait]
 impl MsgStore<SmallMessage> for EuphRoomVault {
-    async fn path(&self, id: &Snowflake) -> Path<Snowflake> {
+    async fn path(&self, id: &MessageId) -> Path<MessageId> {
         self.path(*id).await
     }
 
-    async fn msg(&self, id: &Snowflake) -> Option<SmallMessage> {
+    async fn msg(&self, id: &MessageId) -> Option<SmallMessage> {
         self.msg(*id).await
     }
 
-    async fn tree(&self, root_id: &Snowflake) -> Tree<SmallMessage> {
+    async fn tree(&self, root_id: &MessageId) -> Tree<SmallMessage> {
         self.tree(*root_id).await
     }
 
-    async fn first_root_id(&self) -> Option<Snowflake> {
+    async fn first_root_id(&self) -> Option<MessageId> {
         self.first_root_id().await
     }
 
-    async fn last_root_id(&self) -> Option<Snowflake> {
+    async fn last_root_id(&self) -> Option<MessageId> {
         self.last_root_id().await
     }
 
-    async fn prev_root_id(&self, root_id: &Snowflake) -> Option<Snowflake> {
+    async fn prev_root_id(&self, root_id: &MessageId) -> Option<MessageId> {
         self.prev_root_id(*root_id).await
     }
 
-    async fn next_root_id(&self, root_id: &Snowflake) -> Option<Snowflake> {
+    async fn next_root_id(&self, root_id: &MessageId) -> Option<MessageId> {
         self.next_root_id(*root_id).await
     }
 
-    async fn oldest_msg_id(&self) -> Option<Snowflake> {
+    async fn oldest_msg_id(&self) -> Option<MessageId> {
         self.oldest_msg_id().await
     }
 
-    async fn newest_msg_id(&self) -> Option<Snowflake> {
+    async fn newest_msg_id(&self) -> Option<MessageId> {
         self.newest_msg_id().await
     }
 
-    async fn older_msg_id(&self, id: &Snowflake) -> Option<Snowflake> {
+    async fn older_msg_id(&self, id: &MessageId) -> Option<MessageId> {
         self.older_msg_id(*id).await
     }
 
-    async fn newer_msg_id(&self, id: &Snowflake) -> Option<Snowflake> {
+    async fn newer_msg_id(&self, id: &MessageId) -> Option<MessageId> {
         self.newer_msg_id(*id).await
     }
 
-    async fn oldest_unseen_msg_id(&self) -> Option<Snowflake> {
+    async fn oldest_unseen_msg_id(&self) -> Option<MessageId> {
         self.oldest_unseen_msg_id().await
     }
 
-    async fn newest_unseen_msg_id(&self) -> Option<Snowflake> {
+    async fn newest_unseen_msg_id(&self) -> Option<MessageId> {
         self.newest_unseen_msg_id().await
     }
 
-    async fn older_unseen_msg_id(&self, id: &Snowflake) -> Option<Snowflake> {
+    async fn older_unseen_msg_id(&self, id: &MessageId) -> Option<MessageId> {
         self.older_unseen_msg_id(*id).await
     }
 
-    async fn newer_unseen_msg_id(&self, id: &Snowflake) -> Option<Snowflake> {
+    async fn newer_unseen_msg_id(&self, id: &MessageId) -> Option<MessageId> {
         self.newer_unseen_msg_id(*id).await
     }
 
@@ -150,11 +150,11 @@ impl MsgStore<SmallMessage> for EuphRoomVault {
         self.unseen_msgs_count().await
     }
 
-    async fn set_seen(&self, id: &Snowflake, seen: bool) {
+    async fn set_seen(&self, id: &MessageId, seen: bool) {
         self.set_seen(*id, seen);
     }
 
-    async fn set_older_seen(&self, id: &Snowflake, seen: bool) {
+    async fn set_older_seen(&self, id: &MessageId, seen: bool) {
         self.set_older_seen(*id, seen);
     }
 }
@@ -247,28 +247,28 @@ requests! {
     Delete : delete(room: String);
 
     // Message
-    AddMsg : add_msg(room: String, msg: Box<Message>, prev_msg_id: Option<Snowflake>, own_user_id: Option<UserId>);
-    AddMsgs : add_msgs(room: String, msgs: Vec<Message>, next_msg_id: Option<Snowflake>, own_user_id: Option<UserId>);
-    GetLastSpan : last_span(room: String) -> Option<(Option<Snowflake>, Option<Snowflake>)>;
-    GetPath : path(room: String, id: Snowflake) -> Path<Snowflake>;
-    GetMsg : msg(room: String, id: Snowflake) -> Option<SmallMessage>;
-    GetFullMsg : full_msg(room: String, id: Snowflake) -> Option<Message>;
-    GetTree : tree(room: String, root_id: Snowflake) -> Tree<SmallMessage>;
-    GetFirstRootId : first_root_id(room: String) -> Option<Snowflake>;
-    GetLastRootId : last_root_id(room: String) -> Option<Snowflake>;
-    GetPrevRootId : prev_root_id(room: String, root_id: Snowflake) -> Option<Snowflake>;
-    GetNextRootId : next_root_id(room: String, root_id: Snowflake) -> Option<Snowflake>;
-    GetOldestMsgId : oldest_msg_id(room: String) -> Option<Snowflake>;
-    GetNewestMsgId : newest_msg_id(room: String) -> Option<Snowflake>;
-    GetOlderMsgId : older_msg_id(room: String, id: Snowflake) -> Option<Snowflake>;
-    GetNewerMsgId : newer_msg_id(room: String, id: Snowflake) -> Option<Snowflake>;
-    GetOldestUnseenMsgId : oldest_unseen_msg_id(room: String) -> Option<Snowflake>;
-    GetNewestUnseenMsgId : newest_unseen_msg_id(room: String) -> Option<Snowflake>;
-    GetOlderUnseenMsgId : older_unseen_msg_id(room: String, id: Snowflake) -> Option<Snowflake>;
-    GetNewerUnseenMsgId : newer_unseen_msg_id(room: String, id: Snowflake) -> Option<Snowflake>;
+    AddMsg : add_msg(room: String, msg: Box<Message>, prev_msg_id: Option<MessageId>, own_user_id: Option<UserId>);
+    AddMsgs : add_msgs(room: String, msgs: Vec<Message>, next_msg_id: Option<MessageId>, own_user_id: Option<UserId>);
+    GetLastSpan : last_span(room: String) -> Option<(Option<MessageId>, Option<MessageId>)>;
+    GetPath : path(room: String, id: MessageId) -> Path<MessageId>;
+    GetMsg : msg(room: String, id: MessageId) -> Option<SmallMessage>;
+    GetFullMsg : full_msg(room: String, id: MessageId) -> Option<Message>;
+    GetTree : tree(room: String, root_id: MessageId) -> Tree<SmallMessage>;
+    GetFirstRootId : first_root_id(room: String) -> Option<MessageId>;
+    GetLastRootId : last_root_id(room: String) -> Option<MessageId>;
+    GetPrevRootId : prev_root_id(room: String, root_id: MessageId) -> Option<MessageId>;
+    GetNextRootId : next_root_id(room: String, root_id: MessageId) -> Option<MessageId>;
+    GetOldestMsgId : oldest_msg_id(room: String) -> Option<MessageId>;
+    GetNewestMsgId : newest_msg_id(room: String) -> Option<MessageId>;
+    GetOlderMsgId : older_msg_id(room: String, id: MessageId) -> Option<MessageId>;
+    GetNewerMsgId : newer_msg_id(room: String, id: MessageId) -> Option<MessageId>;
+    GetOldestUnseenMsgId : oldest_unseen_msg_id(room: String) -> Option<MessageId>;
+    GetNewestUnseenMsgId : newest_unseen_msg_id(room: String) -> Option<MessageId>;
+    GetOlderUnseenMsgId : older_unseen_msg_id(room: String, id: MessageId) -> Option<MessageId>;
+    GetNewerUnseenMsgId : newer_unseen_msg_id(room: String, id: MessageId) -> Option<MessageId>;
     GetUnseenMsgsCount : unseen_msgs_count(room: String) -> usize;
-    SetSeen : set_seen(room: String, id: Snowflake, seen: bool);
-    SetOlderSeen : set_older_seen(room: String, id: Snowflake, seen: bool);
+    SetSeen : set_seen(room: String, id: MessageId, seen: bool);
+    SetOlderSeen : set_older_seen(room: String, id: MessageId, seen: bool);
     GetChunkAtOffset : chunk_at_offset(room: String, amount: usize, offset: usize) -> Vec<Message>;
 }
 
@@ -417,8 +417,8 @@ fn insert_msgs(
     for msg in msgs {
         insert_msg.execute(named_params! {
             ":room": room,
-            ":id": WSnowflake(msg.id),
-            ":parent": msg.parent.map(WSnowflake),
+            ":id": WSnowflake(msg.id.0),
+            ":parent": msg.parent.map(|id| WSnowflake(id.0)),
             ":previous_edit_id": msg.previous_edit_id.map(WSnowflake),
             ":time": WTime(msg.time),
             ":content": msg.content,
@@ -430,7 +430,7 @@ fn insert_msgs(
             ":name": msg.sender.name,
             ":server_id": msg.sender.server_id,
             ":server_era": msg.sender.server_era,
-            ":session_id": msg.sender.session_id,
+            ":session_id": msg.sender.session_id.0,
             ":is_staff": msg.sender.is_staff,
             ":is_manager": msg.sender.is_manager,
             ":client_address": msg.sender.client_address,
@@ -445,8 +445,8 @@ fn insert_msgs(
 fn add_span(
     tx: &Transaction<'_>,
     room: &str,
-    start: Option<Snowflake>,
-    end: Option<Snowflake>,
+    start: Option<MessageId>,
+    end: Option<MessageId>,
 ) -> rusqlite::Result<()> {
     // Retrieve all spans for the room
     let mut spans = tx
@@ -458,8 +458,8 @@ fn add_span(
             ",
         )?
         .query_map([room], |row| {
-            let start = row.get::<_, Option<WSnowflake>>(0)?.map(|s| s.0);
-            let end = row.get::<_, Option<WSnowflake>>(1)?.map(|s| s.0);
+            let start = row.get::<_, Option<WSnowflake>>(0)?.map(|s| MessageId(s.0));
+            let end = row.get::<_, Option<WSnowflake>>(1)?.map(|s| MessageId(s.0));
             Ok((start, end))
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -469,7 +469,7 @@ fn add_span(
     spans.sort_unstable();
 
     // Combine overlapping spans (including newly added span)
-    let mut cur_span: Option<(Option<Snowflake>, Option<Snowflake>)> = None;
+    let mut cur_span: Option<(Option<MessageId>, Option<MessageId>)> = None;
     let mut result = vec![];
     for mut span in spans {
         if let Some(cur_span) = &mut cur_span {
@@ -510,7 +510,11 @@ fn add_span(
         ",
     )?;
     for (start, end) in result {
-        stmt.execute(params![room, start.map(WSnowflake), end.map(WSnowflake)])?;
+        stmt.execute(params![
+            room,
+            start.map(|id| WSnowflake(id.0)),
+            end.map(|id| WSnowflake(id.0))
+        ])?;
     }
 
     Ok(())
@@ -564,8 +568,8 @@ impl Request for GetLastSpan {
             )?
             .query_row([self.room], |row| {
                 Ok((
-                    row.get::<_, Option<WSnowflake>>(0)?.map(|s| s.0),
-                    row.get::<_, Option<WSnowflake>>(1)?.map(|s| s.0),
+                    row.get::<_, Option<WSnowflake>>(0)?.map(|s| MessageId(s.0)),
+                    row.get::<_, Option<WSnowflake>>(1)?.map(|s| MessageId(s.0)),
                 ))
             })
             .optional()?;
@@ -593,8 +597,8 @@ impl Request for GetPath {
                 ORDER BY id ASC
                 ",
             )?
-            .query_map(params![self.room, WSnowflake(self.id)], |row| {
-                row.get::<_, WSnowflake>(0).map(|s| s.0)
+            .query_map(params![self.room, WSnowflake(self.id.0)], |row| {
+                row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
             })?
             .collect::<rusqlite::Result<_>>()?;
         let path = Path::new(path);
@@ -613,11 +617,11 @@ impl Request for GetMsg {
                 WHERE room = ?
                 AND id = ?
                 ",
-                params![self.room, WSnowflake(self.id)],
+                params![self.room, WSnowflake(self.id.0)],
                 |row| {
                     Ok(SmallMessage {
-                        id: row.get::<_, WSnowflake>(0)?.0,
-                        parent: row.get::<_, Option<WSnowflake>>(1)?.map(|s| s.0),
+                        id: MessageId(row.get::<_, WSnowflake>(0)?.0),
+                        parent: row.get::<_, Option<WSnowflake>>(1)?.map(|s| MessageId(s.0)),
                         time: row.get::<_, WTime>(2)?.0,
                         nick: row.get(3)?,
                         content: row.get(4)?,
@@ -645,10 +649,10 @@ impl Request for GetFullMsg {
         )?;
 
         let msg = query
-            .query_row(params![self.room, WSnowflake(self.id)], |row| {
+            .query_row(params![self.room, WSnowflake(self.id.0)], |row| {
                 Ok(Message {
-                    id: row.get::<_, WSnowflake>(0)?.0,
-                    parent: row.get::<_, Option<WSnowflake>>(1)?.map(|s| s.0),
+                    id: MessageId(row.get::<_, WSnowflake>(0)?.0),
+                    parent: row.get::<_, Option<WSnowflake>>(1)?.map(|s| MessageId(s.0)),
                     previous_edit_id: row.get::<_, Option<WSnowflake>>(2)?.map(|s| s.0),
                     time: row.get::<_, WTime>(3)?.0,
                     content: row.get(4)?,
@@ -661,7 +665,7 @@ impl Request for GetFullMsg {
                         name: row.get(10)?,
                         server_id: row.get(11)?,
                         server_era: row.get(12)?,
-                        session_id: row.get(13)?,
+                        session_id: SessionId(row.get(13)?),
                         is_staff: row.get(14)?,
                         is_manager: row.get(15)?,
                         client_address: row.get(16)?,
@@ -696,10 +700,10 @@ impl Request for GetTree {
                 ORDER BY id ASC
                 ",
             )?
-            .query_map(params![self.room, WSnowflake(self.root_id)], |row| {
+            .query_map(params![self.room, WSnowflake(self.root_id.0)], |row| {
                 Ok(SmallMessage {
-                    id: row.get::<_, WSnowflake>(0)?.0,
-                    parent: row.get::<_, Option<WSnowflake>>(1)?.map(|s| s.0),
+                    id: MessageId(row.get::<_, WSnowflake>(0)?.0),
+                    parent: row.get::<_, Option<WSnowflake>>(1)?.map(|s| MessageId(s.0)),
                     time: row.get::<_, WTime>(2)?.0,
                     nick: row.get(3)?,
                     content: row.get(4)?,
@@ -725,7 +729,9 @@ impl Request for GetFirstRootId {
                 LIMIT 1
                 ",
             )?
-            .query_row([self.room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
+            .query_row([self.room], |row| {
+                row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
+            })
             .optional()?;
         let _ = self.result.send(tree);
         Ok(())
@@ -744,7 +750,9 @@ impl Request for GetLastRootId {
                 LIMIT 1
                 ",
             )?
-            .query_row([self.room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
+            .query_row([self.room], |row| {
+                row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
+            })
             .optional()?;
         let _ = self.result.send(tree);
         Ok(())
@@ -764,8 +772,8 @@ impl Request for GetPrevRootId {
                 LIMIT 1
                 ",
             )?
-            .query_row(params![self.room, WSnowflake(self.root_id)], |row| {
-                row.get::<_, WSnowflake>(0).map(|s| s.0)
+            .query_row(params![self.room, WSnowflake(self.root_id.0)], |row| {
+                row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
             })
             .optional()?;
         let _ = self.result.send(tree);
@@ -786,8 +794,8 @@ impl Request for GetNextRootId {
                 LIMIT 1
                 ",
             )?
-            .query_row(params![self.room, WSnowflake(self.root_id)], |row| {
-                row.get::<_, WSnowflake>(0).map(|s| s.0)
+            .query_row(params![self.room, WSnowflake(self.root_id.0)], |row| {
+                row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
             })
             .optional()?;
         let _ = self.result.send(tree);
@@ -807,7 +815,9 @@ impl Request for GetOldestMsgId {
                 LIMIT 1
                 ",
             )?
-            .query_row([self.room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
+            .query_row([self.room], |row| {
+                row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
+            })
             .optional()?;
         let _ = self.result.send(tree);
         Ok(())
@@ -826,7 +836,9 @@ impl Request for GetNewestMsgId {
                 LIMIT 1
                 ",
             )?
-            .query_row([self.room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
+            .query_row([self.room], |row| {
+                row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
+            })
             .optional()?;
         let _ = self.result.send(tree);
         Ok(())
@@ -846,8 +858,8 @@ impl Request for GetOlderMsgId {
                 LIMIT 1
                 ",
             )?
-            .query_row(params![self.room, WSnowflake(self.id)], |row| {
-                row.get::<_, WSnowflake>(0).map(|s| s.0)
+            .query_row(params![self.room, WSnowflake(self.id.0)], |row| {
+                row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
             })
             .optional()?;
         let _ = self.result.send(tree);
@@ -867,8 +879,8 @@ impl Request for GetNewerMsgId {
                 LIMIT 1
                 ",
             )?
-            .query_row(params![self.room, WSnowflake(self.id)], |row| {
-                row.get::<_, WSnowflake>(0).map(|s| s.0)
+            .query_row(params![self.room, WSnowflake(self.id.0)], |row| {
+                row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
             })
             .optional()?;
         let _ = self.result.send(tree);
@@ -889,7 +901,9 @@ impl Request for GetOldestUnseenMsgId {
                 LIMIT 1
                 ",
             )?
-            .query_row([self.room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
+            .query_row([self.room], |row| {
+                row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
+            })
             .optional()?;
         let _ = self.result.send(tree);
         Ok(())
@@ -909,7 +923,9 @@ impl Request for GetNewestUnseenMsgId {
                 LIMIT 1
                 ",
             )?
-            .query_row([self.room], |row| row.get::<_, WSnowflake>(0).map(|s| s.0))
+            .query_row([self.room], |row| {
+                row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
+            })
             .optional()?;
         let _ = self.result.send(tree);
         Ok(())
@@ -930,8 +946,8 @@ impl Request for GetOlderUnseenMsgId {
                 LIMIT 1
                 ",
             )?
-            .query_row(params![self.room, WSnowflake(self.id)], |row| {
-                row.get::<_, WSnowflake>(0).map(|s| s.0)
+            .query_row(params![self.room, WSnowflake(self.id.0)], |row| {
+                row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
             })
             .optional()?;
         let _ = self.result.send(tree);
@@ -953,8 +969,8 @@ impl Request for GetNewerUnseenMsgId {
                 LIMIT 1
                 ",
             )?
-            .query_row(params![self.room, WSnowflake(self.id)], |row| {
-                row.get::<_, WSnowflake>(0).map(|s| s.0)
+            .query_row(params![self.room, WSnowflake(self.id.0)], |row| {
+                row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
             })
             .optional()?;
         let _ = self.result.send(tree);
@@ -989,7 +1005,7 @@ impl Request for SetSeen {
             WHERE room = :room
             AND id = :id
             ",
-            named_params! { ":room": self.room, ":id": WSnowflake(self.id), ":seen": self.seen },
+            named_params! { ":room": self.room, ":id": WSnowflake(self.id.0), ":seen": self.seen },
         )?;
         Ok(())
     }
@@ -1005,7 +1021,7 @@ impl Request for SetOlderSeen {
             AND id <= :id
             AND seen != :seen
             ",
-            named_params! { ":room": self.room, ":id": WSnowflake(self.id), ":seen": self.seen },
+            named_params! { ":room": self.room, ":id": WSnowflake(self.id.0), ":seen": self.seen },
         )?;
         Ok(())
     }
@@ -1029,8 +1045,8 @@ impl Request for GetChunkAtOffset {
         let messages = query
             .query_map(params![self.room, self.amount, self.offset], |row| {
                 Ok(Message {
-                    id: row.get::<_, WSnowflake>(0)?.0,
-                    parent: row.get::<_, Option<WSnowflake>>(1)?.map(|s| s.0),
+                    id: MessageId(row.get::<_, WSnowflake>(0)?.0),
+                    parent: row.get::<_, Option<WSnowflake>>(1)?.map(|s| MessageId(s.0)),
                     previous_edit_id: row.get::<_, Option<WSnowflake>>(2)?.map(|s| s.0),
                     time: row.get::<_, WTime>(3)?.0,
                     content: row.get(4)?,
@@ -1043,7 +1059,7 @@ impl Request for GetChunkAtOffset {
                         name: row.get(10)?,
                         server_id: row.get(11)?,
                         server_era: row.get(12)?,
-                        session_id: row.get(13)?,
+                        session_id: SessionId(row.get(13)?),
                         is_staff: row.get(14)?,
                         is_manager: row.get(15)?,
                         client_address: row.get(16)?,
