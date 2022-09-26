@@ -14,6 +14,8 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+## v0.5.0 - 2022-09-26
+
 ### Added
 - Key bindings to navigate nick list
 - Room deletion confirmation popup
