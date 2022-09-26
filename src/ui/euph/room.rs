@@ -529,7 +529,7 @@ impl EuphRoom {
                 self.list_chat_focus_key_bindings(bindings, &status).await;
             }
             Focus::NickList => {
-                bindings.binding("tab", "focus on chat");
+                bindings.binding("tab, esc", "focus on chat");
                 bindings.empty();
                 bindings.heading("Nick list");
                 self.list_nick_list_focus_key_bindings(bindings);
@@ -564,7 +564,7 @@ impl EuphRoom {
                 }
             }
             Focus::NickList => {
-                if let key!(Tab) = event {
+                if let key!(Tab) | key!(Esc) = event {
                     self.focus = Focus::Chat;
                     return true;
                 }
