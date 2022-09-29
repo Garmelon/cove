@@ -41,7 +41,7 @@ use vault::Vault;
 use crate::config::Config;
 use crate::logger::Logger;
 
-#[derive(Debug, clap::Subcommand)]
+#[derive(Debug, clap::Parser)]
 enum Command {
     /// Run the client interactively (default).
     Run,
@@ -60,34 +60,34 @@ impl Default for Command {
 }
 
 #[derive(Debug, clap::Parser)]
-#[clap(version)]
+#[command(version)]
 struct Args {
     /// Path to the config file.
     ///
     /// Relative paths are interpreted relative to the current directory.
-    #[clap(long, short)]
+    #[arg(long, short)]
     config: Option<PathBuf>,
 
     /// Path to a directory for cove to store its data in.
     ///
     /// Relative paths are interpreted relative to the current directory.
-    #[clap(long, short)]
+    #[arg(long, short)]
     data_dir: Option<PathBuf>,
 
     /// If set, cove won't store data permanently.
-    #[clap(long, short, action)]
+    #[arg(long, short)]
     ephemeral: bool,
 
     /// If set, cove will ignore the autojoin config option.
-    #[clap(long, short, action)]
+    #[arg(long, short)]
     offline: bool,
 
     /// Measure the width of characters as displayed by the terminal emulator
     /// instead of guessing the width.
-    #[clap(long, short, action)]
+    #[arg(long, short)]
     measure_widths: bool,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     command: Option<Command>,
 }
 

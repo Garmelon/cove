@@ -37,11 +37,11 @@ pub struct Args {
     rooms: Vec<String>,
 
     /// Export all rooms.
-    #[clap(long, short)]
+    #[arg(long, short)]
     all: bool,
 
     /// Format of the output file.
-    #[clap(long, short, value_enum, default_value_t = Format::Text)]
+    #[arg(long, short, value_enum, default_value_t = Format::Text)]
     format: Format,
 
     /// Location of the output file
@@ -55,8 +55,8 @@ pub struct Args {
     /// `%r.%e` will be appended.
     ///
     /// Must be a valid utf-8 encoded string.
-    #[clap(long, short, default_value_t = Into::into("%r.%e"))]
-    #[clap(verbatim_doc_comment)]
+    #[arg(long, short, default_value_t = Into::into("%r.%e"))]
+    #[arg(verbatim_doc_comment)]
     out: String,
 }
 

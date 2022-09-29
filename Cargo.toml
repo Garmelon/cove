@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.65"
 async-trait = "0.1.57"
-clap = { version = "3.2.22", features = ["derive"] }
+clap = { version = "4.0.2", features = ["derive", "deprecated"] }
 cookie = "0.16.1"
 crossterm = "0.25.0"
 directories = "4.0.1"
