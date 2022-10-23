@@ -15,9 +15,7 @@ use parking_lot::Mutex;
 use tokio::sync::{mpsc, oneshot};
 use tokio::{select, task};
 use tokio_tungstenite::tungstenite;
-use tokio_tungstenite::tungstenite::client::IntoClientRequest;
-use tokio_tungstenite::tungstenite::handshake::client::Response;
-use tokio_tungstenite::tungstenite::http::{header, HeaderValue};
+use tokio_tungstenite::tungstenite::http::HeaderValue;
 
 use crate::macros::ok_or_return;
 use crate::vault::{EuphRoomVault, EuphVault};
@@ -149,14 +147,14 @@ impl State {
         cookies.join("; ")
     }
 
-    fn update_cookies(vault: &EuphVault, response: &Response) {
+    fn update_cookies(vault: &EuphVault, set_cookies: &[HeaderValue]) {
         let mut cookie_jar = CookieJar::new();
 
-        for (name, value) in response.headers() {
-            if name == header::SET_COOKIE {
-                let value_str = ok_or_return!(value.to_str());
-                let cookie = ok_or_return!(Cookie::from_str(value_str));
-                cookie_jar.add(cookie);
+        for cookie in set_cookies {
+            if let Ok(cookie) = cookie.to_str() {
+                if let Ok(cookie) = Cookie::from_str(cookie) {
+                    cookie_jar.add(cookie)
+                }
             }
         }
 
@@ -167,17 +165,15 @@ impl State {
         vault: &EuphRoomVault,
         name: &str,
     ) -> anyhow::Result<Option<(ConnTx, ConnRx)>> {
-        let uri = format!("wss://euphoria.io/room/{name}/ws?h=1");
-        let mut request = uri.into_client_request().expect("valid request");
-        let cookies = Self::get_cookies(vault.vault()).await;
-        let cookies = HeaderValue::from_str(&cookies).expect("valid cookies");
-        request.headers_mut().append(header::COOKIE, cookies);
         // TODO Set user agent?
 
-        match tokio_tungstenite::connect_async(request).await {
-            Ok((ws, response)) => {
-                Self::update_cookies(vault.vault(), &response);
-                Ok(Some(euphoxide::wrap(ws, TIMEOUT)))
+        let cookies = Self::get_cookies(vault.vault()).await;
+        let cookies = HeaderValue::from_str(&cookies).expect("valid cookies");
+
+        match euphoxide::connect("euphoria.io", name, true, Some(cookies), TIMEOUT).await {
+            Ok((tx, rx, set_cookies)) => {
+                Self::update_cookies(vault.vault(), &set_cookies);
+                Ok(Some((tx, rx)))
             }
             Err(tungstenite::Error::Http(resp)) if resp.status().is_client_error() => {
                 bail!("room {name} doesn't exist");
