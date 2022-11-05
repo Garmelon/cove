@@ -81,12 +81,13 @@ impl Drop for LoggerGuard {
                 if !error_encountered {
                     eprintln!();
                     eprintln!("The following errors occurred while cove was running:");
-                    eprintln!();
                 }
                 error_encountered = true;
                 eprintln!("{}", msg.content);
-                eprintln!();
             }
+        }
+        if error_encountered {
+            eprintln!();
         }
     }
 }
