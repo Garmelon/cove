@@ -235,7 +235,7 @@ impl State {
                     let _ = euph_room_event_tx.send(EuphRoomEvent::Disconnected);
                 }
                 Event::Packet(packet) => {
-                    self.on_packet(&*packet).await?;
+                    self.on_packet(&packet).await?;
                     let _ = euph_room_event_tx.send(EuphRoomEvent::Packet(packet));
                 }
                 Event::Status(reply_tx) => self.on_status(reply_tx).await,
