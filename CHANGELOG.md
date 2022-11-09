@@ -15,6 +15,7 @@ Procedure when bumping the version number:
 ## Unreleased
 
 ### Changed
+- Increase reconnect delay to one minute
 - Print errors that occurred while cove was running more compactly
 
 ## v0.5.0 - 2022-09-26

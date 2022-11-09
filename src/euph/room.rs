@@ -21,7 +21,7 @@ use crate::macros::ok_or_return;
 use crate::vault::{EuphRoomVault, EuphVault};
 
 const TIMEOUT: Duration = Duration::from_secs(30);
-const RECONNECT_INTERVAL: Duration = Duration::from_secs(5);
+const RECONNECT_INTERVAL: Duration = Duration::from_secs(60);
 const LOG_INTERVAL: Duration = Duration::from_secs(10);
 
 #[derive(Debug, thiserror::Error)]
