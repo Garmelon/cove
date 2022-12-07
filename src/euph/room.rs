@@ -382,7 +382,13 @@ impl State {
             None => None,
         };
 
-        let _ = conn_tx.send(Log { n: 1000, before }).await?;
+        // &rl2dev's message history is broken and requesting old messages past
+        // a certain point results in errors. By reducing the amount of messages
+        // in each log request, we can get closer to this point. Since &rl2dev
+        // is fairly low in activity, this should be fine.
+        let n = if vault.room() == "rl2dev" { 50 } else { 1000 };
+
+        let _ = conn_tx.send(Log { n, before }).await?;
         // The code handling incoming events and replies also handles
         // `LogReply`s, so we don't need to do anything special here.
 
@@ -462,7 +468,13 @@ impl Room {
         let (canary_tx, canary_rx) = oneshot::channel();
         let (event_tx, event_rx) = mpsc::unbounded_channel();
         let (euph_room_event_tx, euph_room_event_rx) = mpsc::unbounded_channel();
-        let ephemeral = vault.vault().vault().ephemeral();
+
+        // &rl2dev's message history is broken and requesting old messages past
+        // a certain point results in errors. Cove should not keep retrying log
+        // requests when hitting that limit, so &rl2dev is always opened in
+        // ephemeral mode.
+        let room_name = vault.room().to_string();
+        let ephemeral = vault.vault().vault().ephemeral() || room_name == "rl2dev";
 
         let state = State {
             name: vault.room().to_string(),

@@ -14,6 +14,10 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Changed
+- Always connect to &rl2dev in ephemeral mode
+- Reduce amount of messages per &rl2dev log request
+
 ## v0.5.1 - 2022-11-27
 
 ### Changed
