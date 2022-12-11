@@ -54,6 +54,7 @@ impl From<crossterm::event::KeyEvent> for KeyEvent {
 }
 
 #[rustfmt::skip]
+#[allow(unused_macro_rules)]
 macro_rules! key {
     // key!(Paste text)
     ( Paste $text:ident ) => { crate::ui::input::InputEvent::Paste($text) };

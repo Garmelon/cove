@@ -1,16 +1,11 @@
-#![deny(unsafe_code)]
+#![forbid(unsafe_code)]
 // Rustc lint groups
 #![warn(future_incompatible)]
 #![warn(rust_2018_idioms)]
+#![warn(unused)]
 // Rustc lints
 #![warn(noop_method_call)]
 #![warn(single_use_lifetimes)]
-#![warn(trivial_numeric_casts)]
-#![warn(unused_crate_dependencies)]
-#![warn(unused_extern_crates)]
-#![warn(unused_import_braces)]
-#![warn(unused_lifetimes)]
-#![warn(unused_qualifications)]
 // Clippy lints
 #![warn(clippy::use_self)]
 
