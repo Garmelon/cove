@@ -388,6 +388,7 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         // message should always be visible. I'm not using top_line.clamp(...)
         // because the order of the min and max matters.
         let top_line = block.top_line;
+        #[allow(clippy::manual_clamp)]
         let new_top_line = top_line.min(max_line).max(min_line);
         if new_top_line != top_line {
             blocks.blocks_mut().offset(new_top_line - top_line);
@@ -415,6 +416,7 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         // because the order of the min and max matters.
         let top_line = block.top_line;
         let new_top_line = (height - block.height) / 2;
+        #[allow(clippy::manual_clamp)]
         let new_top_line = new_top_line.min(max_line).max(min_line);
         if new_top_line != top_line {
             blocks.blocks_mut().offset(new_top_line - top_line);

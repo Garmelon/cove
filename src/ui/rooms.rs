@@ -265,13 +265,13 @@ impl Rooms {
         match (status, unseen) {
             (None, None) => Styled::default(),
             (None, Some(u)) => Styled::new_plain(" (")
-                .then(&u, unseen_style)
+                .then(u, unseen_style)
                 .then_plain(")"),
-            (Some(s), None) => Styled::new_plain(" (").then_plain(&s).then_plain(")"),
+            (Some(s), None) => Styled::new_plain(" (").then_plain(s).then_plain(")"),
             (Some(s), Some(u)) => Styled::new_plain(" (")
-                .then_plain(&s)
+                .then_plain(s)
                 .then_plain(", ")
-                .then(&u, unseen_style)
+                .then(u, unseen_style)
                 .then_plain(")"),
         }
     }
