@@ -70,7 +70,6 @@ pub struct EuphRoom {
 
     ui_event_tx: mpsc::UnboundedSender<UiEvent>,
 
-    vault: EuphRoomVault,
     room: Option<euph::Room>,
 
     focus: Focus,
@@ -92,7 +91,6 @@ impl EuphRoom {
         Self {
             config,
             ui_event_tx,
-            vault: vault.clone(),
             room: None,
             focus: Focus::Chat,
             state: State::Normal,
@@ -101,6 +99,14 @@ impl EuphRoom {
             last_msg_sent: None,
             nick_list: ListState::new(),
         }
+    }
+
+    fn vault(&self) -> &EuphRoomVault {
+        self.chat.store()
+    }
+
+    fn name(&self) -> &str {
+        self.vault().room()
     }
 
     async fn shovel_room_events(
@@ -120,10 +126,8 @@ impl EuphRoom {
 
     pub fn connect(&mut self) {
         if self.room.is_none() {
-            let store = self.chat.store().clone();
-            let name = store.room().to_string();
             let (room, euph_room_event_rx) = euph::Room::new(
-                store,
+                self.vault().clone(),
                 self.config.username.clone(),
                 self.config.force_username,
                 self.config.password.clone(),
@@ -132,7 +136,7 @@ impl EuphRoom {
             self.room = Some(room);
 
             tokio::task::spawn(Self::shovel_room_events(
-                name,
+                self.name().to_string(),
                 euph_room_event_rx,
                 self.ui_event_tx.clone(),
             ));
@@ -167,7 +171,7 @@ impl EuphRoom {
     }
 
     pub async fn unseen_msgs_count(&self) -> usize {
-        self.vault.unseen_msgs_count().await
+        self.vault().unseen_msgs_count().await
     }
 
     async fn stabilize_pseudo_msg(&mut self) {
@@ -290,9 +294,8 @@ impl EuphRoom {
     }
 
     async fn status_widget(&self, status: &RoomStatus) -> BoxedWidget {
-        let room = self.chat.store().room();
         let room_style = ContentStyle::default().bold().blue();
-        let mut info = Styled::new(format!("&{room}"), room_style);
+        let mut info = Styled::new(format!("&{}", self.name()), room_style);
 
         info = match status {
             RoomStatus::NoRoom | RoomStatus::Stopped => info.then_plain(", archive"),
@@ -430,7 +433,7 @@ impl EuphRoom {
         match event {
             key!('i') => {
                 if let Some(id) = self.chat.cursor().await {
-                    if let Some(msg) = self.vault.full_msg(id).await {
+                    if let Some(msg) = self.vault().full_msg(id).await {
                         self.state = State::InspectMessage(msg);
                     }
                 }
@@ -438,14 +441,14 @@ impl EuphRoom {
             }
             key!('I') => {
                 if let Some(id) = self.chat.cursor().await {
-                    if let Some(msg) = self.vault.msg(id).await {
+                    if let Some(msg) = self.vault().msg(id).await {
                         self.state = State::Links(LinksState::new(&msg.content));
                     }
                 }
                 return true;
             }
             key!(Ctrl + 'p') => {
-                let link = format!("https://plugh.de/present/{}/", self.vault.room());
+                let link = format!("https://plugh.de/present/{}/", self.name());
                 if let Err(error) = open::that(&link) {
                     self.popups.push_front(RoomPopup::Error {
                         description: format!("Failed to open link: {link}"),
