@@ -14,6 +14,9 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Added
+- Key binding to open present page
+
 ### Changed
 - Always connect to &rl2dev in ephemeral mode
 - Reduce amount of messages per &rl2dev log request

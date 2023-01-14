@@ -388,6 +388,7 @@ impl EuphRoom {
         // Inspecting messages
         bindings.binding("i", "inspect message");
         bindings.binding("I", "show message links");
+        bindings.binding("ctrl+p", "open room's plugh.de/present page");
     }
 
     async fn handle_room_input_event(&mut self, event: &InputEvent, status: &RoomStatus) -> bool {
@@ -425,7 +426,7 @@ impl EuphRoom {
             _ => {}
         }
 
-        // Inspecting messages
+        // Always applicable
         match event {
             key!('i') => {
                 if let Some(id) = self.chat.cursor().await {
@@ -440,6 +441,16 @@ impl EuphRoom {
                     if let Some(msg) = self.vault.msg(id).await {
                         self.state = State::Links(LinksState::new(&msg.content));
                     }
+                }
+                return true;
+            }
+            key!(Ctrl + 'p') => {
+                let link = format!("https://plugh.de/present/{}/", self.vault.room());
+                if let Err(error) = open::that(&link) {
+                    self.popups.push_front(RoomPopup::Error {
+                        description: format!("Failed to open link: {link}"),
+                        reason: format!("{error}"),
+                    });
                 }
                 return true;
             }
