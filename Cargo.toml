@@ -4,25 +4,25 @@ version = "0.5.1"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.66"
-async-trait = "0.1.58"
-clap = { version = "4.0.27", features = ["derive", "deprecated"] }
-cookie = "0.16.1"
+anyhow = "1.0.68"
+async-trait = "0.1.61"
+clap = { version = "4.1.1", features = ["derive", "deprecated"] }
+cookie = "0.16.2"
 crossterm = "0.25.0"
 directories = "4.0.1"
 edit = "0.1.4"
+linkify = "0.9.0"
 log = { version = "0.4.17", features = ["std"] }
 open = "3.2.0"
 parking_lot = "0.12.1"
 rusqlite = { version = "0.28.0", features = ["bundled", "time"] }
-serde = { version = "1.0.147", features = ["derive"] }
-serde_json = "1.0.89"
-thiserror = "1.0.37"
-tokio = { version = "1.22.0", features = ["full"] }
-toml = "0.5.9"
+serde = { version = "1.0.152", features = ["derive"] }
+serde_json = "1.0.91"
+thiserror = "1.0.38"
+tokio = { version = "1.24.1", features = ["full"] }
+toml = "0.5.10"
 unicode-segmentation = "1.10.0"
 unicode-width = "0.1.10"
-linkify = "0.9.0"
 
 [dependencies.time]
 version = "0.3.17"
@@ -41,7 +41,7 @@ tag = "v0.2.0"
 
 [dependencies.toss]
 git = "https://github.com/Garmelon/toss.git"
-rev = "06aefd562bd66f5564f7c1ea73a4959f51be74e7"
+rev = "0a3b193f796bcb5e1a211d0e3c1589565d9848c2"
 
 # [patch."https://github.com/Garmelon/toss.git"]
 # toss = { path = "../toss/" }
