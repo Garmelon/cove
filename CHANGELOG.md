@@ -14,6 +14,9 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Changed
+- Respect colon-delimited emoji when calculating nick hue
+
 ## v0.5.2 - 2023-01-14
 
 ### Added
