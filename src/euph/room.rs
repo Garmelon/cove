@@ -44,7 +44,7 @@ enum Event {
     Disconnected,
     Packet(Box<ParsedPacket>),
     // Commands
-    Status(oneshot::Sender<Option<ConnState>>), // TODO Rename to State
+    State(oneshot::Sender<Option<ConnState>>),
     RequestLogs,
     Auth(String),
     Nick(String),
@@ -236,7 +236,7 @@ impl State {
                     self.on_packet(&packet).await?;
                     let _ = euph_room_event_tx.send(EuphRoomEvent::Packet(packet));
                 }
-                Event::Status(reply_tx) => self.on_status(reply_tx).await,
+                Event::State(reply_tx) => self.on_state(reply_tx).await,
                 Event::RequestLogs => self.on_request_logs(),
                 Event::Auth(password) => self.on_auth(password),
                 Event::Nick(name) => self.on_nick(name),
@@ -339,15 +339,14 @@ impl State {
         Ok(())
     }
 
-    // TODO Rename to on_state
-    async fn on_status(&self, reply_tx: oneshot::Sender<Option<ConnState>>) {
-        let status = if let Some(conn_tx) = &self.conn_tx {
+    async fn on_state(&self, reply_tx: oneshot::Sender<Option<ConnState>>) {
+        let state = if let Some(conn_tx) = &self.conn_tx {
             conn_tx.state().await.ok()
         } else {
             None
         };
 
-        let _ = reply_tx.send(status);
+        let _ = reply_tx.send(state);
     }
 
     fn on_request_logs(&self) {
@@ -505,11 +504,10 @@ impl Room {
         self.event_tx.is_closed()
     }
 
-    // TODO Rename to state
-    pub async fn status(&self) -> Result<Option<ConnState>, Error> {
+    pub async fn state(&self) -> Result<Option<ConnState>, Error> {
         let (tx, rx) = oneshot::channel();
         self.event_tx
-            .send(Event::Status(tx))
+            .send(Event::State(tx))
             .map_err(|_| Error::Stopped)?;
         rx.await.map_err(|_| Error::Stopped)
     }

@@ -14,7 +14,7 @@ use crate::ui::widgets::resize::Resize;
 use crate::ui::widgets::text::Text;
 use crate::ui::widgets::BoxedWidget;
 
-use super::room::RoomStatus;
+use super::room::RoomState;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Focus {
@@ -97,9 +97,9 @@ impl AccountUiState {
     }
 
     /// Returns `false` if the account UI should not be displayed any longer.
-    pub fn stabilize(&mut self, status: &RoomStatus) -> bool {
-        if let RoomStatus::Connected(ConnState::Joined(status)) = status {
-            match (&self, &status.account) {
+    pub fn stabilize(&mut self, state: &RoomState) -> bool {
+        if let RoomState::Connected(ConnState::Joined(state)) = state {
+            match (&self, &state.account) {
                 (Self::LoggedOut(_), Some(view)) => *self = Self::LoggedIn(LoggedIn(view.clone())),
                 (Self::LoggedIn(_), None) => *self = Self::LoggedOut(LoggedOut::new()),
                 _ => {}

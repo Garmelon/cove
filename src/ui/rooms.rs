@@ -14,7 +14,7 @@ use crate::config::{Config, RoomsSortOrder};
 use crate::euph::EuphRoomEvent;
 use crate::vault::Vault;
 
-use super::euph::room::{EuphRoom, RoomStatus};
+use super::euph::room::{EuphRoom, RoomState};
 use super::input::{key, InputEvent, KeyBindingsList};
 use super::widgets::editor::EditorState;
 use super::widgets::join::{HJoin, Segment, VJoin};
@@ -236,15 +236,15 @@ impl Rooms {
         result.join(" ")
     }
 
-    fn format_status(status: RoomStatus) -> Option<String> {
-        match status {
-            RoomStatus::NoRoom | RoomStatus::Stopped => None,
-            RoomStatus::Connecting => Some("connecting".to_string()),
-            RoomStatus::Connected(ConnState::Joining(j)) if j.bounce.is_some() => {
+    fn format_room_state(state: RoomState) -> Option<String> {
+        match state {
+            RoomState::NoRoom | RoomState::Stopped => None,
+            RoomState::Connecting => Some("connecting".to_string()),
+            RoomState::Connected(ConnState::Joining(j)) if j.bounce.is_some() => {
                 Some("auth required".to_string())
             }
-            RoomStatus::Connected(ConnState::Joining(_)) => Some("joining".to_string()),
-            RoomStatus::Connected(ConnState::Joined(joined)) => Some(Self::format_pbln(&joined)),
+            RoomState::Connected(ConnState::Joining(_)) => Some("joining".to_string()),
+            RoomState::Connected(ConnState::Joined(joined)) => Some(Self::format_pbln(&joined)),
         }
     }
 
@@ -256,13 +256,13 @@ impl Rooms {
         }
     }
 
-    fn format_room_info(status: RoomStatus, unseen: usize) -> Styled {
+    fn format_room_info(state: RoomState, unseen: usize) -> Styled {
         let unseen_style = ContentStyle::default().bold().green();
 
-        let status = Self::format_status(status);
+        let state = Self::format_room_state(state);
         let unseen = Self::format_unseen_msgs(unseen);
 
-        match (status, unseen) {
+        match (state, unseen) {
             (None, None) => Styled::default(),
             (None, Some(u)) => Styled::new_plain(" (")
                 .then(u, unseen_style)
@@ -276,7 +276,7 @@ impl Rooms {
         }
     }
 
-    fn sort_rooms(&self, rooms: &mut [(&String, RoomStatus, usize)]) {
+    fn sort_rooms(&self, rooms: &mut [(&String, RoomState, usize)]) {
         match self.order {
             Order::Alphabet => rooms.sort_unstable_by_key(|(n, _, _)| *n),
             Order::Importance => {
@@ -295,19 +295,19 @@ impl Rooms {
 
         let mut rooms = vec![];
         for (name, room) in &self.euph_rooms {
-            let status = room.status().await;
+            let state = room.state().await;
             let unseen = room.unseen_msgs_count().await;
-            rooms.push((name, status, unseen));
+            rooms.push((name, state, unseen));
         }
         self.sort_rooms(&mut rooms);
-        for (name, status, unseen) in rooms {
+        for (name, state, unseen) in rooms {
             let room_style = ContentStyle::default().bold().blue();
             let room_sel_style = ContentStyle::default().bold().black().on_white();
 
             let mut normal = Styled::new(format!("&{name}"), room_style);
             let mut selected = Styled::new(format!("&{name}"), room_sel_style);
 
-            let info = Self::format_room_info(status, unseen);
+            let info = Self::format_room_info(state, unseen);
             normal = normal.and_then(info.clone());
             selected = selected.and_then(info);
 

@@ -49,14 +49,14 @@ enum State {
 }
 
 #[allow(clippy::large_enum_variant)]
-pub enum RoomStatus {
+pub enum RoomState {
     NoRoom,
     Stopped,
     Connecting,
     Connected(ConnState),
 }
 
-impl RoomStatus {
+impl RoomState {
     pub fn connecting_or_connected(&self) -> bool {
         match self {
             Self::NoRoom | Self::Stopped => false,
@@ -147,14 +147,14 @@ impl EuphRoom {
         self.room = None;
     }
 
-    pub async fn status(&self) -> RoomStatus {
+    pub async fn state(&self) -> RoomState {
         match &self.room {
-            Some(room) => match room.status().await {
-                Ok(Some(status)) => RoomStatus::Connected(status),
-                Ok(None) => RoomStatus::Connecting,
-                Err(_) => RoomStatus::Stopped,
+            Some(room) => match room.state().await {
+                Ok(Some(state)) => RoomState::Connected(state),
+                Ok(None) => RoomState::Connecting,
+                Err(_) => RoomState::Stopped,
             },
-            None => RoomStatus::NoRoom,
+            None => RoomState::NoRoom,
         }
     }
 
@@ -190,19 +190,19 @@ impl EuphRoom {
         }
     }
 
-    fn stabilize_focus(&mut self, status: &RoomStatus) {
-        match status {
-            RoomStatus::Connected(ConnState::Joined(_)) => {}
+    fn stabilize_focus(&mut self, state: &RoomState) {
+        match state {
+            RoomState::Connected(ConnState::Joined(_)) => {}
             _ => self.focus = Focus::Chat, // There is no nick list to focus on
         }
     }
 
-    fn stabilize_state(&mut self, status: &RoomStatus) {
+    fn stabilize_state(&mut self, state: &RoomState) {
         match &mut self.state {
             State::Auth(_)
                 if !matches!(
-                    status,
-                    RoomStatus::Connected(ConnState::Joining(Joining {
+                    state,
+                    RoomState::Connected(ConnState::Joining(Joining {
                         bounce: Some(_),
                         ..
                     }))
@@ -210,11 +210,11 @@ impl EuphRoom {
             {
                 self.state = State::Normal
             }
-            State::Nick(_) if !matches!(status, RoomStatus::Connected(ConnState::Joined(_))) => {
+            State::Nick(_) if !matches!(state, RoomState::Connected(ConnState::Joined(_))) => {
                 self.state = State::Normal
             }
             State::Account(account) => {
-                if !account.stabilize(status) {
+                if !account.stabilize(state) {
                     self.state = State::Normal
                 }
             }
@@ -222,20 +222,20 @@ impl EuphRoom {
         }
     }
 
-    async fn stabilize(&mut self, status: &RoomStatus) {
+    async fn stabilize(&mut self, state: &RoomState) {
         self.stabilize_pseudo_msg().await;
-        self.stabilize_focus(status);
-        self.stabilize_state(status);
+        self.stabilize_focus(state);
+        self.stabilize_state(state);
     }
 
     pub async fn widget(&mut self) -> BoxedWidget {
-        let status = self.status().await;
-        self.stabilize(&status).await;
+        let state = self.state().await;
+        self.stabilize(&state).await;
 
-        let chat = if let RoomStatus::Connected(ConnState::Joined(joined)) = &status {
-            self.widget_with_nick_list(&status, joined).await
+        let chat = if let RoomState::Connected(ConnState::Joined(joined)) = &state {
+            self.widget_with_nick_list(&state, joined).await
         } else {
-            self.widget_without_nick_list(&status).await
+            self.widget_without_nick_list(&state).await
         };
 
         let mut layers = vec![chat];
@@ -257,10 +257,10 @@ impl EuphRoom {
         Layer::new(layers).into()
     }
 
-    async fn widget_without_nick_list(&self, status: &RoomStatus) -> BoxedWidget {
+    async fn widget_without_nick_list(&self, state: &RoomState) -> BoxedWidget {
         VJoin::new(vec![
             Segment::new(Border::new(
-                Padding::new(self.status_widget(status).await).horizontal(1),
+                Padding::new(self.status_widget(state).await).horizontal(1),
             )),
             // TODO Use last known nick?
             Segment::new(self.chat.widget(String::new(), true)).expanding(true),
@@ -268,11 +268,11 @@ impl EuphRoom {
         .into()
     }
 
-    async fn widget_with_nick_list(&self, status: &RoomStatus, joined: &Joined) -> BoxedWidget {
+    async fn widget_with_nick_list(&self, state: &RoomState, joined: &Joined) -> BoxedWidget {
         HJoin::new(vec![
             Segment::new(VJoin::new(vec![
                 Segment::new(Border::new(
-                    Padding::new(self.status_widget(status).await).horizontal(1),
+                    Padding::new(self.status_widget(state).await).horizontal(1),
                 )),
                 Segment::new(
                     self.chat
@@ -293,18 +293,18 @@ impl EuphRoom {
         .into()
     }
 
-    async fn status_widget(&self, status: &RoomStatus) -> BoxedWidget {
+    async fn status_widget(&self, state: &RoomState) -> BoxedWidget {
         let room_style = ContentStyle::default().bold().blue();
         let mut info = Styled::new(format!("&{}", self.name()), room_style);
 
-        info = match status {
-            RoomStatus::NoRoom | RoomStatus::Stopped => info.then_plain(", archive"),
-            RoomStatus::Connecting => info.then_plain(", connecting..."),
-            RoomStatus::Connected(ConnState::Joining(j)) if j.bounce.is_some() => {
+        info = match state {
+            RoomState::NoRoom | RoomState::Stopped => info.then_plain(", archive"),
+            RoomState::Connecting => info.then_plain(", connecting..."),
+            RoomState::Connected(ConnState::Joining(j)) if j.bounce.is_some() => {
                 info.then_plain(", auth required")
             }
-            RoomStatus::Connected(ConnState::Joining(_)) => info.then_plain(", joining..."),
-            RoomStatus::Connected(ConnState::Joined(j)) => {
+            RoomState::Connected(ConnState::Joining(_)) => info.then_plain(", joining..."),
+            RoomState::Connected(ConnState::Joined(j)) => {
                 let nick = &j.session.name;
                 if nick.is_empty() {
                     info.then_plain(", present without nick")
@@ -326,8 +326,8 @@ impl EuphRoom {
         Text::new(info).into()
     }
 
-    async fn list_chat_key_bindings(&self, bindings: &mut KeyBindingsList, status: &RoomStatus) {
-        let can_compose = matches!(status, RoomStatus::Connected(ConnState::Joined(_)));
+    async fn list_chat_key_bindings(&self, bindings: &mut KeyBindingsList, state: &RoomState) {
+        let can_compose = matches!(state, RoomState::Connected(ConnState::Joined(_)));
         self.chat.list_key_bindings(bindings, can_compose).await;
     }
 
@@ -336,9 +336,9 @@ impl EuphRoom {
         terminal: &mut Terminal,
         crossterm_lock: &Arc<FairMutex<()>>,
         event: &InputEvent,
-        status: &RoomStatus,
+        state: &RoomState,
     ) -> bool {
-        let can_compose = matches!(status, RoomStatus::Connected(ConnState::Joined(_)));
+        let can_compose = matches!(state, RoomState::Connected(ConnState::Joined(_)));
 
         match self
             .chat
@@ -368,17 +368,17 @@ impl EuphRoom {
         false
     }
 
-    fn list_room_key_bindings(&self, bindings: &mut KeyBindingsList, status: &RoomStatus) {
-        match status {
+    fn list_room_key_bindings(&self, bindings: &mut KeyBindingsList, state: &RoomState) {
+        match state {
             // Authenticating
-            RoomStatus::Connected(ConnState::Joining(Joining {
+            RoomState::Connected(ConnState::Joining(Joining {
                 bounce: Some(_), ..
             })) => {
                 bindings.binding("a", "authenticate");
             }
 
             // Connected
-            RoomStatus::Connected(ConnState::Joined(_)) => {
+            RoomState::Connected(ConnState::Joined(_)) => {
                 bindings.binding("n", "change nick");
                 bindings.binding("m", "download more messages");
                 bindings.binding("A", "show account ui");
@@ -394,10 +394,10 @@ impl EuphRoom {
         bindings.binding("ctrl+p", "open room's plugh.de/present page");
     }
 
-    async fn handle_room_input_event(&mut self, event: &InputEvent, status: &RoomStatus) -> bool {
-        match status {
+    async fn handle_room_input_event(&mut self, event: &InputEvent, state: &RoomState) -> bool {
+        match state {
             // Authenticating
-            RoomStatus::Connected(ConnState::Joining(Joining {
+            RoomState::Connected(ConnState::Joining(Joining {
                 bounce: Some(_), ..
             })) => {
                 if let key!('a') = event {
@@ -407,7 +407,7 @@ impl EuphRoom {
             }
 
             // Joined
-            RoomStatus::Connected(ConnState::Joined(joined)) => match event {
+            RoomState::Connected(ConnState::Joined(joined)) => match event {
                 key!('n') | key!('N') => {
                     self.state = State::Nick(nick::new(joined.clone()));
                     return true;
@@ -466,11 +466,11 @@ impl EuphRoom {
     async fn list_chat_focus_key_bindings(
         &self,
         bindings: &mut KeyBindingsList,
-        status: &RoomStatus,
+        state: &RoomState,
     ) {
-        self.list_room_key_bindings(bindings, status);
+        self.list_room_key_bindings(bindings, state);
         bindings.empty();
-        self.list_chat_key_bindings(bindings, status).await;
+        self.list_chat_key_bindings(bindings, state).await;
     }
 
     async fn handle_chat_focus_input_event(
@@ -478,18 +478,18 @@ impl EuphRoom {
         terminal: &mut Terminal,
         crossterm_lock: &Arc<FairMutex<()>>,
         event: &InputEvent,
-        status: &RoomStatus,
+        state: &RoomState,
     ) -> bool {
         // We need to handle chat input first, otherwise the other
         // key bindings will shadow characters in the editor.
         if self
-            .handle_chat_input_event(terminal, crossterm_lock, event, status)
+            .handle_chat_input_event(terminal, crossterm_lock, event, state)
             .await
         {
             return true;
         }
 
-        if self.handle_room_input_event(event, status).await {
+        if self.handle_room_input_event(event, state).await {
             return true;
         }
 
@@ -505,14 +505,14 @@ impl EuphRoom {
     fn handle_nick_list_focus_input_event(
         &mut self,
         event: &InputEvent,
-        status: &RoomStatus,
+        state: &RoomState,
     ) -> bool {
         if util::handle_list_input_event(&mut self.nick_list, event) {
             return true;
         }
 
         if let key!('i') = event {
-            if let RoomStatus::Connected(ConnState::Joined(joined)) = status {
+            if let RoomState::Connected(ConnState::Joined(joined)) = state {
                 if let Some(id) = self.nick_list.cursor() {
                     if id == joined.session.session_id {
                         self.state =
@@ -532,15 +532,15 @@ impl EuphRoom {
         // Handled in rooms list, not here
         bindings.binding("esc", "leave room");
 
-        let status = self.status().await;
+        let state = self.state().await;
 
         match self.focus {
             Focus::Chat => {
-                if let RoomStatus::Connected(ConnState::Joined(_)) = status {
+                if let RoomState::Connected(ConnState::Joined(_)) = state {
                     bindings.binding("tab", "focus on nick list");
                 }
 
-                self.list_chat_focus_key_bindings(bindings, &status).await;
+                self.list_chat_focus_key_bindings(bindings, &state).await;
             }
             Focus::NickList => {
                 bindings.binding("tab, esc", "focus on chat");
@@ -557,20 +557,20 @@ impl EuphRoom {
         crossterm_lock: &Arc<FairMutex<()>>,
         event: &InputEvent,
     ) -> bool {
-        let status = self.status().await;
+        let state = self.state().await;
 
         match self.focus {
             Focus::Chat => {
                 // Needs to be handled first or the tab key may be shadowed
                 // during editing.
                 if self
-                    .handle_chat_focus_input_event(terminal, crossterm_lock, event, &status)
+                    .handle_chat_focus_input_event(terminal, crossterm_lock, event, &state)
                     .await
                 {
                     return true;
                 }
 
-                if let RoomStatus::Connected(ConnState::Joined(_)) = status {
+                if let RoomState::Connected(ConnState::Joined(_)) = state {
                     if let key!(Tab) = event {
                         self.focus = Focus::NickList;
                         return true;
@@ -583,7 +583,7 @@ impl EuphRoom {
                     return true;
                 }
 
-                if self.handle_nick_list_focus_input_event(event, &status) {
+                if self.handle_nick_list_focus_input_event(event, &state) {
                     return true;
                 }
             }
