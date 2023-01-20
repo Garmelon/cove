@@ -1,4 +1,6 @@
-use crossterm::style::{Color, ContentStyle, Stylize};
+use std::mem;
+
+use crossterm::style::{ContentStyle, Stylize};
 use euphoxide::api::{MessageId, Snowflake, Time};
 use time::OffsetDateTime;
 use toss::styled::Styled;
@@ -17,74 +19,186 @@ fn nick_char(ch: char) -> bool {
     }
 }
 
-fn nick_char_(ch: Option<&char>) -> bool {
-    ch.filter(|c| nick_char(**c)).is_some()
-}
-
 fn room_char(ch: char) -> bool {
     // Basically just \w, see also
     // https://github.com/euphoria-io/heim/blob/978c921063e6b06012fc8d16d9fbf1b3a0be1191/client/lib/ui/MessageText.js#L66
     ch.is_ascii_alphanumeric() || ch == '_'
 }
 
-fn room_char_(ch: Option<&char>) -> bool {
-    ch.filter(|c| room_char(**c)).is_some()
+enum Span {
+    Nothing,
+    Mention,
+    Room,
+    Emoji,
 }
 
-// TODO Allocate less?
-fn highlight_content(content: &str, base_style: ContentStyle) -> Styled {
-    let mut result = Styled::default();
-    let mut current = String::new();
-    let mut chars = content.chars().peekable();
-    let mut possible_room_or_mention = true;
+struct Highlighter<'a> {
+    content: &'a str,
+    base_style: ContentStyle,
+    exact: bool,
 
-    while let Some(char) = chars.next() {
-        match char {
-            '@' if possible_room_or_mention && nick_char_(chars.peek()) => {
-                result = result.then(&current, base_style);
-                current.clear();
+    span: Span,
+    span_start: usize,
+    room_or_mention_possible: bool,
 
-                let mut nick = String::new();
-                while let Some(ch) = chars.peek() {
-                    if nick_char(*ch) {
-                        nick.push(*ch);
-                    } else {
-                        break;
-                    }
-                    chars.next();
-                }
+    result: Styled,
+}
 
-                let (r, g, b) = util::nick_color(&nick);
-                let style = base_style.with(Color::Rgb { r, g, b }).bold();
-                result = result.then("@", style).then(nick, style);
-            }
-            '&' if possible_room_or_mention && room_char_(chars.peek()) => {
-                result = result.then(&current, base_style);
-                current.clear();
-
-                let mut room = "&".to_string();
-                while let Some(ch) = chars.peek() {
-                    if room_char(*ch) {
-                        room.push(*ch);
-                    } else {
-                        break;
-                    }
-                    chars.next();
-                }
-
-                let style = base_style.blue().bold();
-                result = result.then(room, style);
-            }
-            _ => current.push(char),
+impl<'a> Highlighter<'a> {
+    /// Does *not* guarantee `self.span_start == idx` after running!
+    fn close_mention(&mut self, idx: usize) {
+        let span_length = idx.saturating_sub(self.span_start);
+        if span_length <= 1 {
+            // We can repurpose the current span
+            self.span = Span::Nothing;
+            return;
         }
 
-        // More permissive than the heim web client
-        possible_room_or_mention = !char.is_alphanumeric();
+        let text = &self.content[self.span_start..idx]; // Includes @
+        self.result = mem::take(&mut self.result).and_then(if self.exact {
+            util::style_nick_exact(text, self.base_style)
+        } else {
+            util::style_nick(text, self.base_style)
+        });
+
+        self.span = Span::Nothing;
+        self.span_start = idx;
     }
 
-    result = result.then(current, base_style);
+    /// Does *not* guarantee `self.span_start == idx` after running!
+    fn close_room(&mut self, idx: usize) {
+        let span_length = idx.saturating_sub(self.span_start);
+        if span_length <= 1 {
+            // We can repurpose the current span
+            self.span = Span::Nothing;
+            return;
+        }
 
-    result
+        self.result = mem::take(&mut self.result).then(
+            &self.content[self.span_start..idx],
+            self.base_style.blue().bold(),
+        );
+
+        self.span = Span::Nothing;
+        self.span_start = idx;
+    }
+
+    // Warning: `idx` is the index of the closing colon.
+    fn close_emoji(&mut self, idx: usize) {
+        let name = &self.content[self.span_start + 1..idx];
+        if let Some(replace) = util::EMOJI.get(name) {
+            match replace {
+                Some(replace) if !self.exact => {
+                    let style = self.base_style.on_dark_magenta();
+                    self.result = mem::take(&mut self.result).then(replace, style);
+                }
+                _ => {
+                    let text = &self.content[self.span_start..=idx];
+                    let style = self.base_style.magenta();
+                    self.result = mem::take(&mut self.result).then(text, style);
+                }
+            }
+
+            self.span = Span::Nothing;
+            self.span_start = idx + 1;
+        } else {
+            self.close_plain(idx);
+            self.span = Span::Emoji;
+        }
+    }
+
+    /// Guarantees `self.span_start == idx` after running.
+    fn close_plain(&mut self, idx: usize) {
+        if self.span_start == idx {
+            // Span has length 0
+            return;
+        }
+
+        self.result = mem::take(&mut self.result).then_plain(&self.content[self.span_start..idx]);
+
+        self.span = Span::Nothing;
+        self.span_start = idx;
+    }
+
+    fn close_span_before_current_char(&mut self, idx: usize, char: char) {
+        match self.span {
+            Span::Mention if !nick_char(char) => self.close_mention(idx),
+            Span::Room if !room_char(char) => self.close_room(idx),
+            Span::Emoji if char == '&' || char == '@' => {
+                self.span = Span::Nothing;
+            }
+            _ => {}
+        }
+    }
+
+    fn update_span_with_current_char(&mut self, idx: usize, char: char) {
+        match self.span {
+            Span::Nothing if char == '@' && self.room_or_mention_possible => {
+                self.close_plain(idx);
+                self.span = Span::Mention;
+            }
+            Span::Nothing if char == '&' && self.room_or_mention_possible => {
+                self.close_plain(idx);
+                self.span = Span::Room;
+            }
+            Span::Nothing if char == ':' => {
+                self.close_plain(idx);
+                self.span = Span::Emoji;
+            }
+            Span::Emoji if char == ':' => self.close_emoji(idx),
+            _ => {}
+        }
+    }
+
+    fn close_final_span(&mut self) {
+        let idx = self.content.len();
+        if self.span_start >= idx {
+            return; // Span has no contents
+        }
+
+        match self.span {
+            Span::Mention => self.close_mention(idx),
+            Span::Room => self.close_room(idx),
+            _ => {}
+        }
+
+        self.close_plain(idx);
+    }
+
+    fn step(&mut self, idx: usize, char: char) {
+        if self.span_start < idx {
+            self.close_span_before_current_char(idx, char);
+        }
+
+        self.update_span_with_current_char(idx, char);
+
+        // More permissive than the heim web client
+        self.room_or_mention_possible = !char.is_alphanumeric();
+    }
+
+    fn highlight(content: &'a str, base_style: ContentStyle, exact: bool) -> Styled {
+        let mut this = Self {
+            content: if exact { content } else { content.trim() },
+            base_style,
+            exact,
+            span: Span::Nothing,
+            span_start: 0,
+            room_or_mention_possible: true,
+            result: Styled::default(),
+        };
+
+        for (idx, char) in (if exact { content } else { content.trim() }).char_indices() {
+            this.step(idx, char);
+        }
+
+        this.close_final_span();
+
+        this.result
+    }
+}
+
+fn highlight_content(content: &str, base_style: ContentStyle, exact: bool) -> Styled {
+    Highlighter::highlight(content, base_style, exact)
 }
 
 #[derive(Debug, Clone)]
@@ -117,12 +231,12 @@ fn styled_nick_me(nick: &str) -> Styled {
 }
 
 fn styled_content(content: &str) -> Styled {
-    highlight_content(content.trim(), ContentStyle::default())
+    highlight_content(content.trim(), ContentStyle::default(), false)
 }
 
 fn styled_content_me(content: &str) -> Styled {
     let style = style_me();
-    highlight_content(content.trim(), style).then("*", style)
+    highlight_content(content.trim(), style, false).then("*", style)
 }
 
 fn styled_editor_content(content: &str) -> Styled {
@@ -131,7 +245,7 @@ fn styled_editor_content(content: &str) -> Styled {
     } else {
         ContentStyle::default()
     };
-    highlight_content(content, style)
+    highlight_content(content, style, true)
 }
 
 impl Msg for SmallMessage {
