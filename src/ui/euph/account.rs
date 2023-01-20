@@ -1,6 +1,6 @@
 use crossterm::style::{ContentStyle, Stylize};
 use euphoxide::api::PersonalAccountView;
-use euphoxide::conn::Status;
+use euphoxide::conn::State as ConnState;
 use toss::terminal::Terminal;
 
 use crate::euph::Room;
@@ -98,7 +98,7 @@ impl AccountUiState {
 
     /// Returns `false` if the account UI should not be displayed any longer.
     pub fn stabilize(&mut self, status: &RoomStatus) -> bool {
-        if let RoomStatus::Connected(Status::Joined(status)) = status {
+        if let RoomStatus::Connected(ConnState::Joined(status)) = status {
             match (&self, &status.account) {
                 (Self::LoggedOut(_), Some(view)) => *self = Self::LoggedIn(LoggedIn(view.clone())),
                 (Self::LoggedIn(_), None) => *self = Self::LoggedOut(LoggedOut::new()),

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crossterm::style::{ContentStyle, Stylize};
 use euphoxide::api::SessionType;
-use euphoxide::conn::{Joined, Status};
+use euphoxide::conn::{Joined, State as ConnState};
 use parking_lot::FairMutex;
 use tokio::sync::mpsc;
 use toss::styled::Styled;
@@ -240,11 +240,11 @@ impl Rooms {
         match status {
             RoomStatus::NoRoom | RoomStatus::Stopped => None,
             RoomStatus::Connecting => Some("connecting".to_string()),
-            RoomStatus::Connected(Status::Joining(j)) if j.bounce.is_some() => {
+            RoomStatus::Connected(ConnState::Joining(j)) if j.bounce.is_some() => {
                 Some("auth required".to_string())
             }
-            RoomStatus::Connected(Status::Joining(_)) => Some("joining".to_string()),
-            RoomStatus::Connected(Status::Joined(joined)) => Some(Self::format_pbln(&joined)),
+            RoomStatus::Connected(ConnState::Joining(_)) => Some("joining".to_string()),
+            RoomStatus::Connected(ConnState::Joined(joined)) => Some(Self::format_pbln(&joined)),
         }
     }
 

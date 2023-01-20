@@ -9,7 +9,7 @@ use euphoxide::api::packet::ParsedPacket;
 use euphoxide::api::{
     Auth, AuthOption, Data, Log, Login, Logout, MessageId, Nick, Send, Time, UserId,
 };
-use euphoxide::conn::{ConnRx, ConnTx, Joining, Status};
+use euphoxide::conn::{Conn, ConnTx, Joining, State as ConnState};
 use log::{error, info, warn};
 use parking_lot::Mutex;
 use tokio::sync::{mpsc, oneshot};
@@ -44,7 +44,7 @@ enum Event {
     Disconnected,
     Packet(Box<ParsedPacket>),
     // Commands
-    Status(oneshot::Sender<Option<Status>>),
+    Status(oneshot::Sender<Option<ConnState>>), // TODO Rename to State
     RequestLogs,
     Auth(String),
     Nick(String),
@@ -116,7 +116,7 @@ impl State {
                 info!("e&{}: connected", name);
                 event_tx.send(Event::Connected(conn_tx))?;
 
-                while let Some(packet) = conn_rx.recv().await {
+                while let Ok(packet) = conn_rx.recv().await {
                     event_tx.send(Event::Packet(Box::new(packet)))?;
                 }
 
@@ -161,19 +161,17 @@ impl State {
         vault.set_cookies(cookie_jar);
     }
 
-    async fn connect(
-        vault: &EuphRoomVault,
-        name: &str,
-    ) -> anyhow::Result<Option<(ConnTx, ConnRx)>> {
+    // TODO Simplify return type, remove ConnTx
+    async fn connect(vault: &EuphRoomVault, name: &str) -> anyhow::Result<Option<(ConnTx, Conn)>> {
         // TODO Set user agent?
 
         let cookies = Self::get_cookies(vault.vault()).await;
         let cookies = HeaderValue::from_str(&cookies).expect("valid cookies");
 
-        match euphoxide::connect("euphoria.io", name, true, Some(cookies), TIMEOUT).await {
-            Ok((tx, rx, set_cookies)) => {
+        match Conn::connect("euphoria.io", name, true, Some(cookies), TIMEOUT).await {
+            Ok((rx, set_cookies)) => {
                 Self::update_cookies(vault.vault(), &set_cookies);
-                Ok(Some((tx, rx)))
+                Ok(Some((rx.tx().clone(), rx)))
             }
             Err(tungstenite::Error::Http(resp)) if resp.status().is_client_error() => {
                 bail!("room {name} doesn't exist");
@@ -251,9 +249,9 @@ impl State {
     }
 
     async fn own_user_id(&self) -> Option<UserId> {
-        Some(match self.conn_tx.as_ref()?.status().await.ok()? {
-            Status::Joining(Joining { hello, .. }) => hello?.session.id,
-            Status::Joined(joined) => joined.session.id,
+        Some(match self.conn_tx.as_ref()?.state().await.ok()? {
+            ConnState::Joining(Joining { hello, .. }) => hello?.session.id,
+            ConnState::Joined(joined) => joined.session.id,
         })
     }
 
@@ -341,9 +339,10 @@ impl State {
         Ok(())
     }
 
-    async fn on_status(&self, reply_tx: oneshot::Sender<Option<Status>>) {
+    // TODO Rename to on_state
+    async fn on_status(&self, reply_tx: oneshot::Sender<Option<ConnState>>) {
         let status = if let Some(conn_tx) = &self.conn_tx {
-            conn_tx.status().await.ok()
+            conn_tx.state().await.ok()
         } else {
             None
         };
@@ -506,7 +505,8 @@ impl Room {
         self.event_tx.is_closed()
     }
 
-    pub async fn status(&self) -> Result<Option<Status>, Error> {
+    // TODO Rename to state
+    pub async fn status(&self) -> Result<Option<ConnState>, Error> {
         let (tx, rx) = oneshot::channel();
         self.event_tx
             .send(Event::Status(tx))

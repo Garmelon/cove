@@ -33,7 +33,8 @@ fn hsl_to_rgb(h: f32, s: f32, l: f32) -> (u8, u8, u8) {
 }
 
 pub fn nick_color(nick: &str) -> (u8, u8, u8) {
-    let hue = euphoxide::nick_hue(nick) as f32;
+    // TODO Use nick hue with emoji (lazy init emoji?)
+    let hue = euphoxide::nick_hue_without_removing_emoji(nick) as f32;
     hsl_to_rgb(hue, 1.0, 0.72)
 }
 
