@@ -89,8 +89,7 @@ impl<'a> Highlighter<'a> {
         if let Some(replace) = util::EMOJI.get(name) {
             match replace {
                 Some(replace) if !self.exact => {
-                    let style = self.base_style.on_dark_magenta();
-                    self.result = mem::take(&mut self.result).then(replace, style);
+                    self.result = mem::take(&mut self.result).then(replace, self.base_style);
                 }
                 _ => {
                     let text = &self.content[self.span_start..=idx];
