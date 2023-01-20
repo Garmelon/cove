@@ -1,8 +1,9 @@
 use crossterm::style::{Color, ContentStyle, Stylize};
 use euphoxide::emoji::Emoji;
 use once_cell::sync::Lazy;
+use toss::styled::Styled;
 
-static EMOJI: Lazy<Emoji> = Lazy::new(Emoji::load);
+pub static EMOJI: Lazy<Emoji> = Lazy::new(Emoji::load);
 
 /// Convert HSL to RGB following [this approach from wikipedia][1].
 ///
@@ -41,7 +42,15 @@ pub fn nick_color(nick: &str) -> (u8, u8, u8) {
     hsl_to_rgb(hue, 1.0, 0.72)
 }
 
-pub fn nick_style(nick: &str) -> ContentStyle {
+pub fn nick_style(nick: &str, base: ContentStyle) -> ContentStyle {
     let (r, g, b) = nick_color(nick);
-    ContentStyle::default().bold().with(Color::Rgb { r, g, b })
+    base.bold().with(Color::Rgb { r, g, b })
+}
+
+pub fn style_nick(nick: &str, base: ContentStyle) -> Styled {
+    Styled::new(EMOJI.replace(nick), nick_style(nick, base))
+}
+
+pub fn style_nick_exact(nick: &str, base: ContentStyle) -> Styled {
+    Styled::new(nick, nick_style(nick, base))
 }

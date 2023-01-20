@@ -309,8 +309,8 @@ impl EuphRoom {
                 if nick.is_empty() {
                     info.then_plain(", present without nick")
                 } else {
-                    let nick_style = euph::nick_style(nick);
-                    info.then_plain(", present as ").then(nick, nick_style)
+                    info.then_plain(", present as ")
+                        .and_then(euph::style_nick(nick, ContentStyle::default()))
                 }
             }
         };

@@ -107,13 +107,13 @@ fn style_me() -> ContentStyle {
 
 fn styled_nick(nick: &str) -> Styled {
     Styled::new_plain("[")
-        .then(nick, util::nick_style(nick))
+        .and_then(util::style_nick(nick, ContentStyle::default()))
         .then_plain("]")
 }
 
 fn styled_nick_me(nick: &str) -> Styled {
     let style = style_me();
-    Styled::new("*", style).then(nick, util::nick_style(nick).italic())
+    Styled::new("*", style).and_then(util::style_nick(nick, style))
 }
 
 fn styled_content(content: &str) -> Styled {

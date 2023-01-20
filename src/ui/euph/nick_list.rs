@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::iter;
 
 use crossterm::style::{Color, ContentStyle, Stylize};
@@ -118,7 +119,7 @@ fn render_row(list: &mut List<SessionId>, session: &HalfSession, own_session: &S
         let name = "lurk";
         let style = ContentStyle::default().grey();
         let style_inv = ContentStyle::default().black().on_grey();
-        (name, style, style_inv, style_inv)
+        (Cow::Borrowed(name), style, style_inv, style_inv)
     } else {
         let name = &session.name as &str;
         let (r, g, b) = euph::nick_color(name);
@@ -126,7 +127,7 @@ fn render_row(list: &mut List<SessionId>, session: &HalfSession, own_session: &S
         let style = ContentStyle::default().bold().with(color);
         let style_inv = ContentStyle::default().bold().black().on(color);
         let perms_style_inv = ContentStyle::default().black().on(color);
-        (name, style, style_inv, perms_style_inv)
+        (euph::EMOJI.replace(name), style, style_inv, perms_style_inv)
     };
 
     let perms = if session.is_staff {
@@ -145,7 +146,9 @@ fn render_row(list: &mut List<SessionId>, session: &HalfSession, own_session: &S
         " "
     };
 
-    let normal = Styled::new_plain(owner).then(name, style).then_plain(perms);
+    let normal = Styled::new_plain(owner)
+        .then(&name, style)
+        .then_plain(perms);
     let selected = Styled::new_plain(owner)
         .then(name, style_inv)
         .then(perms, perms_style_inv);
