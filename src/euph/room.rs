@@ -111,12 +111,11 @@ impl State {
     ) -> anyhow::Result<()> {
         loop {
             info!("e&{}: connecting", name);
-            let connected = if let Some((conn_tx, mut conn_rx)) = Self::connect(vault, name).await?
-            {
+            let connected = if let Some(mut conn) = Self::connect(vault, name).await? {
                 info!("e&{}: connected", name);
-                event_tx.send(Event::Connected(conn_tx))?;
+                event_tx.send(Event::Connected(conn.tx().clone()))?;
 
-                while let Ok(packet) = conn_rx.recv().await {
+                while let Ok(packet) = conn.recv().await {
                     event_tx.send(Event::Packet(Box::new(packet)))?;
                 }
 
@@ -161,8 +160,7 @@ impl State {
         vault.set_cookies(cookie_jar);
     }
 
-    // TODO Simplify return type, remove ConnTx
-    async fn connect(vault: &EuphRoomVault, name: &str) -> anyhow::Result<Option<(ConnTx, Conn)>> {
+    async fn connect(vault: &EuphRoomVault, name: &str) -> anyhow::Result<Option<Conn>> {
         // TODO Set user agent?
 
         let cookies = Self::get_cookies(vault.vault()).await;
@@ -171,7 +169,7 @@ impl State {
         match Conn::connect("euphoria.io", name, true, Some(cookies), TIMEOUT).await {
             Ok((rx, set_cookies)) => {
                 Self::update_cookies(vault.vault(), &set_cookies);
-                Ok(Some((rx.tx().clone(), rx)))
+                Ok(Some(rx))
             }
             Err(tungstenite::Error::Http(resp)) if resp.status().is_client_error() => {
                 bail!("room {name} doesn't exist");
