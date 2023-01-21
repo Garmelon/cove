@@ -113,7 +113,8 @@ impl<'a> Highlighter<'a> {
             return;
         }
 
-        self.result = mem::take(&mut self.result).then_plain(&self.content[self.span_start..idx]);
+        self.result =
+            mem::take(&mut self.result).then(&self.content[self.span_start..idx], self.base_style);
 
         self.span = Span::Nothing;
         self.span_start = idx;
