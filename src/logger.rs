@@ -3,7 +3,7 @@ use std::vec;
 
 use async_trait::async_trait;
 use crossterm::style::{ContentStyle, Stylize};
-use log::{Level, Log};
+use log::{Level, LevelFilter, Log};
 use parking_lot::Mutex;
 use time::OffsetDateTime;
 use tokio::sync::mpsc;
@@ -212,7 +212,7 @@ impl Log for Logger {
 }
 
 impl Logger {
-    pub fn init(level: Level) -> (Self, LoggerGuard, mpsc::UnboundedReceiver<()>) {
+    pub fn init(verbose: bool) -> (Self, LoggerGuard, mpsc::UnboundedReceiver<()>) {
         let (event_tx, event_rx) = mpsc::unbounded_channel();
         let logger = Self {
             event_tx,
@@ -222,8 +222,13 @@ impl Logger {
             messages: logger.messages.clone(),
         };
 
+        log::set_max_level(if verbose {
+            LevelFilter::Debug
+        } else {
+            LevelFilter::Info
+        });
+
         log::set_boxed_logger(Box::new(logger.clone())).expect("logger already set");
-        log::set_max_level(level.to_level_filter());
 
         (logger, guard, event_rx)
     }

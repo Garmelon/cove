@@ -14,6 +14,9 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Added
+- `--verbose` flag
+
 ### Changed
 - Respect colon-delimited emoji when calculating nick hue
 - Display colon-delimited emoji in nicks and messages

@@ -57,6 +57,10 @@ impl Default for Command {
 #[derive(Debug, clap::Parser)]
 #[command(version)]
 struct Args {
+    /// Show more detailed log messages.
+    #[arg(long, short)]
+    verbose: bool,
+
     /// Path to the config file.
     ///
     /// Relative paths are interpreted relative to the current directory.
@@ -114,9 +118,8 @@ fn set_offline(config: &mut Config, args_offline: bool) {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let (logger, logger_guard, logger_rx) = Logger::init(log::Level::Debug);
-
     let args = Args::parse();
+    let (logger, logger_guard, logger_rx) = Logger::init(args.verbose);
     let dirs = ProjectDirs::from("de", "plugh", "cove").expect("unable to determine directories");
 
     let config_path = args
