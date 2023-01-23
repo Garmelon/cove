@@ -178,8 +178,17 @@ impl MsgStore<LogMsg> for Logger {
 }
 
 impl Log for Logger {
-    fn enabled(&self, _metadata: &log::Metadata<'_>) -> bool {
-        true
+    fn enabled(&self, metadata: &log::Metadata<'_>) -> bool {
+        if metadata.level() <= Level::Info {
+            return true;
+        }
+
+        let target = metadata.target();
+        if target.starts_with("cove") || target.starts_with("euphoxide::bot") {
+            return true;
+        }
+
+        false
     }
 
     fn log(&self, record: &log::Record<'_>) {
