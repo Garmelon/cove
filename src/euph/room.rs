@@ -206,26 +206,24 @@ impl Room {
         let data = ok_or_return!(&packet.content);
         match data {
             Data::BounceEvent(_) => {}
-            Data::DisconnectEvent(d) => {
-                warn!("{instance_name}: disconnected for reason {:?}", d.reason);
-            }
+            Data::DisconnectEvent(_) => {}
             Data::HelloEvent(_) => {}
             Data::JoinEvent(d) => {
-                info!("{instance_name}: {:?} joined", d.0.name);
+                debug!("{instance_name}: {:?} joined", d.0.name);
             }
             Data::LoginEvent(_) => {}
             Data::LogoutEvent(_) => {}
             Data::NetworkEvent(d) => {
-                info!("{instance_name}: network event ({})", d.r#type);
+                warn!("{instance_name}: network event ({})", d.r#type);
             }
             Data::NickEvent(d) => {
-                info!("{instance_name}: {:?} renamed to {:?}", d.from, d.to);
+                debug!("{instance_name}: {:?} renamed to {:?}", d.from, d.to);
             }
             Data::EditMessageEvent(_) => {
                 info!("{instance_name}: a message was edited");
             }
             Data::PartEvent(d) => {
-                info!("{instance_name}: {:?} left", d.0.name);
+                debug!("{instance_name}: {:?} left", d.0.name);
             }
             Data::PingEvent(_) => {}
             Data::PmInitiateEvent(d) => {
