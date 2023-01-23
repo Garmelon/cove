@@ -1,20 +1,21 @@
 use std::collections::{HashMap, HashSet};
 use std::iter;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crossterm::style::{ContentStyle, Stylize};
 use euphoxide::api::SessionType;
-use euphoxide::conn::{Joined, State as ConnState};
+use euphoxide::bot::instance::{Event, ServerConfig};
+use euphoxide::conn::{self, Joined};
 use parking_lot::FairMutex;
 use tokio::sync::mpsc;
 use toss::styled::Styled;
 use toss::terminal::Terminal;
 
 use crate::config::{Config, RoomsSortOrder};
-use crate::euph::EuphRoomEvent;
+use crate::euph;
 use crate::vault::Vault;
 
-use super::euph::room::{EuphRoom, RoomState};
+use super::euph::room::EuphRoom;
 use super::input::{key, InputEvent, KeyBindingsList};
 use super::widgets::editor::EditorState;
 use super::widgets::join::{HJoin, Segment, VJoin};
@@ -57,15 +58,20 @@ pub struct Rooms {
 
     list: ListState<String>,
     order: Order,
+
+    euph_server_config: ServerConfig,
     euph_rooms: HashMap<String, EuphRoom>,
 }
 
 impl Rooms {
-    pub fn new(
+    pub async fn new(
         config: &'static Config,
         vault: Vault,
         ui_event_tx: mpsc::UnboundedSender<UiEvent>,
     ) -> Self {
+        let euph_server_config =
+            ServerConfig::default().cookies(Arc::new(Mutex::new(vault.euph().cookies().await)));
+
         let mut result = Self {
             config,
             vault,
@@ -73,6 +79,7 @@ impl Rooms {
             state: State::ShowList,
             list: ListState::new(),
             order: Order::from_rooms_sort_order(config.rooms_sort_order),
+            euph_server_config,
             euph_rooms: HashMap::new(),
         };
 
@@ -90,6 +97,7 @@ impl Rooms {
     fn get_or_insert_room(&mut self, name: String) -> &mut EuphRoom {
         self.euph_rooms.entry(name.clone()).or_insert_with(|| {
             EuphRoom::new(
+                self.euph_server_config.clone(),
                 self.config.euph_room(&name),
                 self.vault.euph().room(name),
                 self.ui_event_tx.clone(),
@@ -236,15 +244,18 @@ impl Rooms {
         result.join(" ")
     }
 
-    fn format_room_state(state: RoomState) -> Option<String> {
+    fn format_room_state(state: Option<&euph::State>) -> Option<String> {
         match state {
-            RoomState::NoRoom | RoomState::Stopped => None,
-            RoomState::Connecting => Some("connecting".to_string()),
-            RoomState::Connected(ConnState::Joining(j)) if j.bounce.is_some() => {
-                Some("auth required".to_string())
-            }
-            RoomState::Connected(ConnState::Joining(_)) => Some("joining".to_string()),
-            RoomState::Connected(ConnState::Joined(joined)) => Some(Self::format_pbln(&joined)),
+            None | Some(euph::State::Stopped) => None,
+            Some(euph::State::Disconnected) => Some("waiting".to_string()),
+            Some(euph::State::Connecting) => Some("connecting".to_string()),
+            Some(euph::State::Connected(_, connected)) => match connected {
+                conn::State::Joining(joining) if joining.bounce.is_some() => {
+                    Some("auth required".to_string())
+                }
+                conn::State::Joining(_) => Some("joining".to_string()),
+                conn::State::Joined(joined) => Some(Self::format_pbln(joined)),
+            },
         }
     }
 
@@ -256,7 +267,7 @@ impl Rooms {
         }
     }
 
-    fn format_room_info(state: RoomState, unseen: usize) -> Styled {
+    fn format_room_info(state: Option<&euph::State>, unseen: usize) -> Styled {
         let unseen_style = ContentStyle::default().bold().green();
 
         let state = Self::format_room_state(state);
@@ -276,12 +287,16 @@ impl Rooms {
         }
     }
 
-    fn sort_rooms(&self, rooms: &mut [(&String, RoomState, usize)]) {
+    fn sort_rooms(&self, rooms: &mut [(&String, Option<&euph::State>, usize)]) {
         match self.order {
             Order::Alphabet => rooms.sort_unstable_by_key(|(n, _, _)| *n),
-            Order::Importance => {
-                rooms.sort_unstable_by_key(|(n, s, u)| (!s.connecting_or_connected(), *u == 0, *n))
-            }
+            Order::Importance => rooms.sort_unstable_by_key(|(n, s, u)| {
+                let connecting_or_connected = matches!(
+                    s,
+                    Some(euph::State::Connecting | euph::State::Connected(_, _))
+                );
+                (!connecting_or_connected, *u == 0, *n)
+            }),
         }
     }
 
@@ -295,7 +310,7 @@ impl Rooms {
 
         let mut rooms = vec![];
         for (name, room) in &self.euph_rooms {
-            let state = room.state().await;
+            let state = room.room_state();
             let unseen = room.unseen_msgs_count().await;
             rooms.push((name, state, unseen));
         }
@@ -536,15 +551,15 @@ impl Rooms {
         false
     }
 
-    pub fn handle_euph_room_event(&mut self, name: String, event: EuphRoomEvent) -> bool {
-        let room_visible = if let State::ShowRoom(n) = &self.state {
-            *n == name
-        } else {
-            true
-        };
+    pub fn handle_euph_event(&mut self, event: Event) -> bool {
+        let instance_name = event.config().name.clone();
+        let room = self.get_or_insert_room(instance_name.clone());
+        let handled = room.handle_event(event);
 
-        let room = self.get_or_insert_room(name);
-        let handled = room.handle_euph_room_event(event);
+        let room_visible = match &self.state {
+            State::ShowRoom(name) => *name == instance_name,
+            _ => true,
+        };
         handled && room_visible
     }
 }

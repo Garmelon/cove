@@ -17,7 +17,6 @@ use tokio::task;
 use toss::terminal::Terminal;
 
 use crate::config::Config;
-use crate::euph::EuphRoomEvent;
 use crate::logger::{LogMsg, Logger};
 use crate::macros::{ok_or_return, some_or_return};
 use crate::vault::Vault;
@@ -37,7 +36,7 @@ pub enum UiEvent {
     GraphemeWidthsChanged,
     LogChanged,
     Term(crossterm::event::Event),
-    EuphRoom { name: String, event: EuphRoomEvent },
+    Euph(euphoxide::bot::instance::Event),
 }
 
 enum EventHandleResult {
@@ -94,7 +93,7 @@ impl Ui {
         let mut ui = Self {
             event_tx: event_tx.clone(),
             mode: Mode::Main,
-            rooms: Rooms::new(config, vault, event_tx.clone()),
+            rooms: Rooms::new(config, vault, event_tx.clone()).await,
             log_chat: ChatState::new(logger),
             key_bindings_list: None,
         };
@@ -230,9 +229,8 @@ impl Ui {
                 self.handle_term_event(terminal, crossterm_lock, event)
                     .await
             }
-            UiEvent::EuphRoom { name, event } => {
-                let handled = self.handle_euph_room_event(name, event).await;
-                if self.mode == Mode::Main && handled {
+            UiEvent::Euph(event) => {
+                if self.rooms.handle_euph_event(event) {
                     EventHandleResult::Redraw
                 } else {
                     EventHandleResult::Continue
@@ -310,10 +308,5 @@ impl Ui {
         } else {
             EventHandleResult::Continue
         }
-    }
-
-    async fn handle_euph_room_event(&mut self, name: String, event: EuphRoomEvent) -> bool {
-        let handled = self.rooms.handle_euph_room_event(name, event);
-        handled && self.mode == Mode::Main
     }
 }

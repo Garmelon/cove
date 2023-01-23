@@ -1,9 +1,9 @@
 use crossterm::style::{ContentStyle, Stylize};
 use euphoxide::api::PersonalAccountView;
-use euphoxide::conn::State as ConnState;
+use euphoxide::conn;
 use toss::terminal::Terminal;
 
-use crate::euph::Room;
+use crate::euph::{self, Room};
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
 use crate::ui::util;
 use crate::ui::widgets::editor::EditorState;
@@ -13,8 +13,6 @@ use crate::ui::widgets::popup::Popup;
 use crate::ui::widgets::resize::Resize;
 use crate::ui::widgets::text::Text;
 use crate::ui::widgets::BoxedWidget;
-
-use super::room::RoomState;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Focus {
@@ -97,8 +95,8 @@ impl AccountUiState {
     }
 
     /// Returns `false` if the account UI should not be displayed any longer.
-    pub fn stabilize(&mut self, state: &RoomState) -> bool {
-        if let RoomState::Connected(ConnState::Joined(state)) = state {
+    pub fn stabilize(&mut self, state: Option<&euph::State>) -> bool {
+        if let Some(euph::State::Connected(_, conn::State::Joined(state))) = state {
             match (&self, &state.account) {
                 (Self::LoggedOut(_), Some(view)) => *self = Self::LoggedIn(LoggedIn(view.clone())),
                 (Self::LoggedIn(_), None) => *self = Self::LoggedOut(LoggedOut::new()),
