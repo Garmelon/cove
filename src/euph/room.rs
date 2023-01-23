@@ -205,14 +205,7 @@ impl Room {
         let instance_name = &self.instance.config().name;
         let data = ok_or_return!(&packet.content);
         match data {
-            Data::BounceEvent(_) => {
-                if let Some(password) = &self.instance.config().password {
-                    // Try to authenticate with the configured password, but no
-                    // promises if it doesn't work. In particular, we only ever
-                    // try this password once.
-                    let _ = self.auth(password.clone());
-                }
-            }
+            Data::BounceEvent(_) => {}
             Data::DisconnectEvent(d) => {
                 warn!("{instance_name}: disconnected for reason {:?}", d.reason);
             }
