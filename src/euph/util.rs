@@ -1,5 +1,5 @@
 use crossterm::style::{Color, ContentStyle, Stylize};
-use euphoxide::emoji::Emoji;
+use euphoxide::Emoji;
 use once_cell::sync::Lazy;
 use toss::styled::Styled;
 

@@ -309,9 +309,11 @@ dependencies = [
 [[package]]
 name = "euphoxide"
 version = "0.2.0"
-source = "git+https://github.com/Garmelon/euphoxide.git?rev=c15c05a64e82c7c5f7af0539745855c0f6821869#c15c05a64e82c7c5f7af0539745855c0f6821869"
+source = "git+https://github.com/Garmelon/euphoxide.git?rev=63464fdc59f24774cb96b7a8038326a9dc7d587a#63464fdc59f24774cb96b7a8038326a9dc7d587a"
 dependencies = [
+ "cookie",
  "futures-util",
+ "log",
  "serde",
  "serde_json",
  "time",
