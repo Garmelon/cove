@@ -291,11 +291,8 @@ impl Rooms {
         match self.order {
             Order::Alphabet => rooms.sort_unstable_by_key(|(n, _, _)| *n),
             Order::Importance => rooms.sort_unstable_by_key(|(n, s, u)| {
-                let connecting_or_connected = matches!(
-                    s,
-                    Some(euph::State::Connecting | euph::State::Connected(_, _))
-                );
-                (!connecting_or_connected, *u == 0, *n)
+                let no_instance = matches!(s, None | Some(euph::State::Disconnected));
+                (no_instance, *u == 0, *n)
             }),
         }
     }
