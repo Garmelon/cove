@@ -264,7 +264,7 @@ impl Room {
     }
 
     pub fn auth(&self, password: String) -> Result<(), Error> {
-        let _ = self.conn_tx()?.send(Auth {
+        self.conn_tx()?.send_only(Auth {
             r#type: AuthOption::Passcode,
             passcode: Some(password),
         });
@@ -279,7 +279,7 @@ impl Room {
     }
 
     pub fn nick(&self, name: String) -> Result<(), Error> {
-        let _ = self.conn_tx()?.send(Nick { name });
+        self.conn_tx()?.send_only(Nick { name });
         Ok(())
     }
 
@@ -299,7 +299,7 @@ impl Room {
     }
 
     pub fn login(&self, email: String, password: String) -> Result<(), Error> {
-        let _ = self.conn_tx()?.send(Login {
+        self.conn_tx()?.send_only(Login {
             namespace: "email".to_string(),
             id: email,
             password,
@@ -308,7 +308,7 @@ impl Room {
     }
 
     pub fn logout(&self) -> Result<(), Error> {
-        let _ = self.conn_tx()?.send(Logout);
+        self.conn_tx()?.send_only(Logout);
         Ok(())
     }
 }

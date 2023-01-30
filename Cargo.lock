@@ -91,6 +91,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dfb24e866b15a1af2a1b663f10c6b6b8f397a84aadb828f12e5b289ec23a3a3c"
 
 [[package]]
+name = "caseless"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "808dab3318747be122cb31d36de18d4d1c81277a76f8332a02b81a3d73463d7f"
+dependencies = [
+ "regex",
+ "unicode-normalization",
+]
+
+[[package]]
 name = "cc"
 version = "1.0.78"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -309,9 +319,10 @@ dependencies = [
 [[package]]
 name = "euphoxide"
 version = "0.2.0"
-source = "git+https://github.com/Garmelon/euphoxide.git?rev=2719ab33014f790b8af76fc028c077b90e9716cb#2719ab33014f790b8af76fc028c077b90e9716cb"
+source = "git+https://github.com/Garmelon/euphoxide.git?rev=f394ddc5a67f53223f977ccc414bb4c949790f6b#f394ddc5a67f53223f977ccc414bb4c949790f6b"
 dependencies = [
  "async-trait",
+ "caseless",
  "clap",
  "cookie",
  "futures-util",
@@ -322,6 +333,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-tungstenite",
+ "unicode-normalization",
 ]
 
 [[package]]
