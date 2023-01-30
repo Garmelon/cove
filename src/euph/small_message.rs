@@ -13,8 +13,9 @@ use super::util;
 fn nick_char(ch: char) -> bool {
     // Closely following the heim mention regex:
     // https://github.com/euphoria-io/heim/blob/978c921063e6b06012fc8d16d9fbf1b3a0be1191/client/lib/stores/chat.js#L14-L15
+    // `>` has been experimentally confirmed to delimit mentions as well.
     match ch {
-        ',' | '.' | '!' | '?' | ';' | '&' | '<' | '\'' | '"' => false,
+        ',' | '.' | '!' | '?' | ';' | '&' | '<' | '>' | '\'' | '"' => false,
         _ => !ch.is_whitespace(),
     }
 }

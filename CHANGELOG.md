@@ -21,6 +21,9 @@ Procedure when bumping the version number:
 - Respect colon-delimited emoji when calculating nick hue
 - Display colon-delimited emoji in nicks and messages
 
+### Fixed
+- Mentions not being stopped by `>`
+
 ## v0.5.2 - 2023-01-14
 
 ### Added
