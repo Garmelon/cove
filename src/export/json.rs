@@ -42,3 +42,33 @@ pub async fn export_to_file(
 
     Ok(())
 }
+
+pub async fn export_stream_to_file(
+    vault: &EuphRoomVault,
+    file: &mut BufWriter<File>,
+) -> anyhow::Result<()> {
+    let mut total = 0;
+    let mut offset = 0;
+    loop {
+        let messages = vault.chunk_at_offset(CHUNK_SIZE, offset).await;
+        offset += messages.len();
+
+        if messages.is_empty() {
+            break;
+        }
+
+        for message in messages {
+            serde_json::to_writer(&mut *file, &message)?; // Fancy reborrow! :D
+            writeln!(file)?;
+            total += 1;
+        }
+
+        if total % 100000 == 0 {
+            println!("  {total} messages");
+        }
+    }
+
+    println!("  {total} messages in total");
+
+    Ok(())
+}

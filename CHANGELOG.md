@@ -16,6 +16,7 @@ Procedure when bumping the version number:
 
 ### Added
 - `--verbose` flag
+- `json-stream` room export format
 
 ### Changed
 - Respect colon-delimited emoji when calculating nick hue

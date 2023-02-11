@@ -12,8 +12,10 @@ use crate::vault::EuphVault;
 pub enum Format {
     /// Human-readable tree-structured messages.
     Text,
-    /// List of message objects in the same format as the euphoria API uses.
+    /// Array of message objects in the same format as the euphoria API uses.
     Json,
+    /// Message objects in the same format as the euphoria API uses, one per line.
+    JsonStream,
 }
 
 impl Format {
@@ -21,13 +23,14 @@ impl Format {
         match self {
             Self::Text => "text",
             Self::Json => "json",
+            Self::JsonStream => "json stream",
         }
     }
 
     fn extension(&self) -> &'static str {
         match self {
             Self::Text => "txt",
-            Self::Json => "json",
+            Self::Json | Self::JsonStream => "json",
         }
     }
 }
@@ -88,6 +91,7 @@ pub async fn export(vault: &EuphVault, mut args: Args) -> anyhow::Result<()> {
         match args.format {
             Format::Text => text::export_to_file(&vault, &mut file).await?,
             Format::Json => json::export_to_file(&vault, &mut file).await?,
+            Format::JsonStream => json::export_stream_to_file(&vault, &mut file).await?,
         }
         file.flush()?;
     }
