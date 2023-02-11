@@ -4,11 +4,11 @@ version = "0.5.2"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.68"
-async-trait = "0.1.61"
-clap = { version = "4.1.1", features = ["derive", "deprecated"] }
-cookie = "0.16.2"
-crossterm = "0.25.0"
+anyhow = "1.0.69"
+async-trait = "0.1.64"
+clap = { version = "4.1.4", features = ["derive", "deprecated"] }
+cookie = "0.17.0"
+crossterm = "0.26.0"
 directories = "4.0.1"
 edit = "0.1.4"
 linkify = "0.9.0"
@@ -18,11 +18,11 @@ open = "3.2.0"
 parking_lot = "0.12.1"
 rusqlite = { version = "0.28.0", features = ["bundled", "time"] }
 serde = { version = "1.0.152", features = ["derive"] }
-serde_json = "1.0.91"
+serde_json = "1.0.93"
 thiserror = "1.0.38"
-tokio = { version = "1.24.1", features = ["full"] }
-toml = "0.5.10"
-unicode-segmentation = "1.10.0"
+tokio = { version = "1.25.0", features = ["full"] }
+toml = "0.7.2"
+unicode-segmentation = "1.10.1"
 unicode-width = "0.1.10"
 
 [dependencies.time]
@@ -35,7 +35,7 @@ features = ["rustls-tls-native-roots"]
 
 [dependencies.euphoxide]
 git = "https://github.com/Garmelon/euphoxide.git"
-rev = "f394ddc5a67f53223f977ccc414bb4c949790f6b"
+tag = "v0.3.0"
 features = ["bot"]
 
 # [patch."https://github.com/Garmelon/euphoxide.git"]
@@ -43,7 +43,7 @@ features = ["bot"]
 
 [dependencies.toss]
 git = "https://github.com/Garmelon/toss.git"
-rev = "0a3b193f796bcb5e1a211d0e3c1589565d9848c2"
+rev = "0d59116012a51516a821991e2969b1cf4779770f"
 
 # [patch."https://github.com/Garmelon/toss.git"]
 # toss = { path = "../toss/" }
