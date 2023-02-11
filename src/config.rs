@@ -49,7 +49,7 @@ impl Config {
         match toml::from_str(&content) {
             Ok(config) => config,
             Err(err) => {
-                println!("Error loading config file: {err}");
+                eprintln!("Error loading config file: {err}");
                 Self::default()
             }
         }

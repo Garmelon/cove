@@ -26,10 +26,10 @@ pub async fn export<W: Write>(vault: &EuphRoomVault, out: &mut W) -> anyhow::Res
         exported_msgs += tree.len();
 
         if exported_trees % 10000 == 0 {
-            println!("  {exported_trees} trees, {exported_msgs} messages")
+            eprintln!("  {exported_trees} trees, {exported_msgs} messages")
         }
     }
-    println!("  {exported_trees} trees, {exported_msgs} messages in total");
+    eprintln!("  {exported_trees} trees, {exported_msgs} messages in total");
 
     Ok(())
 }

@@ -9,7 +9,7 @@ pub fn migrate(conn: &mut Connection) -> rusqlite::Result<()> {
     let total = MIGRATIONS.len();
     assert!(user_version <= total, "malformed database schema");
     for (i, migration) in MIGRATIONS.iter().enumerate().skip(user_version) {
-        println!("Migrating vault from {} to {} (out of {})", i, i + 1, total);
+        eprintln!("Migrating vault from {} to {} (out of {})", i, i + 1, total);
         migration(&mut tx)?;
     }
 

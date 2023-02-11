@@ -50,7 +50,7 @@ fn run(mut conn: Connection, mut rx: mpsc::UnboundedReceiver<Request>) {
     while let Some(request) = rx.blocking_recv() {
         match request {
             Request::Close(tx) => {
-                println!("Closing vault");
+                eprintln!("Closing vault");
                 if let Err(e) = conn.execute_batch("PRAGMA optimize") {
                     error!("{e}");
                 }
@@ -79,7 +79,7 @@ fn launch_from_connection(mut conn: Connection, ephemeral: bool) -> rusqlite::Re
     conn.pragma_update(None, "foreign_keys", true)?;
     conn.pragma_update(None, "trusted_schema", false)?;
 
-    println!("Opening vault");
+    eprintln!("Opening vault");
 
     migrate::migrate(&mut conn)?;
     prepare::prepare(&mut conn)?;

@@ -125,7 +125,7 @@ async fn main() -> anyhow::Result<()> {
     let config_path = args
         .config
         .unwrap_or_else(|| dirs.config_dir().join("config.toml"));
-    println!("Config file: {}", config_path.to_string_lossy());
+    eprintln!("Config file: {}", config_path.to_string_lossy());
     let mut config = Config::load(&config_path);
     set_data_dir(&mut config, args.data_dir);
     set_ephemeral(&mut config, args.ephemeral);
@@ -139,7 +139,7 @@ async fn main() -> anyhow::Result<()> {
             .data_dir
             .clone()
             .unwrap_or_else(|| dirs.data_dir().to_path_buf());
-        println!("Data dir:    {}", data_dir.to_string_lossy());
+        eprintln!("Data dir:    {}", data_dir.to_string_lossy());
         vault::launch(&data_dir.join("vault.db"))?
     };
 
@@ -147,12 +147,12 @@ async fn main() -> anyhow::Result<()> {
         Command::Run => run(logger, logger_rx, config, &vault, args.measure_widths).await?,
         Command::Export(args) => export::export(&vault.euph(), args).await?,
         Command::Gc => {
-            println!("Cleaning up and compacting vault");
-            println!("This may take a while...");
+            eprintln!("Cleaning up and compacting vault");
+            eprintln!("This may take a while...");
             vault.gc().await;
         }
         Command::ClearCookies => {
-            println!("Clearing cookies");
+            eprintln!("Clearing cookies");
             vault.euph().set_cookies(CookieJar::new());
         }
     }
@@ -164,7 +164,7 @@ async fn main() -> anyhow::Result<()> {
     // this, it is not implemented via a normal function call.
     drop(logger_guard);
 
-    println!("Goodbye!");
+    eprintln!("Goodbye!");
     Ok(())
 }
 

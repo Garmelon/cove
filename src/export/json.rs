@@ -28,13 +28,13 @@ pub async fn export<W: Write>(vault: &EuphRoomVault, file: &mut W) -> anyhow::Re
         }
 
         if total % 100000 == 0 {
-            println!("  {total} messages");
+            eprintln!("  {total} messages");
         }
     }
 
     write!(file, "\n]")?;
 
-    println!("  {total} messages in total");
+    eprintln!("  {total} messages in total");
     Ok(())
 }
 
@@ -56,10 +56,10 @@ pub async fn export_stream<W: Write>(vault: &EuphRoomVault, file: &mut W) -> any
         }
 
         if total % 100000 == 0 {
-            println!("  {total} messages");
+            eprintln!("  {total} messages");
         }
     }
 
-    println!("  {total} messages in total");
+    eprintln!("  {total} messages in total");
     Ok(())
 }
