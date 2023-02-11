@@ -1,3 +1,5 @@
+// TODO Stop if room does not exist (e. g. 404)
+
 use std::convert::Infallible;
 use std::time::Duration;
 
