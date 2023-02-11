@@ -1,14 +1,10 @@
-use std::fs::File;
-use std::io::{BufWriter, Write};
+use std::io::Write;
 
 use crate::vault::EuphRoomVault;
 
 const CHUNK_SIZE: usize = 10000;
 
-pub async fn export_to_file(
-    vault: &EuphRoomVault,
-    file: &mut BufWriter<File>,
-) -> anyhow::Result<()> {
+pub async fn export<W: Write>(vault: &EuphRoomVault, file: &mut W) -> anyhow::Result<()> {
     write!(file, "[")?;
 
     let mut total = 0;
@@ -39,14 +35,10 @@ pub async fn export_to_file(
     write!(file, "\n]")?;
 
     println!("  {total} messages in total");
-
     Ok(())
 }
 
-pub async fn export_stream_to_file(
-    vault: &EuphRoomVault,
-    file: &mut BufWriter<File>,
-) -> anyhow::Result<()> {
+pub async fn export_stream<W: Write>(vault: &EuphRoomVault, file: &mut W) -> anyhow::Result<()> {
     let mut total = 0;
     let mut offset = 0;
     loop {
@@ -69,6 +61,5 @@ pub async fn export_stream_to_file(
     }
 
     println!("  {total} messages in total");
-
     Ok(())
 }

@@ -4,9 +4,9 @@ mod json;
 mod text;
 
 use std::fs::File;
-use std::io::{BufWriter, Write};
+use std::io::{self, BufWriter, Write};
 
-use crate::vault::EuphVault;
+use crate::vault::{EuphRoomVault, EuphVault};
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
 pub enum Format {
@@ -57,10 +57,26 @@ pub struct Args {
     /// If the value ends with a `/`, it is assumed to point to a directory and
     /// `%r.%e` will be appended.
     ///
+    /// If the value is a literal `-`, the export will be written to stdout. To
+    /// write to a file named `-`, you can use `./-`.
+    ///
     /// Must be a valid utf-8 encoded string.
     #[arg(long, short, default_value_t = Into::into("%r.%e"))]
     #[arg(verbatim_doc_comment)]
     out: String,
+}
+
+async fn export_room<W: Write>(
+    vault: &EuphRoomVault,
+    out: &mut W,
+    format: Format,
+) -> anyhow::Result<()> {
+    match format {
+        Format::Text => text::export(vault, out).await?,
+        Format::Json => json::export(vault, out).await?,
+        Format::JsonStream => json::export_stream(vault, out).await?,
+    }
+    Ok(())
 }
 
 pub async fn export(vault: &EuphVault, mut args: Args) -> anyhow::Result<()> {
@@ -79,21 +95,24 @@ pub async fn export(vault: &EuphVault, mut args: Args) -> anyhow::Result<()> {
     };
 
     if rooms.is_empty() {
-        println!("No rooms to export");
+        eprintln!("No rooms to export");
     }
 
     for room in rooms {
-        let out = format_out(&args.out, &room, args.format);
-        println!("Exporting &{room} as {} to {out}", args.format.name());
-
-        let vault = vault.room(room);
-        let mut file = BufWriter::new(File::create(out)?);
-        match args.format {
-            Format::Text => text::export_to_file(&vault, &mut file).await?,
-            Format::Json => json::export_to_file(&vault, &mut file).await?,
-            Format::JsonStream => json::export_stream_to_file(&vault, &mut file).await?,
+        if args.out == "-" {
+            eprintln!("Exporting &{room} as {} to stdout", args.format.name());
+            let vault = vault.room(room);
+            let mut stdout = BufWriter::new(io::stdout());
+            export_room(&vault, &mut stdout, args.format).await?;
+            stdout.flush()?;
+        } else {
+            let out = format_out(&args.out, &room, args.format);
+            eprintln!("Exporting &{room} as {} to {out}", args.format.name());
+            let vault = vault.room(room);
+            let mut file = BufWriter::new(File::create(out)?);
+            export_room(&vault, &mut file, args.format).await?;
+            file.flush()?;
         }
-        file.flush()?;
     }
 
     Ok(())
