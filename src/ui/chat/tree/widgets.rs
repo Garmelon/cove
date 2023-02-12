@@ -145,11 +145,7 @@ pub fn editor<M: ChatMsg>(
     (widget, cursor_row)
 }
 
-pub fn pseudo<M: ChatMsg>(
-    indent: usize,
-    nick: &str,
-    editor: &EditorState,
-) -> BoxedWidget {
+pub fn pseudo<M: ChatMsg>(indent: usize, nick: &str, editor: &EditorState) -> BoxedWidget {
     let (nick, content) = M::edit(nick, &editor.text());
 
     HJoin::new(vec![

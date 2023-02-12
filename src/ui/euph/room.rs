@@ -71,7 +71,7 @@ impl EuphRoom {
         euph_room_config: config::EuphRoom,
         vault: EuphRoomVault,
         ui_event_tx: mpsc::UnboundedSender<UiEvent>,
-		config: &'static config::Config,
+        config: &'static config::Config,
     ) -> Self {
         Self {
             server_config,

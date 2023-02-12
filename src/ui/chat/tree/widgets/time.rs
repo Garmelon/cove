@@ -10,8 +10,7 @@ use crate::ui::widgets::empty::Empty;
 use crate::ui::widgets::text::Text;
 use crate::ui::widgets::BoxedWidget;
 
-const TIME_FORMAT: &[FormatItem<'_>] =
-    format_description!("[year]-[month]-[day] [hour]:[minute]");
+const TIME_FORMAT: &[FormatItem<'_>] = format_description!("[year]-[month]-[day] [hour]:[minute]");
 const TIME_WIDTH: u16 = 16;
 
 pub fn widget(
