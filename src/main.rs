@@ -30,11 +30,11 @@ use directories::{BaseDirs, ProjectDirs};
 use log::info;
 use tokio::sync::mpsc;
 use toss::terminal::Terminal;
-use ui::Ui;
-use vault::Vault;
 
 use crate::config::Config;
 use crate::logger::Logger;
+use crate::ui::Ui;
+use crate::vault::Vault;
 
 #[derive(Debug, clap::Parser)]
 enum Command {
