@@ -10,6 +10,7 @@ use std::io;
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 
+use log::error;
 use parking_lot::FairMutex;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -286,11 +287,20 @@ impl Ui {
                     .handle_input_event(terminal, crossterm_lock, &event)
                     .await
             }
-            Mode::Log => self
-                .log_chat
-                .handle_input_event(terminal, crossterm_lock, &event, false)
-                .await
-                .handled(),
+            Mode::Log => {
+                let reaction = match self
+                    .log_chat
+                    .handle_input_event(terminal, crossterm_lock, &event, false)
+                    .await
+                {
+                    Ok(reaction) => reaction,
+                    Err(err) => {
+                        error!("{err}");
+                        panic!("{err}");
+                    }
+                };
+                reaction.handled()
+            }
         };
 
         // Pressing '?' should only open the key bindings list if it doesn't

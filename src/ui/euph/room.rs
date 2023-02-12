@@ -5,6 +5,7 @@ use crossterm::style::{ContentStyle, Stylize};
 use euphoxide::api::{Data, Message, MessageId, PacketType, SessionId};
 use euphoxide::bot::instance::{Event, ServerConfig};
 use euphoxide::conn::{self, Joined, Joining, SessionInfo};
+use log::error;
 use parking_lot::FairMutex;
 use tokio::sync::oneshot::error::TryRecvError;
 use tokio::sync::{mpsc, oneshot};
@@ -326,11 +327,19 @@ impl EuphRoom {
             Some(euph::State::Connected(_, conn::State::Joined(_)))
         );
 
-        match self
+        let reaction = match self
             .chat
             .handle_input_event(terminal, crossterm_lock, event, can_compose)
             .await
         {
+            Ok(reaction) => reaction,
+            Err(err) => {
+                error!("{err}");
+                panic!("{err}");
+            }
+        };
+
+        match reaction {
             Reaction::NotHandled => {}
             Reaction::Handled => return true,
             Reaction::Composed { parent, content } => {

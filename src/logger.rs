@@ -1,3 +1,4 @@
+use std::convert::Infallible;
 use std::sync::Arc;
 use std::vec;
 
@@ -100,81 +101,87 @@ pub struct Logger {
 
 #[async_trait]
 impl MsgStore<LogMsg> for Logger {
-    async fn path(&self, id: &usize) -> Path<usize> {
-        Path::new(vec![*id])
+    type Error = Infallible;
+
+    async fn path(&self, id: &usize) -> Result<Path<usize>, Self::Error> {
+        Ok(Path::new(vec![*id]))
     }
 
-    async fn msg(&self, id: &usize) -> Option<LogMsg> {
-        self.messages.lock().get(*id).cloned()
+    async fn msg(&self, id: &usize) -> Result<Option<LogMsg>, Self::Error> {
+        Ok(self.messages.lock().get(*id).cloned())
     }
 
-    async fn tree(&self, root_id: &usize) -> Tree<LogMsg> {
+    async fn tree(&self, root_id: &usize) -> Result<Tree<LogMsg>, Self::Error> {
         let msgs = self
             .messages
             .lock()
             .get(*root_id)
             .map(|msg| vec![msg.clone()])
             .unwrap_or_default();
-        Tree::new(*root_id, msgs)
+        Ok(Tree::new(*root_id, msgs))
     }
 
-    async fn first_root_id(&self) -> Option<usize> {
+    async fn first_root_id(&self) -> Result<Option<usize>, Self::Error> {
         let empty = self.messages.lock().is_empty();
-        Some(0).filter(|_| !empty)
+        Ok(Some(0).filter(|_| !empty))
     }
 
-    async fn last_root_id(&self) -> Option<usize> {
-        self.messages.lock().len().checked_sub(1)
+    async fn last_root_id(&self) -> Result<Option<usize>, Self::Error> {
+        Ok(self.messages.lock().len().checked_sub(1))
     }
 
-    async fn prev_root_id(&self, root_id: &usize) -> Option<usize> {
-        root_id.checked_sub(1)
+    async fn prev_root_id(&self, root_id: &usize) -> Result<Option<usize>, Self::Error> {
+        Ok(root_id.checked_sub(1))
     }
 
-    async fn next_root_id(&self, root_id: &usize) -> Option<usize> {
+    async fn next_root_id(&self, root_id: &usize) -> Result<Option<usize>, Self::Error> {
         let len = self.messages.lock().len();
-        root_id.checked_add(1).filter(|t| *t < len)
+        Ok(root_id.checked_add(1).filter(|t| *t < len))
     }
 
-    async fn oldest_msg_id(&self) -> Option<usize> {
+    async fn oldest_msg_id(&self) -> Result<Option<usize>, Self::Error> {
         self.first_root_id().await
     }
 
-    async fn newest_msg_id(&self) -> Option<usize> {
+    async fn newest_msg_id(&self) -> Result<Option<usize>, Self::Error> {
         self.last_root_id().await
     }
 
-    async fn older_msg_id(&self, id: &usize) -> Option<usize> {
+    async fn older_msg_id(&self, id: &usize) -> Result<Option<usize>, Self::Error> {
         self.prev_root_id(id).await
     }
 
-    async fn newer_msg_id(&self, id: &usize) -> Option<usize> {
+    async fn newer_msg_id(&self, id: &usize) -> Result<Option<usize>, Self::Error> {
         self.next_root_id(id).await
     }
 
-    async fn oldest_unseen_msg_id(&self) -> Option<usize> {
-        None
+    async fn oldest_unseen_msg_id(&self) -> Result<Option<usize>, Self::Error> {
+        Ok(None)
     }
 
-    async fn newest_unseen_msg_id(&self) -> Option<usize> {
-        None
+    async fn newest_unseen_msg_id(&self) -> Result<Option<usize>, Self::Error> {
+        Ok(None)
     }
 
-    async fn older_unseen_msg_id(&self, _id: &usize) -> Option<usize> {
-        None
+    async fn older_unseen_msg_id(&self, _id: &usize) -> Result<Option<usize>, Self::Error> {
+        Ok(None)
     }
 
-    async fn newer_unseen_msg_id(&self, _id: &usize) -> Option<usize> {
-        None
+    async fn newer_unseen_msg_id(&self, _id: &usize) -> Result<Option<usize>, Self::Error> {
+        Ok(None)
     }
 
-    async fn unseen_msgs_count(&self) -> usize {
-        0
+    async fn unseen_msgs_count(&self) -> Result<usize, Self::Error> {
+        Ok(0)
     }
 
-    async fn set_seen(&self, _id: &usize, _seen: bool) {}
+    async fn set_seen(&self, _id: &usize, _seen: bool) -> Result<(), Self::Error> {
+        Ok(())
+    }
 
-    async fn set_older_seen(&self, _id: &usize, _seen: bool) {}
+    async fn set_older_seen(&self, _id: &usize, _seen: bool) -> Result<(), Self::Error> {
+        Ok(())
+    }
 }
 
 impl Log for Logger {

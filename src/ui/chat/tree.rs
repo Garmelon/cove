@@ -6,9 +6,11 @@ mod tree_blocks;
 mod widgets;
 
 use std::collections::HashSet;
+use std::fmt;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use log::error;
 use parking_lot::FairMutex;
 use tokio::sync::Mutex;
 use toss::frame::{Frame, Pos, Size};
@@ -82,21 +84,25 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         // TODO Bindings inspired by vim's ()/[]/{} bindings?
     }
 
-    async fn handle_movement_input_event(&mut self, frame: &mut Frame, event: &InputEvent) -> bool {
+    async fn handle_movement_input_event(
+        &mut self,
+        frame: &mut Frame,
+        event: &InputEvent,
+    ) -> Result<bool, S::Error> {
         let chat_height = frame.size().height - 3;
 
         match event {
-            key!('k') | key!(Up) => self.move_cursor_up().await,
-            key!('j') | key!(Down) => self.move_cursor_down().await,
-            key!('K') | key!(Ctrl + Up) => self.move_cursor_up_sibling().await,
-            key!('J') | key!(Ctrl + Down) => self.move_cursor_down_sibling().await,
-            key!('p') => self.move_cursor_to_parent().await,
-            key!('P') => self.move_cursor_to_root().await,
-            key!('h') | key!(Left) => self.move_cursor_older().await,
-            key!('l') | key!(Right) => self.move_cursor_newer().await,
-            key!('H') | key!(Ctrl + Left) => self.move_cursor_older_unseen().await,
-            key!('L') | key!(Ctrl + Right) => self.move_cursor_newer_unseen().await,
-            key!('g') | key!(Home) => self.move_cursor_to_top().await,
+            key!('k') | key!(Up) => self.move_cursor_up().await?,
+            key!('j') | key!(Down) => self.move_cursor_down().await?,
+            key!('K') | key!(Ctrl + Up) => self.move_cursor_up_sibling().await?,
+            key!('J') | key!(Ctrl + Down) => self.move_cursor_down_sibling().await?,
+            key!('p') => self.move_cursor_to_parent().await?,
+            key!('P') => self.move_cursor_to_root().await?,
+            key!('h') | key!(Left) => self.move_cursor_older().await?,
+            key!('l') | key!(Right) => self.move_cursor_newer().await?,
+            key!('H') | key!(Ctrl + Left) => self.move_cursor_older_unseen().await?,
+            key!('L') | key!(Ctrl + Right) => self.move_cursor_newer_unseen().await?,
+            key!('g') | key!(Home) => self.move_cursor_to_top().await?,
             key!('G') | key!(End) => self.move_cursor_to_bottom().await,
             key!(Ctrl + 'y') => self.scroll_up(1),
             key!(Ctrl + 'e') => self.scroll_down(1),
@@ -107,10 +113,10 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                 self.scroll_down(chat_height.saturating_sub(1).into())
             }
             key!('z') => self.center_cursor(),
-            _ => return false,
+            _ => return Ok(false),
         }
 
-        true
+        Ok(true)
     }
 
     pub fn list_action_key_bindings(&self, bindings: &mut KeyBindingsList) {
@@ -120,43 +126,47 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         bindings.binding("ctrl+s", "mark all older messages as seen");
     }
 
-    async fn handle_action_input_event(&mut self, event: &InputEvent, id: Option<&M::Id>) -> bool {
+    async fn handle_action_input_event(
+        &mut self,
+        event: &InputEvent,
+        id: Option<&M::Id>,
+    ) -> Result<bool, S::Error> {
         match event {
             key!(' ') => {
                 if let Some(id) = id {
                     if !self.folded.remove(id) {
                         self.folded.insert(id.clone());
                     }
-                    return true;
+                    return Ok(true);
                 }
             }
             key!('s') => {
                 if let Some(id) = id {
-                    if let Some(msg) = self.store.tree(id).await.msg(id) {
-                        self.store.set_seen(id, !msg.seen()).await;
+                    if let Some(msg) = self.store.tree(id).await?.msg(id) {
+                        self.store.set_seen(id, !msg.seen()).await?;
                     }
-                    return true;
+                    return Ok(true);
                 }
             }
             key!('S') => {
                 for id in &self.last_visible_msgs {
-                    self.store.set_seen(id, true).await;
+                    self.store.set_seen(id, true).await?;
                 }
-                return true;
+                return Ok(true);
             }
             key!(Ctrl + 's') => {
                 if let Some(id) = id {
-                    self.store.set_older_seen(id, true).await;
+                    self.store.set_older_seen(id, true).await?;
                 } else {
                     self.store
                         .set_older_seen(&M::last_possible_id(), true)
-                        .await;
+                        .await?;
                 }
-                return true;
+                return Ok(true);
             }
             _ => {}
         }
-        false
+        Ok(false)
     }
 
     pub fn list_edit_initiating_key_bindings(&self, bindings: &mut KeyBindingsList) {
@@ -169,16 +179,16 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         &mut self,
         event: &InputEvent,
         id: Option<M::Id>,
-    ) -> bool {
+    ) -> Result<bool, S::Error> {
         match event {
             key!('r') => {
-                if let Some(parent) = self.parent_for_normal_reply().await {
+                if let Some(parent) = self.parent_for_normal_reply().await? {
                     self.cursor = Cursor::editor(id, parent);
                     self.correction = Some(Correction::MakeCursorVisible);
                 }
             }
             key!('R') => {
-                if let Some(parent) = self.parent_for_alternate_reply().await {
+                if let Some(parent) = self.parent_for_alternate_reply().await? {
                     self.cursor = Cursor::editor(id, parent);
                     self.correction = Some(Correction::MakeCursorVisible);
                 }
@@ -187,10 +197,10 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                 self.cursor = Cursor::editor(id, None);
                 self.correction = Some(Correction::MakeCursorVisible);
             }
-            _ => return false,
+            _ => return Ok(false),
         }
 
-        true
+        Ok(true)
     }
 
     pub fn list_normal_key_bindings(&self, bindings: &mut KeyBindingsList, can_compose: bool) {
@@ -209,17 +219,17 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         event: &InputEvent,
         can_compose: bool,
         id: Option<M::Id>,
-    ) -> bool {
+    ) -> Result<bool, S::Error> {
         #[allow(clippy::if_same_then_else)]
-        if self.handle_movement_input_event(frame, event).await {
+        Ok(if self.handle_movement_input_event(frame, event).await? {
             true
-        } else if self.handle_action_input_event(event, id.as_ref()).await {
+        } else if self.handle_action_input_event(event, id.as_ref()).await? {
             true
         } else if can_compose {
-            self.handle_edit_initiating_input_event(event, id).await
+            self.handle_edit_initiating_input_event(event, id).await?
         } else {
             false
-        }
+        })
     }
 
     fn list_editor_key_bindings(&self, bindings: &mut KeyBindingsList) {
@@ -294,12 +304,12 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         crossterm_lock: &Arc<FairMutex<()>>,
         event: &InputEvent,
         can_compose: bool,
-    ) -> Reaction<M> {
-        match &self.cursor {
+    ) -> Result<Reaction<M>, S::Error> {
+        Ok(match &self.cursor {
             Cursor::Bottom => {
                 if self
                     .handle_normal_input_event(terminal.frame(), event, can_compose, None)
-                    .await
+                    .await?
                 {
                     Reaction::Handled
                 } else {
@@ -310,7 +320,7 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                 let id = id.clone();
                 if self
                     .handle_normal_input_event(terminal.frame(), event, can_compose, Some(id))
-                    .await
+                    .await?
                 {
                     Reaction::Handled
                 } else {
@@ -330,14 +340,14 @@ impl<M: Msg, S: MsgStore<M>> InnerTreeViewState<M, S> {
             Cursor::Pseudo { .. } => {
                 if self
                     .handle_movement_input_event(terminal.frame(), event)
-                    .await
+                    .await?
                 {
                     Reaction::Handled
                 } else {
                     Reaction::NotHandled
                 }
             }
-        }
+        })
     }
 
     fn cursor(&self) -> Option<M::Id> {
@@ -388,7 +398,7 @@ impl<M: Msg, S: MsgStore<M>> TreeViewState<M, S> {
         crossterm_lock: &Arc<FairMutex<()>>,
         event: &InputEvent,
         can_compose: bool,
-    ) -> Reaction<M> {
+    ) -> Result<Reaction<M>, S::Error> {
         self.0
             .lock()
             .await
@@ -421,6 +431,7 @@ where
     M: Msg + ChatMsg,
     M::Id: Send + Sync,
     S: MsgStore<M> + Send + Sync,
+    S::Error: fmt::Display,
 {
     fn size(&self, _frame: &mut Frame, _max_width: Option<u16>, _max_height: Option<u16>) -> Size {
         Size::ZERO
@@ -428,7 +439,13 @@ where
 
     async fn render(self: Box<Self>, frame: &mut Frame) {
         let mut guard = self.inner.lock().await;
-        let blocks = guard.relayout(self.nick, self.focused, frame).await;
+        let blocks = match guard.relayout(self.nick, self.focused, frame).await {
+            Ok(blocks) => blocks,
+            Err(err) => {
+                error!("{err}");
+                panic!("{err}");
+            }
+        };
 
         let size = frame.size();
         for block in blocks.into_blocks().blocks {

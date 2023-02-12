@@ -22,9 +22,9 @@ struct Context {
 }
 
 impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
-    async fn cursor_path(&self, cursor: &Cursor<M::Id>) -> Path<M::Id> {
-        match cursor {
-            Cursor::Msg(id) => self.store.path(id).await,
+    async fn cursor_path(&self, cursor: &Cursor<M::Id>) -> Result<Path<M::Id>, S::Error> {
+        Ok(match cursor {
+            Cursor::Msg(id) => self.store.path(id).await?,
             Cursor::Bottom
             | Cursor::Editor { parent: None, .. }
             | Cursor::Pseudo { parent: None, .. } => Path::new(vec![M::last_possible_id()]),
@@ -36,11 +36,11 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                 parent: Some(parent),
                 ..
             } => {
-                let mut path = self.store.path(parent).await;
+                let mut path = self.store.path(parent).await?;
                 path.push(M::last_possible_id());
                 path
             }
-        }
+        })
     }
 
     fn make_path_visible(&mut self, path: &Path<M::Id>) {
@@ -202,22 +202,24 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         context: &Context,
         frame: &mut Frame,
         blocks: &mut TreeBlocks<M::Id>,
-    ) {
+    ) -> Result<(), S::Error> {
         let top_line = 0;
 
         while blocks.blocks().top_line > top_line {
             let top_root = blocks.top_root();
             let prev_root_id = match top_root {
-                Root::Bottom => self.store.last_root_id().await,
-                Root::Tree(root_id) => self.store.prev_root_id(root_id).await,
+                Root::Bottom => self.store.last_root_id().await?,
+                Root::Tree(root_id) => self.store.prev_root_id(root_id).await?,
             };
             let prev_root_id = match prev_root_id {
                 Some(id) => id,
                 None => break,
             };
-            let prev_tree = self.store.tree(&prev_root_id).await;
+            let prev_tree = self.store.tree(&prev_root_id).await?;
             blocks.prepend(self.layout_tree(context, frame, prev_tree));
         }
+
+        Ok(())
     }
 
     async fn expand_to_bottom(
@@ -225,22 +227,24 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         context: &Context,
         frame: &mut Frame,
         blocks: &mut TreeBlocks<M::Id>,
-    ) {
+    ) -> Result<(), S::Error> {
         let bottom_line = frame.size().height as i32 - 1;
 
         while blocks.blocks().bottom_line < bottom_line {
             let bottom_root = blocks.bottom_root();
             let next_root_id = match bottom_root {
                 Root::Bottom => break,
-                Root::Tree(root_id) => self.store.next_root_id(root_id).await,
+                Root::Tree(root_id) => self.store.next_root_id(root_id).await?,
             };
             if let Some(next_root_id) = next_root_id {
-                let next_tree = self.store.tree(&next_root_id).await;
+                let next_tree = self.store.tree(&next_root_id).await?;
                 blocks.append(self.layout_tree(context, frame, next_tree));
             } else {
                 blocks.append(self.layout_bottom(context, frame));
             }
         }
+
+        Ok(())
     }
 
     async fn fill_screen_and_clamp_scrolling(
@@ -248,23 +252,25 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         context: &Context,
         frame: &mut Frame,
         blocks: &mut TreeBlocks<M::Id>,
-    ) {
+    ) -> Result<(), S::Error> {
         let top_line = 0;
         let bottom_line = frame.size().height as i32 - 1;
 
-        self.expand_to_top(context, frame, blocks).await;
+        self.expand_to_top(context, frame, blocks).await?;
 
         if blocks.blocks().top_line > top_line {
             blocks.blocks_mut().set_top_line(0);
         }
 
-        self.expand_to_bottom(context, frame, blocks).await;
+        self.expand_to_bottom(context, frame, blocks).await?;
 
         if blocks.blocks().bottom_line < bottom_line {
             blocks.blocks_mut().set_bottom_line(bottom_line);
         }
 
-        self.expand_to_top(context, frame, blocks).await;
+        self.expand_to_top(context, frame, blocks).await?;
+
+        Ok(())
     }
 
     async fn layout_last_cursor_seed(
@@ -272,8 +278,8 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         context: &Context,
         frame: &mut Frame,
         last_cursor_path: &Path<M::Id>,
-    ) -> TreeBlocks<M::Id> {
-        match &self.last_cursor {
+    ) -> Result<TreeBlocks<M::Id>, S::Error> {
+        Ok(match &self.last_cursor {
             Cursor::Bottom => {
                 let mut blocks = self.layout_bottom(context, frame);
 
@@ -299,7 +305,7 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                 parent: Some(_), ..
             } => {
                 let root = last_cursor_path.first();
-                let tree = self.store.tree(root).await;
+                let tree = self.store.tree(root).await?;
                 let mut blocks = self.layout_tree(context, frame, tree);
 
                 blocks
@@ -308,7 +314,7 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
 
                 blocks
             }
-        }
+        })
     }
 
     async fn layout_cursor_seed(
@@ -317,10 +323,10 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         frame: &mut Frame,
         last_cursor_path: &Path<M::Id>,
         cursor_path: &Path<M::Id>,
-    ) -> TreeBlocks<M::Id> {
+    ) -> Result<TreeBlocks<M::Id>, S::Error> {
         let bottom_line = frame.size().height as i32 - 1;
 
-        match &self.cursor {
+        Ok(match &self.cursor {
             Cursor::Bottom
             | Cursor::Editor { parent: None, .. }
             | Cursor::Pseudo { parent: None, .. } => {
@@ -338,7 +344,7 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                 parent: Some(_), ..
             } => {
                 let root = cursor_path.first();
-                let tree = self.store.tree(root).await;
+                let tree = self.store.tree(root).await?;
                 let mut blocks = self.layout_tree(context, frame, tree);
 
                 let cursor_above_last = cursor_path < last_cursor_path;
@@ -349,7 +355,7 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
 
                 blocks
             }
-        }
+        })
     }
 
     async fn layout_initial_seed(
@@ -358,7 +364,7 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         frame: &mut Frame,
         last_cursor_path: &Path<M::Id>,
         cursor_path: &Path<M::Id>,
-    ) -> TreeBlocks<M::Id> {
+    ) -> Result<TreeBlocks<M::Id>, S::Error> {
         if let Cursor::Bottom = self.cursor {
             self.layout_cursor_seed(context, frame, last_cursor_path, cursor_path)
                 .await
@@ -513,7 +519,7 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         nick: String,
         focused: bool,
         frame: &mut Frame,
-    ) -> TreeBlocks<M::Id> {
+    ) -> Result<TreeBlocks<M::Id>, S::Error> {
         // The basic idea is this:
         //
         // First, layout a full screen of blocks around self.last_cursor, using
@@ -534,30 +540,30 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
 
         let context = Context { nick, focused };
 
-        let last_cursor_path = self.cursor_path(&self.last_cursor).await;
-        let cursor_path = self.cursor_path(&self.cursor).await;
+        let last_cursor_path = self.cursor_path(&self.last_cursor).await?;
+        let cursor_path = self.cursor_path(&self.cursor).await?;
         self.make_path_visible(&cursor_path);
 
         let mut blocks = self
             .layout_initial_seed(&context, frame, &last_cursor_path, &cursor_path)
-            .await;
+            .await?;
         blocks.blocks_mut().offset(self.scroll);
         self.fill_screen_and_clamp_scrolling(&context, frame, &mut blocks)
-            .await;
+            .await?;
 
         if !self.contains_cursor(&blocks) {
             blocks = self
                 .layout_cursor_seed(&context, frame, &last_cursor_path, &cursor_path)
-                .await;
+                .await?;
             self.fill_screen_and_clamp_scrolling(&context, frame, &mut blocks)
-                .await;
+                .await?;
         }
 
         match self.correction {
             Some(Correction::MakeCursorVisible) => {
                 self.scroll_so_cursor_is_visible(frame, &mut blocks);
                 self.fill_screen_and_clamp_scrolling(&context, frame, &mut blocks)
-                    .await;
+                    .await?;
             }
             Some(Correction::MoveCursorToVisibleArea) => {
                 let new_cursor_msg_id = self.move_cursor_so_it_is_visible(frame, &blocks);
@@ -572,18 +578,18 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
                     self.scroll = 0;
                     self.correction = None;
 
-                    let last_cursor_path = self.store.path(&cursor_msg_id).await;
+                    let last_cursor_path = self.store.path(&cursor_msg_id).await?;
                     blocks = self
                         .layout_last_cursor_seed(&context, frame, &last_cursor_path)
-                        .await;
+                        .await?;
                     self.fill_screen_and_clamp_scrolling(&context, frame, &mut blocks)
-                        .await;
+                        .await?;
                 }
             }
             Some(Correction::CenterCursor) => {
                 self.scroll_so_cursor_is_centered(frame, &mut blocks);
                 self.fill_screen_and_clamp_scrolling(&context, frame, &mut blocks)
-                    .await;
+                    .await?;
             }
             None => {}
         }
@@ -594,6 +600,6 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         self.scroll = 0;
         self.correction = None;
 
-        blocks
+        Ok(blocks)
     }
 }

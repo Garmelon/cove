@@ -132,22 +132,23 @@ impl<M: Msg> Tree<M> {
 
 #[async_trait]
 pub trait MsgStore<M: Msg> {
-    async fn path(&self, id: &M::Id) -> Path<M::Id>;
-    async fn msg(&self, id: &M::Id) -> Option<M>;
-    async fn tree(&self, root_id: &M::Id) -> Tree<M>;
-    async fn first_root_id(&self) -> Option<M::Id>;
-    async fn last_root_id(&self) -> Option<M::Id>;
-    async fn prev_root_id(&self, root_id: &M::Id) -> Option<M::Id>;
-    async fn next_root_id(&self, root_id: &M::Id) -> Option<M::Id>;
-    async fn oldest_msg_id(&self) -> Option<M::Id>;
-    async fn newest_msg_id(&self) -> Option<M::Id>;
-    async fn older_msg_id(&self, id: &M::Id) -> Option<M::Id>;
-    async fn newer_msg_id(&self, id: &M::Id) -> Option<M::Id>;
-    async fn oldest_unseen_msg_id(&self) -> Option<M::Id>;
-    async fn newest_unseen_msg_id(&self) -> Option<M::Id>;
-    async fn older_unseen_msg_id(&self, id: &M::Id) -> Option<M::Id>;
-    async fn newer_unseen_msg_id(&self, id: &M::Id) -> Option<M::Id>;
-    async fn unseen_msgs_count(&self) -> usize;
-    async fn set_seen(&self, id: &M::Id, seen: bool);
-    async fn set_older_seen(&self, id: &M::Id, seen: bool);
+    type Error;
+    async fn path(&self, id: &M::Id) -> Result<Path<M::Id>, Self::Error>;
+    async fn msg(&self, id: &M::Id) -> Result<Option<M>, Self::Error>;
+    async fn tree(&self, root_id: &M::Id) -> Result<Tree<M>, Self::Error>;
+    async fn first_root_id(&self) -> Result<Option<M::Id>, Self::Error>;
+    async fn last_root_id(&self) -> Result<Option<M::Id>, Self::Error>;
+    async fn prev_root_id(&self, root_id: &M::Id) -> Result<Option<M::Id>, Self::Error>;
+    async fn next_root_id(&self, root_id: &M::Id) -> Result<Option<M::Id>, Self::Error>;
+    async fn oldest_msg_id(&self) -> Result<Option<M::Id>, Self::Error>;
+    async fn newest_msg_id(&self) -> Result<Option<M::Id>, Self::Error>;
+    async fn older_msg_id(&self, id: &M::Id) -> Result<Option<M::Id>, Self::Error>;
+    async fn newer_msg_id(&self, id: &M::Id) -> Result<Option<M::Id>, Self::Error>;
+    async fn oldest_unseen_msg_id(&self) -> Result<Option<M::Id>, Self::Error>;
+    async fn newest_unseen_msg_id(&self) -> Result<Option<M::Id>, Self::Error>;
+    async fn older_unseen_msg_id(&self, id: &M::Id) -> Result<Option<M::Id>, Self::Error>;
+    async fn newer_unseen_msg_id(&self, id: &M::Id) -> Result<Option<M::Id>, Self::Error>;
+    async fn unseen_msgs_count(&self) -> Result<usize, Self::Error>;
+    async fn set_seen(&self, id: &M::Id, seen: bool) -> Result<(), Self::Error>;
+    async fn set_older_seen(&self, id: &M::Id, seen: bool) -> Result<(), Self::Error>;
 }

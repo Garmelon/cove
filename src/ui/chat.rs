@@ -5,8 +5,8 @@
 mod blocks;
 mod tree;
 
-use std::io;
 use std::sync::Arc;
+use std::{fmt, io};
 
 use async_trait::async_trait;
 use parking_lot::FairMutex;
@@ -102,7 +102,7 @@ impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
         crossterm_lock: &Arc<FairMutex<()>>,
         event: &InputEvent,
         can_compose: bool,
-    ) -> Reaction<M> {
+    ) -> Result<Reaction<M>, S::Error> {
         match self.mode {
             Mode::Tree => {
                 self.tree
@@ -144,6 +144,7 @@ where
     M: Msg + ChatMsg,
     M::Id: Send + Sync,
     S: MsgStore<M> + Send + Sync,
+    S::Error: fmt::Display,
 {
     fn size(&self, frame: &mut Frame, max_width: Option<u16>, max_height: Option<u16>) -> Size {
         match self {

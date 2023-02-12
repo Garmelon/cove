@@ -1,3 +1,4 @@
+use std::convert::Infallible;
 use std::mem;
 use std::str::FromStr;
 
@@ -86,76 +87,80 @@ impl EuphRoomVault {
 
 #[async_trait]
 impl MsgStore<SmallMessage> for EuphRoomVault {
-    async fn path(&self, id: &MessageId) -> Path<MessageId> {
-        self.path(*id).await
+    type Error = Infallible;
+
+    async fn path(&self, id: &MessageId) -> Result<Path<MessageId>, Self::Error> {
+        Ok(self.path(*id).await)
     }
 
-    async fn msg(&self, id: &MessageId) -> Option<SmallMessage> {
-        self.msg(*id).await
+    async fn msg(&self, id: &MessageId) -> Result<Option<SmallMessage>, Self::Error> {
+        Ok(self.msg(*id).await)
     }
 
-    async fn tree(&self, root_id: &MessageId) -> Tree<SmallMessage> {
-        self.tree(*root_id).await
+    async fn tree(&self, root_id: &MessageId) -> Result<Tree<SmallMessage>, Self::Error> {
+        Ok(self.tree(*root_id).await)
     }
 
-    async fn first_root_id(&self) -> Option<MessageId> {
-        self.first_root_id().await
+    async fn first_root_id(&self) -> Result<Option<MessageId>, Self::Error> {
+        Ok(self.first_root_id().await)
     }
 
-    async fn last_root_id(&self) -> Option<MessageId> {
-        self.last_root_id().await
+    async fn last_root_id(&self) -> Result<Option<MessageId>, Self::Error> {
+        Ok(self.last_root_id().await)
     }
 
-    async fn prev_root_id(&self, root_id: &MessageId) -> Option<MessageId> {
-        self.prev_root_id(*root_id).await
+    async fn prev_root_id(&self, root_id: &MessageId) -> Result<Option<MessageId>, Self::Error> {
+        Ok(self.prev_root_id(*root_id).await)
     }
 
-    async fn next_root_id(&self, root_id: &MessageId) -> Option<MessageId> {
-        self.next_root_id(*root_id).await
+    async fn next_root_id(&self, root_id: &MessageId) -> Result<Option<MessageId>, Self::Error> {
+        Ok(self.next_root_id(*root_id).await)
     }
 
-    async fn oldest_msg_id(&self) -> Option<MessageId> {
-        self.oldest_msg_id().await
+    async fn oldest_msg_id(&self) -> Result<Option<MessageId>, Self::Error> {
+        Ok(self.oldest_msg_id().await)
     }
 
-    async fn newest_msg_id(&self) -> Option<MessageId> {
-        self.newest_msg_id().await
+    async fn newest_msg_id(&self) -> Result<Option<MessageId>, Self::Error> {
+        Ok(self.newest_msg_id().await)
     }
 
-    async fn older_msg_id(&self, id: &MessageId) -> Option<MessageId> {
-        self.older_msg_id(*id).await
+    async fn older_msg_id(&self, id: &MessageId) -> Result<Option<MessageId>, Self::Error> {
+        Ok(self.older_msg_id(*id).await)
     }
 
-    async fn newer_msg_id(&self, id: &MessageId) -> Option<MessageId> {
-        self.newer_msg_id(*id).await
+    async fn newer_msg_id(&self, id: &MessageId) -> Result<Option<MessageId>, Self::Error> {
+        Ok(self.newer_msg_id(*id).await)
     }
 
-    async fn oldest_unseen_msg_id(&self) -> Option<MessageId> {
-        self.oldest_unseen_msg_id().await
+    async fn oldest_unseen_msg_id(&self) -> Result<Option<MessageId>, Self::Error> {
+        Ok(self.oldest_unseen_msg_id().await)
     }
 
-    async fn newest_unseen_msg_id(&self) -> Option<MessageId> {
-        self.newest_unseen_msg_id().await
+    async fn newest_unseen_msg_id(&self) -> Result<Option<MessageId>, Self::Error> {
+        Ok(self.newest_unseen_msg_id().await)
     }
 
-    async fn older_unseen_msg_id(&self, id: &MessageId) -> Option<MessageId> {
-        self.older_unseen_msg_id(*id).await
+    async fn older_unseen_msg_id(&self, id: &MessageId) -> Result<Option<MessageId>, Self::Error> {
+        Ok(self.older_unseen_msg_id(*id).await)
     }
 
-    async fn newer_unseen_msg_id(&self, id: &MessageId) -> Option<MessageId> {
-        self.newer_unseen_msg_id(*id).await
+    async fn newer_unseen_msg_id(&self, id: &MessageId) -> Result<Option<MessageId>, Self::Error> {
+        Ok(self.newer_unseen_msg_id(*id).await)
     }
 
-    async fn unseen_msgs_count(&self) -> usize {
-        self.unseen_msgs_count().await
+    async fn unseen_msgs_count(&self) -> Result<usize, Self::Error> {
+        Ok(self.unseen_msgs_count().await)
     }
 
-    async fn set_seen(&self, id: &MessageId, seen: bool) {
+    async fn set_seen(&self, id: &MessageId, seen: bool) -> Result<(), Self::Error> {
         self.set_seen(*id, seen);
+        Ok(())
     }
 
-    async fn set_older_seen(&self, id: &MessageId, seen: bool) {
+    async fn set_older_seen(&self, id: &MessageId, seen: bool) -> Result<(), Self::Error> {
         self.set_older_seen(*id, seen);
+        Ok(())
     }
 }
 
