@@ -69,8 +69,8 @@ impl Rooms {
         vault: Vault,
         ui_event_tx: mpsc::UnboundedSender<UiEvent>,
     ) -> Self {
-        let euph_server_config =
-            ServerConfig::default().cookies(Arc::new(Mutex::new(vault.euph().cookies().await)));
+        let euph_server_config = ServerConfig::default()
+            .cookies(Arc::new(Mutex::new(vault.euph().cookies().await)));
 
         let mut result = Self {
             config,
@@ -101,6 +101,7 @@ impl Rooms {
                 self.config.euph_room(&name),
                 self.vault.euph().room(name),
                 self.ui_event_tx.clone(),
+                self.config,
             )
         })
     }
@@ -181,7 +182,9 @@ impl Rooms {
             .then("&", room_style)
             .then(name, room_style)
             .then_plain("?\n\n")
-            .then_plain("This will delete the entire room history from your vault. ")
+            .then_plain(
+                "This will delete the entire room history from your vault. ",
+            )
             .then_plain("To shrink your vault afterwards, run ")
             .then("cove gc", ContentStyle::default().italic().grey())
             .then_plain(".\n\n")
@@ -209,14 +212,10 @@ impl Rooms {
         let mut l = 0_usize;
         let mut n = 0_usize;
 
-        let sessions = joined
-            .listing
-            .values()
-            .map(|s| (s.id(), s.name()))
-            .chain(iter::once((
-                &joined.session.id,
-                &joined.session.name as &str,
-            )));
+        let sessions =
+            joined.listing.values().map(|s| (s.id(), s.name())).chain(
+                iter::once((&joined.session.id, &joined.session.name as &str)),
+            );
         for (user_id, name) in sessions {
             match user_id.session_type() {
                 Some(SessionType::Bot) if name.is_empty() => n += 1,
@@ -278,7 +277,9 @@ impl Rooms {
             (None, Some(u)) => Styled::new_plain(" (")
                 .then(u, unseen_style)
                 .then_plain(")"),
-            (Some(s), None) => Styled::new_plain(" (").then_plain(s).then_plain(")"),
+            (Some(s), None) => {
+                Styled::new_plain(" (").then_plain(s).then_plain(")")
+            }
             (Some(s), Some(u)) => Styled::new_plain(" (")
                 .then_plain(s)
                 .then_plain(", ")
@@ -291,7 +292,8 @@ impl Rooms {
         match self.order {
             Order::Alphabet => rooms.sort_unstable_by_key(|(n, _, _)| *n),
             Order::Importance => rooms.sort_unstable_by_key(|(n, s, u)| {
-                let no_instance = matches!(s, None | Some(euph::State::Disconnected));
+                let no_instance =
+                    matches!(s, None | Some(euph::State::Disconnected));
                 (no_instance, *u == 0, *n)
             }),
         }
@@ -314,7 +316,8 @@ impl Rooms {
         self.sort_rooms(&mut rooms);
         for (name, state, unseen) in rooms {
             let room_style = ContentStyle::default().bold().blue();
-            let room_sel_style = ContentStyle::default().bold().black().on_white();
+            let room_sel_style =
+                ContentStyle::default().bold().black().on_white();
 
             let mut normal = Styled::new(format!("&{name}"), room_style);
             let mut selected = Styled::new(format!("&{name}"), room_sel_style);
@@ -330,13 +333,16 @@ impl Rooms {
     async fn rooms_widget(&self) -> BoxedWidget {
         let heading_style = ContentStyle::default().bold();
         let amount = self.euph_rooms.len();
-        let heading =
-            Text::new(Styled::new("Rooms", heading_style).then_plain(format!(" ({amount})")));
+        let heading = Text::new(
+            Styled::new("Rooms", heading_style)
+                .then_plain(format!(" ({amount})")),
+        );
 
         let mut list = self.list.widget().focus(true);
         self.render_rows(&mut list).await;
 
-        VJoin::new(vec![Segment::new(heading), Segment::new(list).priority(0)]).into()
+        VJoin::new(vec![Segment::new(heading), Segment::new(list).priority(0)])
+            .into()
     }
 
     fn room_char(c: char) -> bool {
@@ -460,7 +466,8 @@ impl Rooms {
                     // really want to panic in case it is not. If I show a
                     // message like this, it'll hopefully be reported if
                     // somebody ever encounters it.
-                    bindings.binding_ctd("oops, this text should never be visible")
+                    bindings
+                        .binding_ctd("oops, this text should never be visible")
                 }
             }
             State::Connect(_) => {
@@ -521,7 +528,12 @@ impl Rooms {
                     return true;
                 }
                 _ => {
-                    if util::handle_editor_input_event(ed, terminal, event, Self::room_char) {
+                    if util::handle_editor_input_event(
+                        ed,
+                        terminal,
+                        event,
+                        Self::room_char,
+                    ) {
                         return true;
                     }
                 }
@@ -538,7 +550,12 @@ impl Rooms {
                     return true;
                 }
                 _ => {
-                    if util::handle_editor_input_event(editor, terminal, event, Self::room_char) {
+                    if util::handle_editor_input_event(
+                        editor,
+                        terminal,
+                        event,
+                        Self::room_char,
+                    ) {
                         return true;
                     }
                 }

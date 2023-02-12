@@ -7,6 +7,7 @@ use toss::styled::Styled;
 use toss::widthdb::WidthDb;
 
 use super::super::ChatMsg;
+use crate::config::Config;
 use crate::store::Msg;
 use crate::ui::widgets::editor::EditorState;
 use crate::ui::widgets::join::{HJoin, Segment};
@@ -56,6 +57,7 @@ pub fn msg<M: Msg + ChatMsg>(
     indent: usize,
     msg: &M,
     folded_info: Option<usize>,
+    config: &Config,
 ) -> BoxedWidget {
     let (nick, mut content) = msg.styled();
 
@@ -68,9 +70,13 @@ pub fn msg<M: Msg + ChatMsg>(
     HJoin::new(vec![
         Segment::new(seen::widget(msg.seen())),
         Segment::new(
-            Padding::new(time::widget(Some(msg.time()), style_time(highlighted)))
-                .stretch(true)
-                .right(1),
+            Padding::new(time::widget(
+                Some(msg.time()),
+                style_time(highlighted),
+                Some(config),
+            ))
+            .stretch(true)
+            .right(1),
         ),
         Segment::new(Indent::new(indent, style_indent(highlighted))),
         Segment::new(Layer::new(vec![
@@ -100,7 +106,7 @@ pub fn msg_placeholder(
     HJoin::new(vec![
         Segment::new(seen::widget(true)),
         Segment::new(
-            Padding::new(time::widget(None, style_time(highlighted)))
+            Padding::new(time::widget(None, style_time(highlighted), None))
                 .stretch(true)
                 .right(1),
         ),
@@ -123,7 +129,7 @@ pub fn editor<M: ChatMsg>(
     let widget = HJoin::new(vec![
         Segment::new(seen::widget(true)),
         Segment::new(
-            Padding::new(time::widget(None, style_editor_highlight()))
+            Padding::new(time::widget(None, style_editor_highlight(), None))
                 .stretch(true)
                 .right(1),
         ),
@@ -139,13 +145,17 @@ pub fn editor<M: ChatMsg>(
     (widget, cursor_row)
 }
 
-pub fn pseudo<M: ChatMsg>(indent: usize, nick: &str, editor: &EditorState) -> BoxedWidget {
+pub fn pseudo<M: ChatMsg>(
+    indent: usize,
+    nick: &str,
+    editor: &EditorState,
+) -> BoxedWidget {
     let (nick, content) = M::edit(nick, &editor.text());
 
     HJoin::new(vec![
         Segment::new(seen::widget(true)),
         Segment::new(
-            Padding::new(time::widget(None, style_pseudo_highlight()))
+            Padding::new(time::widget(None, style_pseudo_highlight(), None))
                 .stretch(true)
                 .right(1),
         ),

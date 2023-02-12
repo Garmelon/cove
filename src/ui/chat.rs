@@ -15,6 +15,7 @@ use toss::frame::{Frame, Size};
 use toss::styled::Styled;
 use toss::terminal::Terminal;
 
+use crate::config::Config;
 use crate::store::{Msg, MsgStore};
 
 use self::tree::{TreeView, TreeViewState};
@@ -52,10 +53,10 @@ pub struct ChatState<M: Msg, S: MsgStore<M>> {
 }
 
 impl<M: Msg, S: MsgStore<M> + Clone> ChatState<M, S> {
-    pub fn new(store: S) -> Self {
+    pub fn new(store: S, config: &'static Config) -> Self {
         Self {
             mode: Mode::Tree,
-            tree: TreeViewState::new(store.clone()),
+            tree: TreeViewState::new(store.clone(), config),
             store,
         }
     }

@@ -94,7 +94,7 @@ impl Ui {
             event_tx: event_tx.clone(),
             mode: Mode::Main,
             rooms: Rooms::new(config, vault, event_tx.clone()).await,
-            log_chat: ChatState::new(logger),
+            log_chat: ChatState::new(logger, config),
             key_bindings_list: None,
         };
         tokio::select! {
@@ -146,7 +146,10 @@ impl Ui {
             if terminal.measuring_required() {
                 let _guard = crossterm_lock.lock();
                 terminal.measure_widths()?;
-                ok_or_return!(self.event_tx.send(UiEvent::GraphemeWidthsChanged), Ok(()));
+                ok_or_return!(
+                    self.event_tx.send(UiEvent::GraphemeWidthsChanged),
+                    Ok(())
+                );
             }
 
             // 2. Handle events (in batches)
@@ -157,7 +160,8 @@ impl Ui {
             let mut redraw = false;
             let end_time = Instant::now() + EVENT_PROCESSING_TIME;
             loop {
-                match self.handle_event(terminal, &crossterm_lock, event).await {
+                match self.handle_event(terminal, &crossterm_lock, event).await
+                {
                     EventHandleResult::Redraw => redraw = true,
                     EventHandleResult::Continue => {}
                     EventHandleResult::Stop => return Ok(()),
@@ -222,9 +226,13 @@ impl Ui {
     ) -> EventHandleResult {
         match event {
             UiEvent::GraphemeWidthsChanged => EventHandleResult::Redraw,
-            UiEvent::LogChanged if self.mode == Mode::Log => EventHandleResult::Redraw,
+            UiEvent::LogChanged if self.mode == Mode::Log => {
+                EventHandleResult::Redraw
+            }
             UiEvent::LogChanged => EventHandleResult::Continue,
-            UiEvent::Term(crossterm::event::Event::Resize(_, _)) => EventHandleResult::Redraw,
+            UiEvent::Term(crossterm::event::Event::Resize(_, _)) => {
+                EventHandleResult::Redraw
+            }
             UiEvent::Term(event) => {
                 self.handle_term_event(terminal, crossterm_lock, event)
                     .await
@@ -245,7 +253,10 @@ impl Ui {
         crossterm_lock: &Arc<FairMutex<()>>,
         event: crossterm::event::Event,
     ) -> EventHandleResult {
-        let event = some_or_return!(InputEvent::from_event(event), EventHandleResult::Continue);
+        let event = some_or_return!(
+            InputEvent::from_event(event),
+            EventHandleResult::Continue
+        );
 
         if let key!(Ctrl + 'c') = event {
             // Exit unconditionally on ctrl+c. Previously, shift+q would also
@@ -257,7 +268,9 @@ impl Ui {
         // Key bindings list overrides any other bindings if visible
         if let Some(key_bindings_list) = &mut self.key_bindings_list {
             match event {
-                key!(Esc) | key!(F 1) | key!('?') => self.key_bindings_list = None,
+                key!(Esc) | key!(F 1) | key!('?') => {
+                    self.key_bindings_list = None
+                }
                 key!('k') | key!(Up) => key_bindings_list.scroll_up(1),
                 key!('j') | key!(Down) => key_bindings_list.scroll_down(1),
                 _ => return EventHandleResult::Continue,

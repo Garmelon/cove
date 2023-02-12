@@ -68,19 +68,20 @@ pub struct EuphRoom {
 impl EuphRoom {
     pub fn new(
         server_config: ServerConfig,
-        config: config::EuphRoom,
+        euph_room_config: config::EuphRoom,
         vault: EuphRoomVault,
         ui_event_tx: mpsc::UnboundedSender<UiEvent>,
+		config: &'static config::Config,
     ) -> Self {
         Self {
             server_config,
-            config,
+            config: euph_room_config,
             ui_event_tx,
             room: None,
             focus: Focus::Chat,
             state: State::Normal,
             popups: VecDeque::new(),
-            chat: ChatState::new(vault),
+            chat: ChatState::new(vault, config),
             last_msg_sent: None,
             nick_list: ListState::new(),
         }

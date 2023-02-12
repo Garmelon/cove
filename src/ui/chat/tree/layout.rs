@@ -117,7 +117,7 @@ impl<M: Msg + ChatMsg, S: MsgStore<M>> InnerTreeViewState<M, S> {
         // Main message body
         let highlighted = context.focused && self.cursor.refers_to(id);
         let widget = if let Some(msg) = tree.msg(id) {
-            widgets::msg(highlighted, indent, msg, folded_info)
+            widgets::msg(highlighted, indent, msg, folded_info, self.config)
         } else {
             widgets::msg_placeholder(highlighted, indent, folded_info)
         };
