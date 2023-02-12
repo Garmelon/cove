@@ -85,7 +85,7 @@ pub async fn export(vault: &EuphVault, mut args: Args) -> anyhow::Result<()> {
     }
 
     let rooms = if args.all {
-        let mut rooms = vault.rooms().await;
+        let mut rooms = vault.rooms().await?;
         rooms.sort_unstable();
         rooms
     } else {

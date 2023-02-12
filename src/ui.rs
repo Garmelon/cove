@@ -10,7 +10,6 @@ use std::io;
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 
-use log::error;
 use parking_lot::FairMutex;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -19,7 +18,7 @@ use toss::terminal::Terminal;
 
 use crate::config::Config;
 use crate::logger::{LogMsg, Logger};
-use crate::macros::{ok_or_return, some_or_return};
+use crate::macros::{logging_unwrap, ok_or_return, some_or_return};
 use crate::vault::Vault;
 
 pub use self::chat::ChatMsg;
@@ -231,7 +230,7 @@ impl Ui {
                     .await
             }
             UiEvent::Euph(event) => {
-                if self.rooms.handle_euph_event(event) {
+                if self.rooms.handle_euph_event(event).await {
                     EventHandleResult::Redraw
                 } else {
                     EventHandleResult::Continue
@@ -288,17 +287,11 @@ impl Ui {
                     .await
             }
             Mode::Log => {
-                let reaction = match self
+                let reaction = self
                     .log_chat
                     .handle_input_event(terminal, crossterm_lock, &event, false)
-                    .await
-                {
-                    Ok(reaction) => reaction,
-                    Err(err) => {
-                        error!("{err}");
-                        panic!("{err}");
-                    }
-                };
+                    .await;
+                let reaction = logging_unwrap!(reaction);
                 reaction.handled()
             }
         };

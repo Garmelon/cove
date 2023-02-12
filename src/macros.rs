@@ -29,3 +29,17 @@ macro_rules! ok_or_return {
     };
 }
 pub(crate) use ok_or_return;
+
+// TODO Get rid of this macro as much as possible
+macro_rules! logging_unwrap {
+    ($e:expr) => {
+        match $e {
+            Ok(value) => value,
+            Err(err) => {
+                log::error!("{err}");
+                panic!("{err}");
+            }
+        }
+    };
+}
+pub(crate) use logging_unwrap;

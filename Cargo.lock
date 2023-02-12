@@ -203,6 +203,7 @@ dependencies = [
  "toss",
  "unicode-segmentation",
  "unicode-width",
+ "vault",
 ]
 
 [[package]]
@@ -1391,6 +1392,15 @@ name = "utf-8"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09cc8ee72d2a9becf2f2febe0205bbed8fc6615b7cb429ad062dc7b7ddd036a9"
+
+[[package]]
+name = "vault"
+version = "0.1.0"
+source = "git+https://github.com/Garmelon/vault.git?tag=v0.1.0#028c72cac4e84bfbbf9fb03b15acb59989a31df9"
+dependencies = [
+ "rusqlite",
+ "tokio",
+]
 
 [[package]]
 name = "vcpkg"

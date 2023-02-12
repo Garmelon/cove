@@ -1,25 +1,10 @@
-use rusqlite::{Connection, Transaction};
+use rusqlite::Transaction;
+use vault::Migration;
 
-pub fn migrate(conn: &mut Connection) -> rusqlite::Result<()> {
-    let mut tx = conn.transaction()?;
+pub const MIGRATIONS: [Migration; 2] = [m1, m2];
 
-    let user_version: usize =
-        tx.query_row("SELECT * FROM pragma_user_version", [], |r| r.get(0))?;
-
-    let total = MIGRATIONS.len();
-    assert!(user_version <= total, "malformed database schema");
-    for (i, migration) in MIGRATIONS.iter().enumerate().skip(user_version) {
-        eprintln!("Migrating vault from {} to {} (out of {})", i, i + 1, total);
-        migration(&mut tx)?;
-    }
-
-    tx.pragma_update(None, "user_version", total)?;
-    tx.commit()
-}
-
-const MIGRATIONS: [fn(&mut Transaction<'_>) -> rusqlite::Result<()>; 2] = [m1, m2];
-
-fn m1(tx: &mut Transaction<'_>) -> rusqlite::Result<()> {
+fn m1(tx: &mut Transaction<'_>, nr: usize, total: usize) -> rusqlite::Result<()> {
+    eprintln!("Migrating vault from {} to {} (out of {total})", nr, nr + 1);
     tx.execute_batch(
         "
         CREATE TABLE euph_rooms (
@@ -81,7 +66,8 @@ fn m1(tx: &mut Transaction<'_>) -> rusqlite::Result<()> {
     )
 }
 
-fn m2(tx: &mut Transaction<'_>) -> rusqlite::Result<()> {
+fn m2(tx: &mut Transaction<'_>, nr: usize, total: usize) -> rusqlite::Result<()> {
+    eprintln!("Migrating vault from {} to {} (out of {total})", nr, nr + 1);
     tx.execute_batch(
         "
         ALTER TABLE euph_msgs

@@ -47,3 +47,11 @@ rev = "0d59116012a51516a821991e2969b1cf4779770f"
 
 # [patch."https://github.com/Garmelon/toss.git"]
 # toss = { path = "../toss/" }
+
+[dependencies.vault]
+git = "https://github.com/Garmelon/vault.git"
+tag = "v0.1.0"
+features = ["tokio"]
+
+# [patch."https://github.com/Garmelon/vault.git"]
+# vault = { path = "../vault/" }

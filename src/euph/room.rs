@@ -14,7 +14,7 @@ use log::{debug, error, info, warn};
 use tokio::select;
 use tokio::sync::oneshot;
 
-use crate::macros::ok_or_return;
+use crate::macros::{logging_unwrap, ok_or_return};
 use crate::vault::EuphRoomVault;
 
 const LOG_INTERVAL: Duration = Duration::from_secs(10);
@@ -93,7 +93,7 @@ impl Room {
         self.state.conn_tx().ok_or(Error::NotConnected)
     }
 
-    pub fn handle_event(&mut self, event: Event) {
+    pub async fn handle_event(&mut self, event: Event) {
         match event {
             Event::Connecting(_) => {
                 self.state = State::Connecting;
@@ -121,11 +121,11 @@ impl Room {
 
                 let cookies = &*self.instance.config().server.cookies;
                 let cookies = cookies.lock().unwrap().clone();
-                self.vault.vault().set_cookies(cookies);
+                logging_unwrap!(self.vault.vault().set_cookies(cookies).await);
             }
             Event::Packet(_, packet, Snapshot { conn_tx, state }) => {
                 self.state = State::Connected(conn_tx, state);
-                self.on_packet(packet);
+                self.on_packet(packet).await;
             }
             Event::Disconnected(_) => {
                 self.state = State::Disconnected;
@@ -173,7 +173,7 @@ impl Room {
     }
 
     async fn request_logs(vault: &EuphRoomVault, conn_tx: &ConnTx) {
-        let before = match vault.last_span().await {
+        let before = match logging_unwrap!(vault.last_span().await) {
             Some((None, _)) => return, // Already at top of room history
             Some((Some(before), _)) => Some(before),
             None => None,
@@ -203,7 +203,7 @@ impl Room {
         }
     }
 
-    fn on_packet(&mut self, packet: ParsedPacket) {
+    async fn on_packet(&mut self, packet: ParsedPacket) {
         let instance_name = &self.instance.config().name;
         let data = ok_or_return!(&packet.content);
         match data {
@@ -238,26 +238,39 @@ impl Room {
             Data::SendEvent(SendEvent(msg)) => {
                 let own_user_id = self.own_user_id();
                 if let Some(last_msg_id) = &mut self.last_msg_id {
-                    self.vault
-                        .add_msg(Box::new(msg.clone()), *last_msg_id, own_user_id);
+                    logging_unwrap!(
+                        self.vault
+                            .add_msg(Box::new(msg.clone()), *last_msg_id, own_user_id)
+                            .await
+                    );
                     *last_msg_id = Some(msg.id);
                 }
             }
             Data::SnapshotEvent(d) => {
                 info!("{instance_name}: successfully joined");
-                self.vault.join(Time::now());
+                logging_unwrap!(self.vault.join(Time::now()).await);
                 self.last_msg_id = Some(d.log.last().map(|m| m.id));
-                self.vault.add_msgs(d.log.clone(), None, self.own_user_id());
+                logging_unwrap!(
+                    self.vault
+                        .add_msgs(d.log.clone(), None, self.own_user_id())
+                        .await
+                );
             }
             Data::LogReply(d) => {
-                self.vault
-                    .add_msgs(d.log.clone(), d.before, self.own_user_id());
+                logging_unwrap!(
+                    self.vault
+                        .add_msgs(d.log.clone(), d.before, self.own_user_id())
+                        .await
+                );
             }
             Data::SendReply(SendReply(msg)) => {
                 let own_user_id = self.own_user_id();
                 if let Some(last_msg_id) = &mut self.last_msg_id {
-                    self.vault
-                        .add_msg(Box::new(msg.clone()), *last_msg_id, own_user_id);
+                    logging_unwrap!(
+                        self.vault
+                            .add_msg(Box::new(msg.clone()), *last_msg_id, own_user_id)
+                            .await
+                    );
                     *last_msg_id = Some(msg.id);
                 }
             }

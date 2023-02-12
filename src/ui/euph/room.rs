@@ -5,7 +5,6 @@ use crossterm::style::{ContentStyle, Stylize};
 use euphoxide::api::{Data, Message, MessageId, PacketType, SessionId};
 use euphoxide::bot::instance::{Event, ServerConfig};
 use euphoxide::conn::{self, Joined, Joining, SessionInfo};
-use log::error;
 use parking_lot::FairMutex;
 use tokio::sync::oneshot::error::TryRecvError;
 use tokio::sync::{mpsc, oneshot};
@@ -14,6 +13,7 @@ use toss::terminal::Terminal;
 
 use crate::config;
 use crate::euph;
+use crate::macros::logging_unwrap;
 use crate::ui::chat::{ChatState, Reaction};
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
 use crate::ui::widgets::border::Border;
@@ -143,7 +143,7 @@ impl EuphRoom {
     }
 
     pub async fn unseen_msgs_count(&self) -> usize {
-        self.vault().unseen_msgs_count().await
+        logging_unwrap!(self.vault().unseen_msgs_count().await)
     }
 
     async fn stabilize_pseudo_msg(&mut self) {
@@ -327,17 +327,11 @@ impl EuphRoom {
             Some(euph::State::Connected(_, conn::State::Joined(_)))
         );
 
-        let reaction = match self
+        let reaction = self
             .chat
             .handle_input_event(terminal, crossterm_lock, event, can_compose)
-            .await
-        {
-            Ok(reaction) => reaction,
-            Err(err) => {
-                error!("{err}");
-                panic!("{err}");
-            }
-        };
+            .await;
+        let reaction = logging_unwrap!(reaction);
 
         match reaction {
             Reaction::NotHandled => {}
@@ -434,7 +428,7 @@ impl EuphRoom {
         match event {
             key!('i') => {
                 if let Some(id) = self.chat.cursor().await {
-                    if let Some(msg) = self.vault().full_msg(id).await {
+                    if let Some(msg) = logging_unwrap!(self.vault().full_msg(id).await) {
                         self.state = State::InspectMessage(msg);
                     }
                 }
@@ -442,7 +436,7 @@ impl EuphRoom {
             }
             key!('I') => {
                 if let Some(id) = self.chat.cursor().await {
-                    if let Some(msg) = self.vault().msg(id).await {
+                    if let Some(msg) = logging_unwrap!(self.vault().msg(id).await) {
                         self.state = State::Links(LinksState::new(&msg.content));
                     }
                 }
@@ -679,7 +673,7 @@ impl EuphRoom {
         }
     }
 
-    pub fn handle_event(&mut self, event: Event) -> bool {
+    pub async fn handle_event(&mut self, event: Event) -> bool {
         let handled = if self.room.is_some() {
             if let Event::Packet(_, packet, _) = &event {
                 match &packet.content {
@@ -694,7 +688,7 @@ impl EuphRoom {
         };
 
         if let Some(room) = &mut self.room {
-            room.handle_event(event);
+            room.handle_event(event).await;
         }
 
         handled

@@ -2,26 +2,29 @@ mod euph;
 mod migrate;
 mod prepare;
 
+use std::fs;
 use std::path::Path;
-use std::{fs, thread};
 
-use log::error;
 use rusqlite::Connection;
-use tokio::sync::{mpsc, oneshot};
+use vault::tokio::TokioVault;
+use vault::Action;
 
-use self::euph::EuphRequest;
 pub use self::euph::{EuphRoomVault, EuphVault};
-
-enum Request {
-    Close(oneshot::Sender<()>),
-    Gc(oneshot::Sender<()>),
-    Euph(EuphRequest),
-}
 
 #[derive(Debug, Clone)]
 pub struct Vault {
-    tx: mpsc::UnboundedSender<Request>,
+    tokio_vault: TokioVault,
     ephemeral: bool,
+}
+
+struct GcAction;
+
+impl Action for GcAction {
+    type Result = ();
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+        conn.execute_batch("ANALYZE; VACUUM;")
+    }
 }
 
 impl Vault {
@@ -30,15 +33,11 @@ impl Vault {
     }
 
     pub async fn close(&self) {
-        let (tx, rx) = oneshot::channel();
-        let _ = self.tx.send(Request::Close(tx));
-        let _ = rx.await;
+        self.tokio_vault.stop().await;
     }
 
-    pub async fn gc(&self) {
-        let (tx, rx) = oneshot::channel();
-        let _ = self.tx.send(Request::Gc(tx));
-        let _ = rx.await;
+    pub async fn gc(&self) -> vault::tokio::Result<()> {
+        self.tokio_vault.execute(GcAction).await
     }
 
     pub fn euph(&self) -> EuphVault {
@@ -46,47 +45,17 @@ impl Vault {
     }
 }
 
-fn run(mut conn: Connection, mut rx: mpsc::UnboundedReceiver<Request>) {
-    while let Some(request) = rx.blocking_recv() {
-        match request {
-            Request::Close(tx) => {
-                eprintln!("Closing vault");
-                if let Err(e) = conn.execute_batch("PRAGMA optimize") {
-                    error!("{e}");
-                }
-                // Ensure `Vault::close` exits only after the sqlite connection
-                // has been closed properly.
-                drop(conn);
-                drop(tx);
-                break;
-            }
-            Request::Gc(tx) => {
-                if let Err(e) = conn.execute_batch("ANALYZE; VACUUM;") {
-                    error!("{e}");
-                }
-                drop(tx);
-            }
-            Request::Euph(r) => {
-                if let Err(e) = r.perform(&mut conn) {
-                    error!("{e}");
-                }
-            }
-        }
-    }
-}
-
-fn launch_from_connection(mut conn: Connection, ephemeral: bool) -> rusqlite::Result<Vault> {
+fn launch_from_connection(conn: Connection, ephemeral: bool) -> rusqlite::Result<Vault> {
     conn.pragma_update(None, "foreign_keys", true)?;
     conn.pragma_update(None, "trusted_schema", false)?;
 
     eprintln!("Opening vault");
 
-    migrate::migrate(&mut conn)?;
-    prepare::prepare(&mut conn)?;
-
-    let (tx, rx) = mpsc::unbounded_channel();
-    thread::spawn(move || run(conn, rx));
-    Ok(Vault { tx, ephemeral })
+    let tokio_vault = TokioVault::launch_and_prepare(conn, &migrate::MIGRATIONS, prepare::prepare)?;
+    Ok(Vault {
+        tokio_vault,
+        ephemeral,
+    })
 }
 
 pub fn launch(path: &Path) -> rusqlite::Result<Vault> {

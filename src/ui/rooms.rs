@@ -13,6 +13,7 @@ use toss::terminal::Terminal;
 
 use crate::config::{Config, RoomsSortOrder};
 use crate::euph;
+use crate::macros::logging_unwrap;
 use crate::vault::Vault;
 
 use super::euph::room::EuphRoom;
@@ -69,8 +70,8 @@ impl Rooms {
         vault: Vault,
         ui_event_tx: mpsc::UnboundedSender<UiEvent>,
     ) -> Self {
-        let euph_server_config =
-            ServerConfig::default().cookies(Arc::new(Mutex::new(vault.euph().cookies().await)));
+        let cookies = logging_unwrap!(vault.euph().cookies().await);
+        let euph_server_config = ServerConfig::default().cookies(Arc::new(Mutex::new(cookies)));
 
         let mut result = Self {
             config,
@@ -112,13 +113,8 @@ impl Rooms {
     /// - failed connection attempts, or
     /// - rooms that were deleted from the db.
     async fn stabilize_rooms(&mut self) {
-        let mut rooms_set = self
-            .vault
-            .euph()
-            .rooms()
-            .await
-            .into_iter()
-            .collect::<HashSet<_>>();
+        let rooms = logging_unwrap!(self.vault.euph().rooms().await);
+        let mut rooms_set = rooms.into_iter().collect::<HashSet<_>>();
 
         // Prevent room that is currently being shown from being removed. This
         // could otherwise happen when connecting to a room that doesn't exist.
@@ -533,7 +529,7 @@ impl Rooms {
                 }
                 key!(Enter) if editor.text() == *name => {
                     self.euph_rooms.remove(name);
-                    self.vault.euph().delete(name.clone());
+                    logging_unwrap!(self.vault.euph().room(name.clone()).delete().await);
                     self.state = State::ShowList;
                     return true;
                 }
@@ -548,10 +544,10 @@ impl Rooms {
         false
     }
 
-    pub fn handle_euph_event(&mut self, event: Event) -> bool {
+    pub async fn handle_euph_event(&mut self, event: Event) -> bool {
         let instance_name = event.config().name.clone();
         let room = self.get_or_insert_room(instance_name.clone());
-        let handled = room.handle_event(event);
+        let handled = room.handle_event(event).await;
 
         let room_visible = match &self.state {
             State::ShowRoom(name) => *name == instance_name,

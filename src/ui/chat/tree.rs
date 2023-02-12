@@ -10,12 +10,12 @@ use std::fmt;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use log::error;
 use parking_lot::FairMutex;
 use tokio::sync::Mutex;
 use toss::frame::{Frame, Pos, Size};
 use toss::terminal::Terminal;
 
+use crate::macros::logging_unwrap;
 use crate::store::{Msg, MsgStore};
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
 use crate::ui::util;
@@ -439,13 +439,7 @@ where
 
     async fn render(self: Box<Self>, frame: &mut Frame) {
         let mut guard = self.inner.lock().await;
-        let blocks = match guard.relayout(self.nick, self.focused, frame).await {
-            Ok(blocks) => blocks,
-            Err(err) => {
-                error!("{err}");
-                panic!("{err}");
-            }
-        };
+        let blocks = logging_unwrap!(guard.relayout(self.nick, self.focused, frame).await);
 
         let size = frame.size();
         for block in blocks.into_blocks().blocks {

@@ -149,11 +149,11 @@ async fn main() -> anyhow::Result<()> {
         Command::Gc => {
             eprintln!("Cleaning up and compacting vault");
             eprintln!("This may take a while...");
-            vault.gc().await;
+            vault.gc().await?;
         }
         Command::ClearCookies => {
             eprintln!("Clearing cookies");
-            vault.euph().set_cookies(CookieJar::new());
+            vault.euph().set_cookies(CookieJar::new()).await?;
         }
     }
 

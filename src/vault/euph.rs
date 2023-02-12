@@ -1,4 +1,3 @@
-use std::convert::Infallible;
 use std::mem;
 use std::str::FromStr;
 
@@ -8,10 +7,14 @@ use euphoxide::api::{Message, MessageId, SessionId, SessionView, Snowflake, Time
 use rusqlite::types::{FromSql, FromSqlError, ToSqlOutput, Value, ValueRef};
 use rusqlite::{named_params, params, Connection, OptionalExtension, ToSql, Transaction};
 use time::OffsetDateTime;
-use tokio::sync::oneshot;
+use vault::Action;
 
 use crate::euph::SmallMessage;
 use crate::store::{MsgStore, Path, Tree};
+
+///////////////////
+// Wrapper types //
+///////////////////
 
 /// Wrapper for [`Snowflake`] that implements useful rusqlite traits.
 struct WSnowflake(Snowflake);
@@ -47,6 +50,10 @@ impl FromSql for WTime {
     }
 }
 
+///////////////
+// EuphVault //
+///////////////
+
 #[derive(Debug, Clone)]
 pub struct EuphVault {
     vault: super::Vault,
@@ -69,216 +76,36 @@ impl EuphVault {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct EuphRoomVault {
-    vault: EuphVault,
-    room: String,
-}
-
-impl EuphRoomVault {
-    pub fn vault(&self) -> &EuphVault {
-        &self.vault
-    }
-
-    pub fn room(&self) -> &str {
-        &self.room
-    }
-}
-
-#[async_trait]
-impl MsgStore<SmallMessage> for EuphRoomVault {
-    type Error = Infallible;
-
-    async fn path(&self, id: &MessageId) -> Result<Path<MessageId>, Self::Error> {
-        Ok(self.path(*id).await)
-    }
-
-    async fn msg(&self, id: &MessageId) -> Result<Option<SmallMessage>, Self::Error> {
-        Ok(self.msg(*id).await)
-    }
-
-    async fn tree(&self, root_id: &MessageId) -> Result<Tree<SmallMessage>, Self::Error> {
-        Ok(self.tree(*root_id).await)
-    }
-
-    async fn first_root_id(&self) -> Result<Option<MessageId>, Self::Error> {
-        Ok(self.first_root_id().await)
-    }
-
-    async fn last_root_id(&self) -> Result<Option<MessageId>, Self::Error> {
-        Ok(self.last_root_id().await)
-    }
-
-    async fn prev_root_id(&self, root_id: &MessageId) -> Result<Option<MessageId>, Self::Error> {
-        Ok(self.prev_root_id(*root_id).await)
-    }
-
-    async fn next_root_id(&self, root_id: &MessageId) -> Result<Option<MessageId>, Self::Error> {
-        Ok(self.next_root_id(*root_id).await)
-    }
-
-    async fn oldest_msg_id(&self) -> Result<Option<MessageId>, Self::Error> {
-        Ok(self.oldest_msg_id().await)
-    }
-
-    async fn newest_msg_id(&self) -> Result<Option<MessageId>, Self::Error> {
-        Ok(self.newest_msg_id().await)
-    }
-
-    async fn older_msg_id(&self, id: &MessageId) -> Result<Option<MessageId>, Self::Error> {
-        Ok(self.older_msg_id(*id).await)
-    }
-
-    async fn newer_msg_id(&self, id: &MessageId) -> Result<Option<MessageId>, Self::Error> {
-        Ok(self.newer_msg_id(*id).await)
-    }
-
-    async fn oldest_unseen_msg_id(&self) -> Result<Option<MessageId>, Self::Error> {
-        Ok(self.oldest_unseen_msg_id().await)
-    }
-
-    async fn newest_unseen_msg_id(&self) -> Result<Option<MessageId>, Self::Error> {
-        Ok(self.newest_unseen_msg_id().await)
-    }
-
-    async fn older_unseen_msg_id(&self, id: &MessageId) -> Result<Option<MessageId>, Self::Error> {
-        Ok(self.older_unseen_msg_id(*id).await)
-    }
-
-    async fn newer_unseen_msg_id(&self, id: &MessageId) -> Result<Option<MessageId>, Self::Error> {
-        Ok(self.newer_unseen_msg_id(*id).await)
-    }
-
-    async fn unseen_msgs_count(&self) -> Result<usize, Self::Error> {
-        Ok(self.unseen_msgs_count().await)
-    }
-
-    async fn set_seen(&self, id: &MessageId, seen: bool) -> Result<(), Self::Error> {
-        self.set_seen(*id, seen);
-        Ok(())
-    }
-
-    async fn set_older_seen(&self, id: &MessageId, seen: bool) -> Result<(), Self::Error> {
-        self.set_older_seen(*id, seen);
-        Ok(())
-    }
-}
-
-trait Request {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()>;
-}
-
-macro_rules! requests_vault_fn {
-    ( $var:ident : $fn:ident( $( $arg:ident : $ty:ty ),* ) ) => {
-        pub fn $fn(&self $( , $arg: $ty )* ) {
-            let request = EuphRequest::$var($var { $( $arg, )* });
-            let _ = self.vault.tx.send(super::Request::Euph(request));
-        }
-    };
-    ( $var:ident : $fn:ident( $( $arg:ident : $ty:ty ),* ) -> $res:ty ) => {
-        pub async fn $fn(&self $( , $arg: $ty )* ) -> $res {
-            let (tx, rx) = oneshot::channel();
-            let request = EuphRequest::$var($var {
-                $( $arg, )*
-                result: tx,
-            });
-            let _ = self.vault.tx.send(super::Request::Euph(request));
-            rx.await.unwrap()
-        }
-    };
-}
-
-// This doesn't match the type of the `room` argument because that's apparently
-// impossible to match to `String`. See also the readme of
-// https://github.com/danielhenrymantilla/rust-defile for a description of this
-// phenomenon and some examples.
-macro_rules! requests_room_vault_fn {
-    ( $fn:ident ( room: $mustbestring:ty $( , $arg:ident : $ty:ty )* ) ) => {
-        pub fn $fn(&self $( , $arg: $ty )* ) {
-            self.vault.$fn(self.room.clone() $( , $arg )* );
-        }
-    };
-    ( $fn:ident ( room: $mustbestring:ty $( , $arg:ident : $ty:ty )* ) -> $res:ty ) => {
-        pub async fn $fn(&self $( , $arg: $ty )* ) -> $res {
-            self.vault.$fn(self.room.clone() $( , $arg )* ).await
-        }
-    };
-    ( $( $tt:tt )* ) => { };
-}
-
-macro_rules! requests {
+macro_rules! euph_vault_actions {
     ( $(
-        $var:ident : $fn:ident ( $( $arg:ident : $ty:ty ),* ) $( -> $res:ty )? ;
+        $struct:ident : $fn:ident ( $( $arg:ident : $arg_ty:ty ),* ) -> $res:ty ;
     )* ) => {
         $(
-            pub(super) struct $var {
-                $( $arg: $ty, )*
-                $( result: oneshot::Sender<$res>, )?
+            struct $struct {
+                $( $arg: $arg_ty, )*
             }
         )*
 
-        pub(super) enum EuphRequest {
-            $( $var($var), )*
-        }
-
-        impl EuphRequest {
-            pub(super) fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
-                match self {
-                    $( Self::$var(request) => request.perform(conn), )*
-                }
-            }
-        }
-
-        #[allow(dead_code)]
         impl EuphVault {
-            $( requests_vault_fn!($var : $fn( $( $arg: $ty ),* ) $( -> $res )? ); )*
-        }
-
-        #[allow(dead_code)]
-        impl EuphRoomVault {
-            $( requests_room_vault_fn!($fn( $( $arg: $ty ),* ) $( -> $res )? ); )*
+            $(
+                pub async fn $fn(&self, $( $arg: $arg_ty, )* ) -> vault::tokio::Result<$res> {
+                    self.vault.tokio_vault.execute($struct { $( $arg, )* }).await
+                }
+            )*
         }
     };
 }
 
-requests! {
-    // Cookies
+euph_vault_actions! {
     GetCookies : cookies() -> CookieJar;
-    SetCookies : set_cookies(cookies: CookieJar);
-
-    // Rooms
+    SetCookies : set_cookies(cookies: CookieJar) -> ();
     GetRooms : rooms() -> Vec<String>;
-    Join : join(room: String, time: Time);
-    Delete : delete(room: String);
-
-    // Message
-    AddMsg : add_msg(room: String, msg: Box<Message>, prev_msg_id: Option<MessageId>, own_user_id: Option<UserId>);
-    AddMsgs : add_msgs(room: String, msgs: Vec<Message>, next_msg_id: Option<MessageId>, own_user_id: Option<UserId>);
-    GetLastSpan : last_span(room: String) -> Option<(Option<MessageId>, Option<MessageId>)>;
-    GetPath : path(room: String, id: MessageId) -> Path<MessageId>;
-    GetMsg : msg(room: String, id: MessageId) -> Option<SmallMessage>;
-    GetFullMsg : full_msg(room: String, id: MessageId) -> Option<Message>;
-    GetTree : tree(room: String, root_id: MessageId) -> Tree<SmallMessage>;
-    GetFirstRootId : first_root_id(room: String) -> Option<MessageId>;
-    GetLastRootId : last_root_id(room: String) -> Option<MessageId>;
-    GetPrevRootId : prev_root_id(room: String, root_id: MessageId) -> Option<MessageId>;
-    GetNextRootId : next_root_id(room: String, root_id: MessageId) -> Option<MessageId>;
-    GetOldestMsgId : oldest_msg_id(room: String) -> Option<MessageId>;
-    GetNewestMsgId : newest_msg_id(room: String) -> Option<MessageId>;
-    GetOlderMsgId : older_msg_id(room: String, id: MessageId) -> Option<MessageId>;
-    GetNewerMsgId : newer_msg_id(room: String, id: MessageId) -> Option<MessageId>;
-    GetOldestUnseenMsgId : oldest_unseen_msg_id(room: String) -> Option<MessageId>;
-    GetNewestUnseenMsgId : newest_unseen_msg_id(room: String) -> Option<MessageId>;
-    GetOlderUnseenMsgId : older_unseen_msg_id(room: String, id: MessageId) -> Option<MessageId>;
-    GetNewerUnseenMsgId : newer_unseen_msg_id(room: String, id: MessageId) -> Option<MessageId>;
-    GetUnseenMsgsCount : unseen_msgs_count(room: String) -> usize;
-    SetSeen : set_seen(room: String, id: MessageId, seen: bool);
-    SetOlderSeen : set_older_seen(room: String, id: MessageId, seen: bool);
-    GetChunkAtOffset : chunk_at_offset(room: String, amount: usize, offset: usize) -> Vec<Message>;
 }
 
-impl Request for GetCookies {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
+impl Action for GetCookies {
+    type Result = CookieJar;
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
         let cookies = conn
             .prepare(
                 "
@@ -296,14 +123,14 @@ impl Request for GetCookies {
         for cookie in cookies {
             cookie_jar.add_original(cookie);
         }
-
-        let _ = self.result.send(cookie_jar);
-        Ok(())
+        Ok(cookie_jar)
     }
 }
 
-impl Request for SetCookies {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
+impl Action for SetCookies {
+    type Result = ();
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
         let tx = conn.transaction()?;
 
         // Since euphoria sets all cookies on every response, we can just delete
@@ -326,24 +153,100 @@ impl Request for SetCookies {
     }
 }
 
-impl Request for GetRooms {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
-        let rooms = conn
-            .prepare(
-                "
+impl Action for GetRooms {
+    type Result = Vec<String>;
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+        conn.prepare(
+            "
                 SELECT room
                 FROM euph_rooms
                 ",
-            )?
-            .query_map([], |row| row.get(0))?
-            .collect::<rusqlite::Result<_>>()?;
-        let _ = self.result.send(rooms);
-        Ok(())
+        )?
+        .query_map([], |row| row.get(0))?
+        .collect::<rusqlite::Result<_>>()
     }
 }
 
-impl Request for Join {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
+///////////////////
+// EuphRoomVault //
+///////////////////
+
+#[derive(Debug, Clone)]
+pub struct EuphRoomVault {
+    vault: EuphVault,
+    room: String,
+}
+
+impl EuphRoomVault {
+    pub fn vault(&self) -> &EuphVault {
+        &self.vault
+    }
+
+    pub fn room(&self) -> &str {
+        &self.room
+    }
+}
+
+macro_rules! euph_room_vault_actions {
+    ( $(
+        $struct:ident : $fn:ident ( $( $arg:ident : $arg_ty:ty ),* ) -> $res:ty ;
+    )* ) => {
+        $(
+            struct $struct {
+                room: String,
+                $( $arg: $arg_ty, )*
+            }
+        )*
+
+        impl EuphRoomVault {
+            $(
+                pub async fn $fn(&self, $( $arg: $arg_ty, )* ) -> vault::tokio::Result<$res> {
+                    self.vault.vault.tokio_vault.execute($struct {
+                        room: self.room.clone(),
+                        $( $arg, )*
+                    }).await
+                }
+            )*
+        }
+    };
+}
+
+euph_room_vault_actions! {
+    // Room
+    Join : join(time: Time) -> ();
+    Delete : delete() -> ();
+
+    // Message
+    AddMsg : add_msg(msg: Box<Message>, prev_msg_id: Option<MessageId>, own_user_id: Option<UserId>) -> ();
+    AddMsgs : add_msgs(msgs: Vec<Message>, next_msg_id: Option<MessageId>, own_user_id: Option<UserId>) -> ();
+    GetLastSpan : last_span() -> Option<(Option<MessageId>, Option<MessageId>)>;
+    GetPath : path(id: MessageId) -> Path<MessageId>;
+    GetMsg : msg(id: MessageId) -> Option<SmallMessage>;
+    GetFullMsg : full_msg(id: MessageId) -> Option<Message>;
+    GetTree : tree(root_id: MessageId) -> Tree<SmallMessage>;
+    GetFirstRootId : first_root_id() -> Option<MessageId>;
+    GetLastRootId : last_root_id() -> Option<MessageId>;
+    GetPrevRootId : prev_root_id(root_id: MessageId) -> Option<MessageId>;
+    GetNextRootId : next_root_id(root_id: MessageId) -> Option<MessageId>;
+    GetOldestMsgId : oldest_msg_id() -> Option<MessageId>;
+    GetNewestMsgId : newest_msg_id() -> Option<MessageId>;
+    GetOlderMsgId : older_msg_id(id: MessageId) -> Option<MessageId>;
+    GetNewerMsgId : newer_msg_id(id: MessageId) -> Option<MessageId>;
+    GetOldestUnseenMsgId : oldest_unseen_msg_id() -> Option<MessageId>;
+    GetNewestUnseenMsgId : newest_unseen_msg_id() -> Option<MessageId>;
+    GetOlderUnseenMsgId : older_unseen_msg_id(id: MessageId) -> Option<MessageId>;
+    GetNewerUnseenMsgId : newer_unseen_msg_id(id: MessageId) -> Option<MessageId>;
+    GetUnseenMsgsCount : unseen_msgs_count() -> usize;
+    SetSeen : set_seen(id: MessageId, seen: bool) -> ();
+    SetOlderSeen : set_older_seen(id: MessageId, seen: bool) -> ();
+    GetChunkAtOffset : chunk_at_offset(amount: usize, offset: usize) -> Vec<Message>;
+}
+
+impl Action for Join {
+    type Result = ();
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
         conn.execute(
             "
             INSERT INTO euph_rooms (room, first_joined, last_joined)
@@ -357,8 +260,10 @@ impl Request for Join {
     }
 }
 
-impl Request for Delete {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
+impl Action for Delete {
+    type Result = ();
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
         conn.execute(
             "
             DELETE FROM euph_rooms
@@ -525,8 +430,10 @@ fn add_span(
     Ok(())
 }
 
-impl Request for AddMsg {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
+impl Action for AddMsg {
+    type Result = ();
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
         let tx = conn.transaction()?;
 
         let end = self.msg.id;
@@ -538,8 +445,10 @@ impl Request for AddMsg {
     }
 }
 
-impl Request for AddMsgs {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
+impl Action for AddMsgs {
+    type Result = ();
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
         let tx = conn.transaction()?;
 
         if self.msgs.is_empty() {
@@ -559,8 +468,10 @@ impl Request for AddMsgs {
     }
 }
 
-impl Request for GetLastSpan {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
+impl Action for GetLastSpan {
+    type Result = Option<(Option<MessageId>, Option<MessageId>)>;
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
         let span = conn
             .prepare(
                 "
@@ -578,13 +489,14 @@ impl Request for GetLastSpan {
                 ))
             })
             .optional()?;
-        let _ = self.result.send(span);
-        Ok(())
+        Ok(span)
     }
 }
 
-impl Request for GetPath {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
+impl Action for GetPath {
+    type Result = Path<MessageId>;
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
         let path = conn
             .prepare(
                 "
@@ -606,14 +518,14 @@ impl Request for GetPath {
                 row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
             })?
             .collect::<rusqlite::Result<_>>()?;
-        let path = Path::new(path);
-        let _ = self.result.send(path);
-        Ok(())
+        Ok(Path::new(path))
     }
 }
 
-impl Request for GetMsg {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
+impl Action for GetMsg {
+    type Result = Option<SmallMessage>;
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
         let msg = conn
             .query_row(
                 "
@@ -635,13 +547,14 @@ impl Request for GetMsg {
                 },
             )
             .optional()?;
-        let _ = self.result.send(msg);
-        Ok(())
+        Ok(msg)
     }
 }
 
-impl Request for GetFullMsg {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
+impl Action for GetFullMsg {
+    type Result = Option<Message>;
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
         let mut query = conn.prepare(
             "
             SELECT
@@ -679,13 +592,14 @@ impl Request for GetFullMsg {
                 })
             })
             .optional()?;
-        let _ = self.result.send(msg);
-        Ok(())
+        Ok(msg)
     }
 }
 
-impl Request for GetTree {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
+impl Action for GetTree {
+    type Result = Tree<SmallMessage>;
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
         let msgs = conn
             .prepare(
                 "
@@ -716,15 +630,15 @@ impl Request for GetTree {
                 })
             })?
             .collect::<rusqlite::Result<_>>()?;
-        let tree = Tree::new(self.root_id, msgs);
-        let _ = self.result.send(tree);
-        Ok(())
+        Ok(Tree::new(self.root_id, msgs))
     }
 }
 
-impl Request for GetFirstRootId {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
-        let tree = conn
+impl Action for GetFirstRootId {
+    type Result = Option<MessageId>;
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+        let root_id = conn
             .prepare(
                 "
                 SELECT id
@@ -738,14 +652,15 @@ impl Request for GetFirstRootId {
                 row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
             })
             .optional()?;
-        let _ = self.result.send(tree);
-        Ok(())
+        Ok(root_id)
     }
 }
 
-impl Request for GetLastRootId {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
-        let tree = conn
+impl Action for GetLastRootId {
+    type Result = Option<MessageId>;
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+        let root_id = conn
             .prepare(
                 "
                 SELECT id
@@ -759,14 +674,15 @@ impl Request for GetLastRootId {
                 row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
             })
             .optional()?;
-        let _ = self.result.send(tree);
-        Ok(())
+        Ok(root_id)
     }
 }
 
-impl Request for GetPrevRootId {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
-        let tree = conn
+impl Action for GetPrevRootId {
+    type Result = Option<MessageId>;
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+        let root_id = conn
             .prepare(
                 "
                 SELECT id
@@ -781,14 +697,15 @@ impl Request for GetPrevRootId {
                 row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
             })
             .optional()?;
-        let _ = self.result.send(tree);
-        Ok(())
+        Ok(root_id)
     }
 }
 
-impl Request for GetNextRootId {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
-        let tree = conn
+impl Action for GetNextRootId {
+    type Result = Option<MessageId>;
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+        let root_id = conn
             .prepare(
                 "
                 SELECT id
@@ -803,14 +720,15 @@ impl Request for GetNextRootId {
                 row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
             })
             .optional()?;
-        let _ = self.result.send(tree);
-        Ok(())
+        Ok(root_id)
     }
 }
 
-impl Request for GetOldestMsgId {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
-        let tree = conn
+impl Action for GetOldestMsgId {
+    type Result = Option<MessageId>;
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+        let msg_id = conn
             .prepare(
                 "
                 SELECT id
@@ -824,14 +742,15 @@ impl Request for GetOldestMsgId {
                 row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
             })
             .optional()?;
-        let _ = self.result.send(tree);
-        Ok(())
+        Ok(msg_id)
     }
 }
 
-impl Request for GetNewestMsgId {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
-        let tree = conn
+impl Action for GetNewestMsgId {
+    type Result = Option<MessageId>;
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+        let msg_id = conn
             .prepare(
                 "
                 SELECT id
@@ -845,14 +764,15 @@ impl Request for GetNewestMsgId {
                 row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
             })
             .optional()?;
-        let _ = self.result.send(tree);
-        Ok(())
+        Ok(msg_id)
     }
 }
 
-impl Request for GetOlderMsgId {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
-        let tree = conn
+impl Action for GetOlderMsgId {
+    type Result = Option<MessageId>;
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+        let msg_id = conn
             .prepare(
                 "
                 SELECT id
@@ -867,13 +787,14 @@ impl Request for GetOlderMsgId {
                 row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
             })
             .optional()?;
-        let _ = self.result.send(tree);
-        Ok(())
+        Ok(msg_id)
     }
 }
-impl Request for GetNewerMsgId {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
-        let tree = conn
+impl Action for GetNewerMsgId {
+    type Result = Option<MessageId>;
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+        let msg_id = conn
             .prepare(
                 "
                 SELECT id
@@ -888,14 +809,15 @@ impl Request for GetNewerMsgId {
                 row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
             })
             .optional()?;
-        let _ = self.result.send(tree);
-        Ok(())
+        Ok(msg_id)
     }
 }
 
-impl Request for GetOldestUnseenMsgId {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
-        let tree = conn
+impl Action for GetOldestUnseenMsgId {
+    type Result = Option<MessageId>;
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+        let msg_id = conn
             .prepare(
                 "
                 SELECT id
@@ -910,14 +832,15 @@ impl Request for GetOldestUnseenMsgId {
                 row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
             })
             .optional()?;
-        let _ = self.result.send(tree);
-        Ok(())
+        Ok(msg_id)
     }
 }
 
-impl Request for GetNewestUnseenMsgId {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
-        let tree = conn
+impl Action for GetNewestUnseenMsgId {
+    type Result = Option<MessageId>;
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+        let msg_id = conn
             .prepare(
                 "
                 SELECT id
@@ -932,14 +855,15 @@ impl Request for GetNewestUnseenMsgId {
                 row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
             })
             .optional()?;
-        let _ = self.result.send(tree);
-        Ok(())
+        Ok(msg_id)
     }
 }
 
-impl Request for GetOlderUnseenMsgId {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
-        let tree = conn
+impl Action for GetOlderUnseenMsgId {
+    type Result = Option<MessageId>;
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+        let msg_id = conn
             .prepare(
                 "
                 SELECT id
@@ -955,14 +879,15 @@ impl Request for GetOlderUnseenMsgId {
                 row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
             })
             .optional()?;
-        let _ = self.result.send(tree);
-        Ok(())
+        Ok(msg_id)
     }
 }
 
-impl Request for GetNewerUnseenMsgId {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
-        let tree = conn
+impl Action for GetNewerUnseenMsgId {
+    type Result = Option<MessageId>;
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+        let msg_id = conn
             .prepare(
                 "
                 SELECT id
@@ -978,13 +903,14 @@ impl Request for GetNewerUnseenMsgId {
                 row.get::<_, WSnowflake>(0).map(|s| MessageId(s.0))
             })
             .optional()?;
-        let _ = self.result.send(tree);
-        Ok(())
+        Ok(msg_id)
     }
 }
 
-impl Request for GetUnseenMsgsCount {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
+impl Action for GetUnseenMsgsCount {
+    type Result = usize;
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
         let amount = conn
             .prepare(
                 "
@@ -996,13 +922,14 @@ impl Request for GetUnseenMsgsCount {
             .query_row(params![self.room], |row| row.get(0))
             .optional()?
             .unwrap_or(0);
-        let _ = self.result.send(amount);
-        Ok(())
+        Ok(amount)
     }
 }
 
-impl Request for SetSeen {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
+impl Action for SetSeen {
+    type Result = ();
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
         conn.execute(
             "
             UPDATE euph_msgs
@@ -1016,8 +943,10 @@ impl Request for SetSeen {
     }
 }
 
-impl Request for SetOlderSeen {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
+impl Action for SetOlderSeen {
+    type Result = ();
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
         conn.execute(
             "
             UPDATE euph_msgs
@@ -1032,8 +961,10 @@ impl Request for SetOlderSeen {
     }
 }
 
-impl Request for GetChunkAtOffset {
-    fn perform(self, conn: &mut Connection) -> rusqlite::Result<()> {
+impl Action for GetChunkAtOffset {
+    type Result = Vec<Message>;
+
+    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
         let mut query = conn.prepare(
             "
             SELECT
@@ -1073,7 +1004,83 @@ impl Request for GetChunkAtOffset {
                 })
             })?
             .collect::<rusqlite::Result<_>>()?;
-        let _ = self.result.send(messages);
-        Ok(())
+        Ok(messages)
+    }
+}
+
+#[async_trait]
+impl MsgStore<SmallMessage> for EuphRoomVault {
+    type Error = vault::tokio::Error;
+
+    async fn path(&self, id: &MessageId) -> Result<Path<MessageId>, Self::Error> {
+        self.path(*id).await
+    }
+
+    async fn msg(&self, id: &MessageId) -> Result<Option<SmallMessage>, Self::Error> {
+        self.msg(*id).await
+    }
+
+    async fn tree(&self, root_id: &MessageId) -> Result<Tree<SmallMessage>, Self::Error> {
+        self.tree(*root_id).await
+    }
+
+    async fn first_root_id(&self) -> Result<Option<MessageId>, Self::Error> {
+        self.first_root_id().await
+    }
+
+    async fn last_root_id(&self) -> Result<Option<MessageId>, Self::Error> {
+        self.last_root_id().await
+    }
+
+    async fn prev_root_id(&self, root_id: &MessageId) -> Result<Option<MessageId>, Self::Error> {
+        self.prev_root_id(*root_id).await
+    }
+
+    async fn next_root_id(&self, root_id: &MessageId) -> Result<Option<MessageId>, Self::Error> {
+        self.next_root_id(*root_id).await
+    }
+
+    async fn oldest_msg_id(&self) -> Result<Option<MessageId>, Self::Error> {
+        self.oldest_msg_id().await
+    }
+
+    async fn newest_msg_id(&self) -> Result<Option<MessageId>, Self::Error> {
+        self.newest_msg_id().await
+    }
+
+    async fn older_msg_id(&self, id: &MessageId) -> Result<Option<MessageId>, Self::Error> {
+        self.older_msg_id(*id).await
+    }
+
+    async fn newer_msg_id(&self, id: &MessageId) -> Result<Option<MessageId>, Self::Error> {
+        self.newer_msg_id(*id).await
+    }
+
+    async fn oldest_unseen_msg_id(&self) -> Result<Option<MessageId>, Self::Error> {
+        self.oldest_unseen_msg_id().await
+    }
+
+    async fn newest_unseen_msg_id(&self) -> Result<Option<MessageId>, Self::Error> {
+        self.newest_unseen_msg_id().await
+    }
+
+    async fn older_unseen_msg_id(&self, id: &MessageId) -> Result<Option<MessageId>, Self::Error> {
+        self.older_unseen_msg_id(*id).await
+    }
+
+    async fn newer_unseen_msg_id(&self, id: &MessageId) -> Result<Option<MessageId>, Self::Error> {
+        self.newer_unseen_msg_id(*id).await
+    }
+
+    async fn unseen_msgs_count(&self) -> Result<usize, Self::Error> {
+        self.unseen_msgs_count().await
+    }
+
+    async fn set_seen(&self, id: &MessageId, seen: bool) -> Result<(), Self::Error> {
+        self.set_seen(*id, seen).await
+    }
+
+    async fn set_older_seen(&self, id: &MessageId, seen: bool) -> Result<(), Self::Error> {
+        self.set_older_seen(*id, seen).await
     }
 }

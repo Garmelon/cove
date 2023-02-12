@@ -10,7 +10,7 @@ pub async fn export<W: Write>(vault: &EuphRoomVault, file: &mut W) -> anyhow::Re
     let mut total = 0;
     let mut offset = 0;
     loop {
-        let messages = vault.chunk_at_offset(CHUNK_SIZE, offset).await;
+        let messages = vault.chunk_at_offset(CHUNK_SIZE, offset).await?;
         offset += messages.len();
 
         if messages.is_empty() {
@@ -42,7 +42,7 @@ pub async fn export_stream<W: Write>(vault: &EuphRoomVault, file: &mut W) -> any
     let mut total = 0;
     let mut offset = 0;
     loop {
-        let messages = vault.chunk_at_offset(CHUNK_SIZE, offset).await;
+        let messages = vault.chunk_at_offset(CHUNK_SIZE, offset).await?;
         offset += messages.len();
 
         if messages.is_empty() {
