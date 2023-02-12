@@ -51,6 +51,8 @@ enum Mode {
     Log,
 }
 
+// TODO Add Error for anything that can go wrong while rendering
+
 pub struct Ui {
     event_tx: UnboundedSender<UiEvent>,
 

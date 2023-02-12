@@ -21,6 +21,8 @@ pub mod text;
 use async_trait::async_trait;
 use toss::frame::{Frame, Size};
 
+// TODO Add Error type and return Result-s (at least in Widget::render)
+
 #[async_trait]
 pub trait Widget {
     fn size(&self, frame: &mut Frame, max_width: Option<u16>, max_height: Option<u16>) -> Size;
