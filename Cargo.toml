@@ -27,7 +27,7 @@ unicode-width = "0.1.10"
 
 [dependencies.time]
 version = "0.3.17"
-features = ["macros", "formatting", "parsing", "serde"]
+features = ["macros", "formatting", "parsing", "serde", "local-offset"]
 
 [dependencies.tokio-tungstenite]
 version = "0.18.0"
