@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use toss::frame::{Frame, Size};
+use toss::{Frame, Size};
 
 use super::{BoxedWidget, Widget};
 

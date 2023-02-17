@@ -2,12 +2,9 @@ use std::sync::Arc;
 use std::{io, iter};
 
 use async_trait::async_trait;
-use crossterm::style::{ContentStyle, Stylize};
+use crossterm::style::Stylize;
 use parking_lot::{FairMutex, Mutex};
-use toss::frame::{Frame, Pos, Size};
-use toss::styled::Styled;
-use toss::terminal::Terminal;
-use toss::widthdb::WidthDb;
+use toss::{Frame, Pos, Size, Style, Styled, Terminal, WidthDb};
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::ui::util;
@@ -461,7 +458,7 @@ impl Editor {
     }
 
     pub fn hidden(self) -> Self {
-        self.hidden_with_placeholder(("<hidden>", ContentStyle::default().grey().italic()))
+        self.hidden_with_placeholder(("<hidden>", Style::new().grey().italic()))
     }
 
     pub fn hidden_with_placeholder<S: Into<Styled>>(mut self, placeholder: S) -> Self {

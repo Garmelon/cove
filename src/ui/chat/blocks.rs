@@ -1,7 +1,7 @@
 use std::collections::{vec_deque, VecDeque};
 use std::ops::Range;
 
-use toss::frame::Frame;
+use toss::Frame;
 
 use crate::macros::some_or_return;
 use crate::ui::widgets::BoxedWidget;

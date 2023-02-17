@@ -1,15 +1,14 @@
 use std::collections::VecDeque;
 use std::sync::Arc;
 
-use crossterm::style::{ContentStyle, Stylize};
+use crossterm::style::Stylize;
 use euphoxide::api::{Data, Message, MessageId, PacketType, SessionId};
 use euphoxide::bot::instance::{Event, ServerConfig};
 use euphoxide::conn::{self, Joined, Joining, SessionInfo};
 use parking_lot::FairMutex;
 use tokio::sync::oneshot::error::TryRecvError;
 use tokio::sync::{mpsc, oneshot};
-use toss::styled::Styled;
-use toss::terminal::Terminal;
+use toss::{Style, Styled, Terminal};
 
 use crate::config;
 use crate::euph;
@@ -277,7 +276,7 @@ impl EuphRoom {
     }
 
     async fn status_widget(&self, state: Option<&euph::State>) -> BoxedWidget {
-        let room_style = ContentStyle::default().bold().blue();
+        let room_style = Style::new().bold().blue();
         let mut info = Styled::new(format!("&{}", self.name()), room_style);
 
         info = match state {
@@ -296,7 +295,7 @@ impl EuphRoom {
                     info.then_plain(", present without nick")
                 } else {
                     info.then_plain(", present as ")
-                        .and_then(euph::style_nick(nick, ContentStyle::default()))
+                        .and_then(euph::style_nick(nick, Style::new()))
                 }
             }
         };
@@ -305,7 +304,7 @@ impl EuphRoom {
         if unseen > 0 {
             info = info
                 .then_plain(" (")
-                .then(format!("{unseen}"), ContentStyle::default().bold().green())
+                .then(format!("{unseen}"), Style::new().bold().green())
                 .then_plain(")");
         }
 

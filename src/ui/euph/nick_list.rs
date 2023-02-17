@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 use std::iter;
 
-use crossterm::style::{Color, ContentStyle, Stylize};
+use crossterm::style::{Color, Stylize};
 use euphoxide::api::{NickEvent, SessionId, SessionType, SessionView, UserId};
 use euphoxide::conn::{Joined, SessionInfo};
-use toss::styled::Styled;
+use toss::{Style, Styled};
 
 use crate::euph;
 use crate::ui::widgets::background::Background;
@@ -98,7 +98,7 @@ fn render_section(
         return;
     }
 
-    let heading_style = ContentStyle::new().bold();
+    let heading_style = Style::new().bold();
 
     if !list.is_empty() {
         list.add_unsel(Empty::new());
@@ -117,16 +117,16 @@ fn render_section(
 fn render_row(list: &mut List<SessionId>, session: &HalfSession, own_session: &SessionView) {
     let (name, style, style_inv, perms_style_inv) = if session.name.is_empty() {
         let name = "lurk";
-        let style = ContentStyle::default().grey();
-        let style_inv = ContentStyle::default().black().on_grey();
+        let style = Style::new().grey();
+        let style_inv = Style::new().black().on_grey();
         (Cow::Borrowed(name), style, style_inv, style_inv)
     } else {
         let name = &session.name as &str;
         let (r, g, b) = euph::nick_color(name);
         let color = Color::Rgb { r, g, b };
-        let style = ContentStyle::default().bold().with(color);
-        let style_inv = ContentStyle::default().bold().black().on(color);
-        let perms_style_inv = ContentStyle::default().black().on(color);
+        let style = Style::new().bold().with(color);
+        let style_inv = Style::new().bold().black().on(color);
+        let perms_style_inv = Style::new().black().on(color);
         (euph::EMOJI.replace(name), style, style_inv, perms_style_inv)
     };
 

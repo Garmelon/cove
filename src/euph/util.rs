@@ -1,7 +1,7 @@
-use crossterm::style::{Color, ContentStyle, Stylize};
+use crossterm::style::{Color, Stylize};
 use euphoxide::Emoji;
 use once_cell::sync::Lazy;
-use toss::styled::Styled;
+use toss::{Style, Styled};
 
 pub static EMOJI: Lazy<Emoji> = Lazy::new(Emoji::load);
 
@@ -42,15 +42,15 @@ pub fn nick_color(nick: &str) -> (u8, u8, u8) {
     hsl_to_rgb(hue, 1.0, 0.72)
 }
 
-pub fn nick_style(nick: &str, base: ContentStyle) -> ContentStyle {
+pub fn nick_style(nick: &str, base: Style) -> Style {
     let (r, g, b) = nick_color(nick);
     base.bold().with(Color::Rgb { r, g, b })
 }
 
-pub fn style_nick(nick: &str, base: ContentStyle) -> Styled {
+pub fn style_nick(nick: &str, base: Style) -> Styled {
     Styled::new(EMOJI.replace(nick), nick_style(nick, base))
 }
 
-pub fn style_nick_exact(nick: &str, base: ContentStyle) -> Styled {
+pub fn style_nick_exact(nick: &str, base: Style) -> Styled {
     Styled::new(nick, nick_style(nick, base))
 }

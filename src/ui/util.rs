@@ -2,7 +2,7 @@ use std::io;
 use std::sync::Arc;
 
 use parking_lot::FairMutex;
-use toss::terminal::Terminal;
+use toss::Terminal;
 
 use super::input::{key, InputEvent, KeyBindingsList};
 use super::widgets::editor::EditorState;

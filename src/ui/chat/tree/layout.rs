@@ -1,4 +1,4 @@
-use toss::frame::Frame;
+use toss::Frame;
 
 use crate::store::{Msg, MsgStore, Path, Tree};
 use crate::ui::chat::blocks::Block;

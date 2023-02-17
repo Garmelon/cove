@@ -1,7 +1,7 @@
-use crossterm::style::{ContentStyle, Stylize};
+use crossterm::style::Stylize;
 use euphoxide::api::PersonalAccountView;
 use euphoxide::conn;
-use toss::terminal::Terminal;
+use toss::{Style, Terminal};
 
 use crate::euph::{self, Room};
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
@@ -36,7 +36,7 @@ impl LoggedOut {
     }
 
     fn widget(&self) -> BoxedWidget {
-        let bold = ContentStyle::default().bold();
+        let bold = Style::new().bold();
         VJoin::new(vec![
             Segment::new(Text::new(("Not logged in", bold.yellow()))),
             Segment::new(Empty::new().height(1)),
@@ -64,7 +64,7 @@ pub struct LoggedIn(PersonalAccountView);
 
 impl LoggedIn {
     fn widget(&self) -> BoxedWidget {
-        let bold = ContentStyle::default().bold();
+        let bold = Style::new().bold();
         VJoin::new(vec![
             Segment::new(Text::new(("Logged in", bold.green()))),
             Segment::new(Empty::new().height(1)),

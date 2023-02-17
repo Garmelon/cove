@@ -3,12 +3,12 @@ use std::sync::Arc;
 use std::vec;
 
 use async_trait::async_trait;
-use crossterm::style::{ContentStyle, Stylize};
+use crossterm::style::Stylize;
 use log::{Level, LevelFilter, Log};
 use parking_lot::Mutex;
 use time::OffsetDateTime;
 use tokio::sync::mpsc;
-use toss::styled::Styled;
+use toss::{Style, Styled};
 
 use crate::store::{Msg, MsgStore, Path, Tree};
 use crate::ui::ChatMsg;
@@ -48,11 +48,11 @@ impl ChatMsg for LogMsg {
 
     fn styled(&self) -> (Styled, Styled) {
         let nick_style = match self.level {
-            Level::Error => ContentStyle::default().bold().red(),
-            Level::Warn => ContentStyle::default().bold().yellow(),
-            Level::Info => ContentStyle::default().bold().green(),
-            Level::Debug => ContentStyle::default().bold().blue(),
-            Level::Trace => ContentStyle::default().bold().magenta(),
+            Level::Error => Style::new().bold().red(),
+            Level::Warn => Style::new().bold().yellow(),
+            Level::Info => Style::new().bold().green(),
+            Level::Debug => Style::new().bold().blue(),
+            Level::Trace => Style::new().bold().magenta(),
         };
         let nick = Styled::new(format!("{}", self.level), nick_style);
         let content = Styled::new_plain(&self.content);

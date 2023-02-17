@@ -1,7 +1,7 @@
-use crossterm::style::{ContentStyle, Stylize};
+use crossterm::style::Stylize;
 use euphoxide::api::{Message, NickEvent, SessionView};
 use euphoxide::conn::SessionInfo;
-use toss::styled::Styled;
+use toss::{Style, Styled};
 
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
 use crate::ui::widgets::popup::Popup;
@@ -11,31 +11,33 @@ use crate::ui::widgets::BoxedWidget;
 macro_rules! line {
     ( $text:ident, $name:expr, $val:expr ) => {
         $text = $text
-            .then($name, ContentStyle::default().cyan())
+            .then($name, Style::new().cyan())
             .then_plain(format!(" {}\n", $val));
     };
     ( $text:ident, $name:expr, $val:expr, debug ) => {
         $text = $text
-            .then($name, ContentStyle::default().cyan())
+            .then($name, Style::new().cyan())
             .then_plain(format!(" {:?}\n", $val));
     };
     ( $text:ident, $name:expr, $val:expr, optional ) => {
         if let Some(val) = $val {
             $text = $text
-                .then($name, ContentStyle::default().cyan())
+                .then($name, Style::new().cyan())
                 .then_plain(format!(" {val}\n"));
         } else {
             $text = $text
-                .then($name, ContentStyle::default().cyan())
+                .then($name, Style::new().cyan())
                 .then_plain(" ")
-                .then("none", ContentStyle::default().italic().grey())
+                .then("none", Style::new().italic().grey())
                 .then_plain("\n");
         }
     };
     ( $text:ident, $name:expr, $val:expr, yes or no ) => {
-        $text = $text
-            .then($name, ContentStyle::default().cyan())
-            .then_plain(if $val { " yes\n" } else { " no\n" });
+        $text = $text.then($name, Style::new().cyan()).then_plain(if $val {
+            " yes\n"
+        } else {
+            " no\n"
+        });
     };
 }
 
@@ -87,7 +89,7 @@ fn message_lines(mut text: Styled, msg: &Message) -> Styled {
 }
 
 pub fn session_widget(session: &SessionInfo) -> BoxedWidget {
-    let heading_style = ContentStyle::default().bold();
+    let heading_style = Style::new().bold();
 
     let text = match session {
         SessionInfo::Full(session) => {
@@ -104,7 +106,7 @@ pub fn session_widget(session: &SessionInfo) -> BoxedWidget {
 }
 
 pub fn message_widget(msg: &Message) -> BoxedWidget {
-    let heading_style = ContentStyle::default().bold();
+    let heading_style = Style::new().bold();
 
     let mut text = Styled::new("Message", heading_style).then_plain("\n");
 

@@ -1,8 +1,8 @@
 use std::convert::Infallible;
 
 use crossterm::event::{Event, KeyCode, KeyModifiers};
-use crossterm::style::{ContentStyle, Stylize};
-use toss::styled::Styled;
+use crossterm::style::Stylize;
+use toss::{Style, Styled};
 
 use super::widgets::background::Background;
 use super::widgets::border::Border;
@@ -94,8 +94,8 @@ impl KeyBindingsList {
         Self(state.widget())
     }
 
-    fn binding_style() -> ContentStyle {
-        ContentStyle::default().cyan()
+    fn binding_style() -> Style {
+        Style::new().cyan()
     }
 
     pub fn widget(self) -> BoxedWidget {
@@ -124,8 +124,7 @@ impl KeyBindingsList {
     }
 
     pub fn heading(&mut self, name: &str) {
-        self.0
-            .add_unsel(Text::new((name, ContentStyle::default().bold())));
+        self.0.add_unsel(Text::new((name, Style::new().bold())));
     }
 
     pub fn binding(&mut self, binding: &str, description: &str) {

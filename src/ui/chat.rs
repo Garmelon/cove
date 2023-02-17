@@ -11,9 +11,7 @@ use std::{fmt, io};
 use async_trait::async_trait;
 use parking_lot::FairMutex;
 use time::OffsetDateTime;
-use toss::frame::{Frame, Size};
-use toss::styled::Styled;
-use toss::terminal::Terminal;
+use toss::{Frame, Size, Styled, Terminal};
 
 use crate::store::{Msg, MsgStore};
 

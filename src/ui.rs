@@ -14,7 +14,7 @@ use parking_lot::FairMutex;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::task;
-use toss::terminal::Terminal;
+use toss::Terminal;
 
 use crate::config::Config;
 use crate::logger::{LogMsg, Logger};
@@ -144,14 +144,7 @@ impl Ui {
         terminal.present()?;
 
         loop {
-            // 1. Measure grapheme widths if required
-            if terminal.measuring_required() {
-                let _guard = crossterm_lock.lock();
-                terminal.measure_widths()?;
-                ok_or_return!(self.event_tx.send(UiEvent::GraphemeWidthsChanged), Ok(()));
-            }
-
-            // 2. Handle events (in batches)
+            // 1. Handle events (in batches)
             let mut event = match event_rx.recv().await {
                 Some(event) => event,
                 None => return Ok(()),
@@ -174,12 +167,18 @@ impl Ui {
                 };
             }
 
-            // 3. Render and present final state
             if redraw {
+                // 2. Draw and present resulting state
                 terminal.autoresize()?;
-                terminal.frame().reset();
                 self.widget().await.render(terminal.frame()).await;
                 terminal.present()?;
+
+                // 3. Measure grapheme widths
+                if terminal.measuring_required() {
+                    let _guard = crossterm_lock.lock();
+                    terminal.measure_widths()?;
+                    ok_or_return!(self.event_tx.send(UiEvent::GraphemeWidthsChanged), Ok(()));
+                }
             }
         }
     }

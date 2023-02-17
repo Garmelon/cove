@@ -1,4 +1,4 @@
-use toss::terminal::Terminal;
+use toss::Terminal;
 
 use crate::euph::Room;
 use crate::ui::input::{key, InputEvent, KeyBindingsList};

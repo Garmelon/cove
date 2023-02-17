@@ -1,5 +1,4 @@
-use crossterm::style::ContentStyle;
-use toss::styled::Styled;
+use toss::{Style, Styled};
 
 use super::background::Background;
 use super::border::Border;
@@ -13,8 +12,8 @@ pub struct Popup {
     inner: BoxedWidget,
     inner_padding: bool,
     title: Option<Styled>,
-    border_style: ContentStyle,
-    bg_style: ContentStyle,
+    border_style: Style,
+    bg_style: Style,
 }
 
 impl Popup {
@@ -23,8 +22,8 @@ impl Popup {
             inner: inner.into(),
             inner_padding: true,
             title: None,
-            border_style: ContentStyle::default(),
-            bg_style: ContentStyle::default(),
+            border_style: Style::new(),
+            bg_style: Style::new().opaque(),
         }
     }
 
@@ -38,12 +37,12 @@ impl Popup {
         self
     }
 
-    pub fn border(mut self, style: ContentStyle) -> Self {
+    pub fn border(mut self, style: Style) -> Self {
         self.border_style = style;
         self
     }
 
-    pub fn background(mut self, style: ContentStyle) -> Self {
+    pub fn background(mut self, style: Style) -> Self {
         self.bg_style = style;
         self
     }

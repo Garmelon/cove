@@ -1,23 +1,22 @@
 use async_trait::async_trait;
-use crossterm::style::ContentStyle;
-use toss::frame::{Frame, Pos, Size};
+use toss::{Frame, Pos, Size, Style};
 
 use super::{BoxedWidget, Widget};
 
 pub struct Border {
     inner: BoxedWidget,
-    style: ContentStyle,
+    style: Style,
 }
 
 impl Border {
     pub fn new<W: Into<BoxedWidget>>(inner: W) -> Self {
         Self {
             inner: inner.into(),
-            style: ContentStyle::default(),
+            style: Style::new(),
         }
     }
 
-    pub fn style(mut self, style: ContentStyle) -> Self {
+    pub fn style(mut self, style: Style) -> Self {
         self.style = style;
         self
     }

@@ -1,6 +1,5 @@
-use crossterm::style::ContentStyle;
 use euphoxide::conn::Joined;
-use toss::terminal::Terminal;
+use toss::{Style, Terminal};
 
 use crate::euph::{self, Room};
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
@@ -17,7 +16,7 @@ pub fn new(joined: Joined) -> EditorState {
 pub fn widget(editor: &EditorState) -> BoxedWidget {
     let editor = editor
         .widget()
-        .highlight(|s| euph::style_nick_exact(s, ContentStyle::default()));
+        .highlight(|s| euph::style_nick_exact(s, Style::new()));
     Popup::new(Padding::new(editor).left(1))
         .title("Choose nick")
         .inner_padding(false)

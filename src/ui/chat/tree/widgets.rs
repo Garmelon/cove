@@ -2,9 +2,8 @@ mod indent;
 mod seen;
 mod time;
 
-use crossterm::style::{ContentStyle, Stylize};
-use toss::styled::Styled;
-use toss::widthdb::WidthDb;
+use crossterm::style::Stylize;
+use toss::{Style, Styled, WidthDb};
 
 use super::super::ChatMsg;
 use crate::store::Msg;
@@ -19,36 +18,36 @@ use self::indent::Indent;
 
 pub const PLACEHOLDER: &str = "[...]";
 
-pub fn style_placeholder() -> ContentStyle {
-    ContentStyle::default().dark_grey()
+pub fn style_placeholder() -> Style {
+    Style::new().dark_grey()
 }
 
-fn style_time(highlighted: bool) -> ContentStyle {
+fn style_time(highlighted: bool) -> Style {
     if highlighted {
-        ContentStyle::default().black().on_white()
+        Style::new().black().on_white()
     } else {
-        ContentStyle::default().grey()
+        Style::new().grey()
     }
 }
 
-fn style_indent(highlighted: bool) -> ContentStyle {
+fn style_indent(highlighted: bool) -> Style {
     if highlighted {
-        ContentStyle::default().black().on_white()
+        Style::new().black().on_white()
     } else {
-        ContentStyle::default().dark_grey()
+        Style::new().dark_grey()
     }
 }
 
-fn style_info() -> ContentStyle {
-    ContentStyle::default().italic().dark_grey()
+fn style_info() -> Style {
+    Style::new().italic().dark_grey()
 }
 
-fn style_editor_highlight() -> ContentStyle {
-    ContentStyle::default().black().on_cyan()
+fn style_editor_highlight() -> Style {
+    Style::new().black().on_cyan()
 }
 
-fn style_pseudo_highlight() -> ContentStyle {
-    ContentStyle::default().black().on_yellow()
+fn style_pseudo_highlight() -> Style {
+    Style::new().black().on_yellow()
 }
 
 pub fn msg<M: Msg + ChatMsg>(
@@ -74,7 +73,9 @@ pub fn msg<M: Msg + ChatMsg>(
         ),
         Segment::new(Indent::new(indent, style_indent(highlighted))),
         Segment::new(Layer::new(vec![
-            Indent::new(1, style_indent(false)).into(),
+            Padding::new(Indent::new(1, style_indent(false)))
+                .top(1)
+                .into(),
             Padding::new(Text::new(nick)).right(1).into(),
         ])),
         // TODO Minimum content width
@@ -129,7 +130,9 @@ pub fn editor<M: ChatMsg>(
         ),
         Segment::new(Indent::new(indent, style_editor_highlight())),
         Segment::new(Layer::new(vec![
-            Indent::new(1, style_indent(false)).into(),
+            Padding::new(Indent::new(1, style_indent(false)))
+                .top(1)
+                .into(),
             Padding::new(Text::new(nick)).right(1).into(),
         ])),
         Segment::new(editor).priority(1).expanding(true),
@@ -151,7 +154,9 @@ pub fn pseudo<M: ChatMsg>(indent: usize, nick: &str, editor: &EditorState) -> Bo
         ),
         Segment::new(Indent::new(indent, style_pseudo_highlight())),
         Segment::new(Layer::new(vec![
-            Indent::new(1, style_indent(false)).into(),
+            Padding::new(Indent::new(1, style_indent(false)))
+                .top(1)
+                .into(),
             Padding::new(Text::new(nick)).right(1).into(),
         ])),
         Segment::new(Text::new(content).wrap(true)).priority(1),

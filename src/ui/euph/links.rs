@@ -1,8 +1,8 @@
 use std::io;
 
-use crossterm::style::{ContentStyle, Stylize};
+use crossterm::style::Stylize;
 use linkify::{LinkFinder, LinkKind};
-use toss::styled::Styled;
+use toss::{Style, Styled};
 
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
 use crate::ui::widgets::list::ListState;
@@ -40,24 +40,18 @@ impl LinksState {
     }
 
     pub fn widget(&self) -> BoxedWidget {
-        let style_selected = ContentStyle::default().black().on_white();
+        let style_selected = Style::new().black().on_white();
 
         let mut list = self.list.widget().focus(true);
         if self.links.is_empty() {
-            list.add_unsel(Text::new((
-                "No links found",
-                ContentStyle::default().grey().italic(),
-            )))
+            list.add_unsel(Text::new(("No links found", Style::new().grey().italic())))
         }
         for (id, link) in self.links.iter().enumerate() {
             let (line_normal, line_selected) = if let Some(number_key) = NUMBER_KEYS.get(id) {
                 (
-                    Styled::new(
-                        format!("[{number_key}]"),
-                        ContentStyle::default().dark_grey().bold(),
-                    )
-                    .then_plain(" ")
-                    .then_plain(link),
+                    Styled::new(format!("[{number_key}]"), Style::new().dark_grey().bold())
+                        .then_plain(" ")
+                        .then_plain(link),
                     Styled::new(format!("[{number_key}]"), style_selected.bold())
                         .then(" ", style_selected)
                         .then(link, style_selected),

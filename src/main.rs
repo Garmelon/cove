@@ -31,7 +31,7 @@ use cookie::CookieJar;
 use directories::{BaseDirs, ProjectDirs};
 use log::info;
 use tokio::sync::mpsc;
-use toss::terminal::Terminal;
+use toss::Terminal;
 
 use crate::config::Config;
 use crate::logger::Logger;

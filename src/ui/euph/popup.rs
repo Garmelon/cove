@@ -1,5 +1,5 @@
-use crossterm::style::{ContentStyle, Stylize};
-use toss::styled::Styled;
+use crossterm::style::Stylize;
+use toss::{Style, Styled};
 
 use crate::ui::widgets::float::Float;
 use crate::ui::widgets::popup::Popup;
@@ -12,10 +12,10 @@ pub enum RoomPopup {
 
 impl RoomPopup {
     fn server_error_widget(description: &str, reason: &str) -> BoxedWidget {
-        let border_style = ContentStyle::default().red().bold();
+        let border_style = Style::new().red().bold();
         let text = Styled::new_plain(description)
             .then_plain("\n\n")
-            .then("Reason:", ContentStyle::default().bold())
+            .then("Reason:", Style::new().bold())
             .then_plain(" ")
             .then_plain(reason);
         Popup::new(Text::new(text))

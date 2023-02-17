@@ -1,9 +1,9 @@
 use std::mem;
 
-use crossterm::style::{ContentStyle, Stylize};
+use crossterm::style::Stylize;
 use euphoxide::api::{MessageId, Snowflake, Time};
 use time::OffsetDateTime;
-use toss::styled::Styled;
+use toss::{Style, Styled};
 
 use crate::store::Msg;
 use crate::ui::ChatMsg;
@@ -35,7 +35,7 @@ enum Span {
 
 struct Highlighter<'a> {
     content: &'a str,
-    base_style: ContentStyle,
+    base_style: Style,
     exact: bool,
 
     span: Span,
@@ -177,7 +177,7 @@ impl<'a> Highlighter<'a> {
         self.room_or_mention_possible = !char.is_alphanumeric();
     }
 
-    fn highlight(content: &'a str, base_style: ContentStyle, exact: bool) -> Styled {
+    fn highlight(content: &'a str, base_style: Style, exact: bool) -> Styled {
         let mut this = Self {
             content: if exact { content } else { content.trim() },
             base_style,
@@ -198,7 +198,7 @@ impl<'a> Highlighter<'a> {
     }
 }
 
-fn highlight_content(content: &str, base_style: ContentStyle, exact: bool) -> Styled {
+fn highlight_content(content: &str, base_style: Style, exact: bool) -> Styled {
     Highlighter::highlight(content, base_style, exact)
 }
 
@@ -216,13 +216,13 @@ fn as_me(content: &str) -> Option<&str> {
     content.strip_prefix("/me")
 }
 
-fn style_me() -> ContentStyle {
-    ContentStyle::default().grey().italic()
+fn style_me() -> Style {
+    Style::new().grey().italic()
 }
 
 fn styled_nick(nick: &str) -> Styled {
     Styled::new_plain("[")
-        .and_then(util::style_nick(nick, ContentStyle::default()))
+        .and_then(util::style_nick(nick, Style::new()))
         .then_plain("]")
 }
 
@@ -232,7 +232,7 @@ fn styled_nick_me(nick: &str) -> Styled {
 }
 
 fn styled_content(content: &str) -> Styled {
-    highlight_content(content.trim(), ContentStyle::default(), false)
+    highlight_content(content.trim(), Style::new(), false)
 }
 
 fn styled_content_me(content: &str) -> Styled {
@@ -244,7 +244,7 @@ fn styled_editor_content(content: &str) -> Styled {
     let style = if as_me(content).is_some() {
         style_me()
     } else {
-        ContentStyle::default()
+        Style::new()
     };
     highlight_content(content, style, true)
 }

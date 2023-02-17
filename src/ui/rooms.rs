@@ -2,14 +2,13 @@ use std::collections::{HashMap, HashSet};
 use std::iter;
 use std::sync::{Arc, Mutex};
 
-use crossterm::style::{ContentStyle, Stylize};
+use crossterm::style::Stylize;
 use euphoxide::api::SessionType;
 use euphoxide::bot::instance::{Event, ServerConfig};
 use euphoxide::conn::{self, Joined};
 use parking_lot::FairMutex;
 use tokio::sync::mpsc;
-use toss::styled::Styled;
-use toss::terminal::Terminal;
+use toss::{Style, Styled, Terminal};
 
 use crate::config::{Config, RoomsSortOrder};
 use crate::euph;
@@ -199,7 +198,7 @@ impl Rooms {
     }
 
     fn new_room_widget(editor: &EditorState) -> BoxedWidget {
-        let room_style = ContentStyle::default().bold().blue();
+        let room_style = Style::new().bold().blue();
         let editor = editor.widget().highlight(|s| Styled::new(s, room_style));
         Popup::new(HJoin::new(vec![
             Segment::new(Text::new(("&", room_style))),
@@ -210,8 +209,8 @@ impl Rooms {
     }
 
     fn delete_room_widget(name: &str, editor: &EditorState) -> BoxedWidget {
-        let warn_style = ContentStyle::default().bold().red();
-        let room_style = ContentStyle::default().bold().blue();
+        let warn_style = Style::new().bold().red();
+        let room_style = Style::new().bold().blue();
         let editor = editor.widget().highlight(|s| Styled::new(s, room_style));
         let text = Styled::new_plain("Are you sure you want to delete ")
             .then("&", room_style)
@@ -219,7 +218,7 @@ impl Rooms {
             .then_plain("?\n\n")
             .then_plain("This will delete the entire room history from your vault. ")
             .then_plain("To shrink your vault afterwards, run ")
-            .then("cove gc", ContentStyle::default().italic().grey())
+            .then("cove gc", Style::new().italic().grey())
             .then_plain(".\n\n")
             .then_plain("To confirm the deletion, ")
             .then_plain("enter the full name of the room and press enter:");
@@ -304,7 +303,7 @@ impl Rooms {
     }
 
     fn format_room_info(state: Option<&euph::State>, unseen: usize) -> Styled {
-        let unseen_style = ContentStyle::default().bold().green();
+        let unseen_style = Style::new().bold().green();
 
         let state = Self::format_room_state(state);
         let unseen = Self::format_unseen_msgs(unseen);
@@ -336,7 +335,7 @@ impl Rooms {
         if self.euph_rooms.is_empty() {
             list.add_unsel(Text::new((
                 "Press F1 for key bindings",
-                ContentStyle::default().grey().italic(),
+                Style::new().grey().italic(),
             )))
         }
 
@@ -348,8 +347,8 @@ impl Rooms {
         }
         self.sort_rooms(&mut rooms);
         for (name, state, unseen) in rooms {
-            let room_style = ContentStyle::default().bold().blue();
-            let room_sel_style = ContentStyle::default().bold().black().on_white();
+            let room_style = Style::new().bold().blue();
+            let room_sel_style = Style::new().bold().black().on_white();
 
             let mut normal = Styled::new(format!("&{name}"), room_style);
             let mut selected = Styled::new(format!("&{name}"), room_sel_style);
@@ -363,7 +362,7 @@ impl Rooms {
     }
 
     async fn rooms_widget(&self) -> BoxedWidget {
-        let heading_style = ContentStyle::default().bold();
+        let heading_style = Style::new().bold();
         let amount = self.euph_rooms.len();
         let heading =
             Text::new(Styled::new("Rooms", heading_style).then_plain(format!(" ({amount})")));

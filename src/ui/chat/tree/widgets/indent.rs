@@ -1,6 +1,5 @@
 use async_trait::async_trait;
-use crossterm::style::ContentStyle;
-use toss::frame::{Frame, Pos, Size};
+use toss::{Frame, Pos, Size, Style};
 
 use crate::ui::widgets::Widget;
 
@@ -9,11 +8,11 @@ pub const INDENT_WIDTH: usize = 2;
 
 pub struct Indent {
     level: usize,
-    style: ContentStyle,
+    style: Style,
 }
 
 impl Indent {
-    pub fn new(level: usize, style: ContentStyle) -> Self {
+    pub fn new(level: usize, style: Style) -> Self {
         Self { level, style }
     }
 }

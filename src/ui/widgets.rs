@@ -19,7 +19,7 @@ pub mod rules;
 pub mod text;
 
 use async_trait::async_trait;
-use toss::frame::{Frame, Size};
+use toss::{Frame, Size};
 
 // TODO Add Error type and return Result-s (at least in Widget::render)
 

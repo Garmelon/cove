@@ -12,8 +12,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use parking_lot::FairMutex;
 use tokio::sync::Mutex;
-use toss::frame::{Frame, Pos, Size};
-use toss::terminal::Terminal;
+use toss::{Frame, Pos, Size, Terminal};
 
 use crate::macros::logging_unwrap;
 use crate::store::{Msg, MsgStore};
