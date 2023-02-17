@@ -235,7 +235,7 @@ impl Room {
                     d.from_nick, d.from_room
                 );
             }
-            Data::SendEvent(SendEvent(msg)) => {
+            Data::SendEvent(SendEvent(msg)) | Data::SendReply(SendReply(msg)) => {
                 let own_user_id = self.own_user_id();
                 if let Some(last_msg_id) = &mut self.last_msg_id {
                     logging_unwrap!(
@@ -262,17 +262,6 @@ impl Room {
                         .add_msgs(d.log.clone(), d.before, self.own_user_id())
                         .await
                 );
-            }
-            Data::SendReply(SendReply(msg)) => {
-                let own_user_id = self.own_user_id();
-                if let Some(last_msg_id) = &mut self.last_msg_id {
-                    logging_unwrap!(
-                        self.vault
-                            .add_msg(Box::new(msg.clone()), *last_msg_id, own_user_id)
-                            .await
-                    );
-                    *last_msg_id = Some(msg.id);
-                }
             }
             _ => {}
         }
