@@ -85,6 +85,10 @@ impl Room {
         self.instance.stopped()
     }
 
+    pub fn instance(&self) -> &Instance {
+        &self.instance
+    }
+
     pub fn state(&self) -> &State {
         &self.state
     }
@@ -108,7 +112,7 @@ impl Room {
                     self.log_request_canary = Some(tx);
                     let vault_clone = self.vault.clone();
                     let conn_tx_clone = conn_tx.clone();
-                    debug!("{}: spawning log request task", self.instance.config().name);
+                    debug!("{}: spawning log request task", self.instance.config().room);
                     tokio::task::spawn(async move {
                         select! {
                             _ = rx => {},
@@ -204,34 +208,34 @@ impl Room {
     }
 
     async fn on_packet(&mut self, packet: ParsedPacket) {
-        let instance_name = &self.instance.config().name;
+        let room_name = &self.instance.config().room;
         let data = ok_or_return!(&packet.content);
         match data {
             Data::BounceEvent(_) => {}
             Data::DisconnectEvent(_) => {}
             Data::HelloEvent(_) => {}
             Data::JoinEvent(d) => {
-                debug!("{instance_name}: {:?} joined", d.0.name);
+                debug!("{room_name}: {:?} joined", d.0.name);
             }
             Data::LoginEvent(_) => {}
             Data::LogoutEvent(_) => {}
             Data::NetworkEvent(d) => {
-                warn!("{instance_name}: network event ({})", d.r#type);
+                warn!("{room_name}: network event ({})", d.r#type);
             }
             Data::NickEvent(d) => {
-                debug!("{instance_name}: {:?} renamed to {:?}", d.from, d.to);
+                debug!("{room_name}: {:?} renamed to {:?}", d.from, d.to);
             }
             Data::EditMessageEvent(_) => {
-                info!("{instance_name}: a message was edited");
+                info!("{room_name}: a message was edited");
             }
             Data::PartEvent(d) => {
-                debug!("{instance_name}: {:?} left", d.0.name);
+                debug!("{room_name}: {:?} left", d.0.name);
             }
             Data::PingEvent(_) => {}
             Data::PmInitiateEvent(d) => {
                 // TODO Show info popup and automatically join PM room
                 info!(
-                    "{instance_name}: {:?} initiated a pm from &{}",
+                    "{room_name}: {:?} initiated a pm from &{}",
                     d.from_nick, d.from_room
                 );
             }
@@ -247,7 +251,7 @@ impl Room {
                 }
             }
             Data::SnapshotEvent(d) => {
-                info!("{instance_name}: successfully joined");
+                info!("{room_name}: successfully joined");
                 logging_unwrap!(self.vault.join(Time::now()).await);
                 self.last_msg_id = Some(d.log.last().map(|m| m.id));
                 logging_unwrap!(

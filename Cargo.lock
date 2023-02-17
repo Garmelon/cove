@@ -320,7 +320,7 @@ dependencies = [
 [[package]]
 name = "euphoxide"
 version = "0.3.0"
-source = "git+https://github.com/Garmelon/euphoxide.git?tag=v0.3.0#c5be90cd60ff1fac78c2063c812d88dd36858481"
+source = "git+https://github.com/Garmelon/euphoxide.git?rev=069e4e02c77e5bc649cd770af8183d8be8cd52f5#069e4e02c77e5bc649cd770af8183d8be8cd52f5"
 dependencies = [
  "async-trait",
  "caseless",

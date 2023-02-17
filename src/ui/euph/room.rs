@@ -95,15 +95,16 @@ impl EuphRoom {
         self.vault().room()
     }
 
-    pub fn connect(&mut self) {
+    pub fn connect(&mut self, next_instance_id: &mut u32) {
         if self.room.is_none() {
             let instance_config = self
                 .server_config
                 .clone()
-                .room(self.vault().room().to_string())
+                .room(*next_instance_id, self.vault().room().to_string())
                 .username(self.config.username.clone())
                 .force_username(self.config.force_username)
                 .password(self.config.password.clone());
+            *next_instance_id = next_instance_id.wrapping_add(1);
 
             let tx = self.ui_event_tx.clone();
             self.room = Some(euph::Room::new(
@@ -674,22 +675,35 @@ impl EuphRoom {
     }
 
     pub async fn handle_event(&mut self, event: Event) -> bool {
-        let handled = if self.room.is_some() {
-            if let Event::Packet(_, packet, _) = &event {
-                match &packet.content {
-                    Ok(data) => self.handle_euph_data(data),
-                    Err(reason) => self.handle_euph_error(packet.r#type, reason),
-                }
-            } else {
-                true
-            }
-        } else {
-            false
+        let room = match &self.room {
+            None => return false,
+            Some(room) => room,
         };
 
-        if let Some(room) = &mut self.room {
-            room.handle_event(event).await;
+        if event.config().id != room.instance().config().id {
+            // If we allowed ids other than the current one, old instances that
+            // haven't yet shut down properly could mess up our state.
+            return false;
         }
+
+        // We handle the packet internally first because the room event handling
+        // will consume it while we only need a reference.
+        let handled = if let Event::Packet(_, packet, _) = &event {
+            match &packet.content {
+                Ok(data) => self.handle_euph_data(data),
+                Err(reason) => self.handle_euph_error(packet.r#type, reason),
+            }
+        } else {
+            // The room state changes, which always means a redraw.
+            true
+        };
+
+        self.room
+            .as_mut()
+            // See check at the beginning of the function.
+            .expect("no room even though we checked earlier")
+            .handle_event(event)
+            .await;
 
         handled
     }

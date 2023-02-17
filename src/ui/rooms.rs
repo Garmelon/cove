@@ -61,6 +61,7 @@ pub struct Rooms {
     order: Order,
 
     euph_server_config: ServerConfig,
+    euph_next_instance_id: u32,
     euph_rooms: HashMap<String, EuphRoom>,
 }
 
@@ -81,13 +82,14 @@ impl Rooms {
             list: ListState::new(),
             order: Order::from_rooms_sort_order(config.rooms_sort_order),
             euph_server_config,
+            euph_next_instance_id: 0,
             euph_rooms: HashMap::new(),
         };
 
         if !config.offline {
             for (name, config) in &config.euph.rooms {
                 if config.autojoin {
-                    result.get_or_insert_room(name.clone()).connect();
+                    result.connect_to_room(name.clone());
                 }
             }
         }
@@ -104,6 +106,36 @@ impl Rooms {
                 self.ui_event_tx.clone(),
             )
         })
+    }
+
+    fn connect_to_room(&mut self, name: String) {
+        let room = self.euph_rooms.entry(name.clone()).or_insert_with(|| {
+            EuphRoom::new(
+                self.euph_server_config.clone(),
+                self.config.euph_room(&name),
+                self.vault.euph().room(name),
+                self.ui_event_tx.clone(),
+            )
+        });
+        room.connect(&mut self.euph_next_instance_id);
+    }
+
+    fn connect_to_all_rooms(&mut self) {
+        for room in self.euph_rooms.values_mut() {
+            room.connect(&mut self.euph_next_instance_id);
+        }
+    }
+
+    fn disconnect_from_room(&mut self, name: &str) {
+        if let Some(room) = self.euph_rooms.get_mut(name) {
+            room.disconnect();
+        }
+    }
+
+    fn disconnect_from_all_rooms(&mut self) {
+        for room in self.euph_rooms.values_mut() {
+            room.disconnect();
+        }
     }
 
     /// Remove rooms that are not running any more and can't be found in the db.
@@ -370,36 +402,28 @@ impl Rooms {
             }
             key!('c') => {
                 if let Some(name) = self.list.cursor() {
-                    if let Some(room) = self.euph_rooms.get_mut(&name) {
-                        room.connect();
-                    }
+                    self.connect_to_room(name);
                 }
                 return true;
             }
             key!('C') => {
-                for room in self.euph_rooms.values_mut() {
-                    room.connect();
-                }
+                self.connect_to_all_rooms();
                 return true;
             }
             key!('d') => {
                 if let Some(name) = self.list.cursor() {
-                    if let Some(room) = self.euph_rooms.get_mut(&name) {
-                        room.disconnect();
-                    }
+                    self.disconnect_from_room(&name);
                 }
                 return true;
             }
             key!('D') => {
-                for room in self.euph_rooms.values_mut() {
-                    room.disconnect();
-                }
+                self.disconnect_from_all_rooms();
                 return true;
             }
             key!('a') => {
                 for (name, options) in &self.config.euph.rooms {
                     if options.autojoin {
-                        self.get_or_insert_room(name.clone()).connect();
+                        self.connect_to_room(name.clone());
                     }
                 }
                 return true;
@@ -511,7 +535,7 @@ impl Rooms {
                 key!(Enter) => {
                     let name = ed.text();
                     if !name.is_empty() {
-                        self.get_or_insert_room(name.clone()).connect();
+                        self.connect_to_room(name.clone());
                         self.state = State::ShowRoom(name);
                     }
                     return true;
@@ -545,12 +569,13 @@ impl Rooms {
     }
 
     pub async fn handle_euph_event(&mut self, event: Event) -> bool {
-        let instance_name = event.config().name.clone();
-        let room = self.get_or_insert_room(instance_name.clone());
+        let room_name = event.config().room.clone();
+        let Some(room) = self.euph_rooms.get_mut(&room_name) else { return false; };
+
         let handled = room.handle_event(event).await;
 
         let room_visible = match &self.state {
-            State::ShowRoom(name) => *name == instance_name,
+            State::ShowRoom(name) => *name == room_name,
             _ => true,
         };
         handled && room_visible
