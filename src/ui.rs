@@ -16,7 +16,8 @@ use parking_lot::FairMutex;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio::task;
-use toss::Terminal;
+use toss::widgets::BoxedAsync;
+use toss::{Terminal, WidgetExt};
 
 use crate::config::Config;
 use crate::logger::{LogMsg, Logger};
@@ -27,9 +28,8 @@ pub use self::chat::ChatMsg;
 use self::chat::ChatState;
 use self::input::{key, InputEvent, KeyBindingsList};
 use self::rooms::Rooms;
-use self::widgets::layer::Layer;
 use self::widgets::list::ListState;
-use self::widgets::BoxedWidget;
+use self::widgets::WidgetWrapper;
 
 /// Time to spend batch processing events before redrawing the screen.
 const EVENT_PROCESSING_TIME: Duration = Duration::from_millis(1000 / 15); // 15 fps
@@ -143,20 +143,27 @@ impl Ui {
         terminal: &mut Terminal,
         mut event_rx: UnboundedReceiver<UiEvent>,
         crossterm_lock: Arc<FairMutex<()>>,
-    ) -> io::Result<()> {
-        // Initial render so we don't show a blank screen until the first event
-        terminal.autoresize()?;
-        terminal.frame().reset();
-        self.widget().await.render(terminal.frame()).await;
-        terminal.present()?;
+    ) -> Result<(), UiError> {
+        let mut redraw = true;
 
         loop {
-            // 1. Handle events (in batches)
+            // Redraw if necessary
+            if redraw {
+                redraw = false;
+                terminal.present_async_widget(self.widget().await).await?;
+
+                if terminal.measuring_required() {
+                    let _guard = crossterm_lock.lock();
+                    terminal.measure_widths()?;
+                    ok_or_return!(self.event_tx.send(UiEvent::GraphemeWidthsChanged), Ok(()));
+                }
+            }
+
+            // Handle events (in batches)
             let mut event = match event_rx.recv().await {
                 Some(event) => event,
                 None => return Ok(()),
             };
-            let mut redraw = false;
             let end_time = Instant::now() + EVENT_PROCESSING_TIME;
             loop {
                 match self.handle_event(terminal, &crossterm_lock, event).await {
@@ -173,33 +180,23 @@ impl Ui {
                     Err(TryRecvError::Disconnected) => return Ok(()),
                 };
             }
-
-            if redraw {
-                // 2. Draw and present resulting state
-                terminal.autoresize()?;
-                self.widget().await.render(terminal.frame()).await;
-                terminal.present()?;
-
-                // 3. Measure grapheme widths
-                if terminal.measuring_required() {
-                    let _guard = crossterm_lock.lock();
-                    terminal.measure_widths()?;
-                    ok_or_return!(self.event_tx.send(UiEvent::GraphemeWidthsChanged), Ok(()));
-                }
-            }
         }
     }
 
-    async fn widget(&mut self) -> BoxedWidget {
+    async fn widget(&mut self) -> BoxedAsync<'_, UiError> {
         let widget = match self.mode {
-            Mode::Main => self.rooms.widget().await,
-            Mode::Log => self.log_chat.widget(String::new(), true).into(),
+            Mode::Main => WidgetWrapper::new(self.rooms.widget().await).boxed_async(),
+            Mode::Log => {
+                WidgetWrapper::new(self.log_chat.widget(String::new(), true)).boxed_async()
+            }
         };
 
         if let Some(key_bindings_list) = &self.key_bindings_list {
             let mut bindings = KeyBindingsList::new(key_bindings_list);
             self.list_key_bindings(&mut bindings).await;
-            Layer::new(vec![widget, bindings.widget()]).into()
+            WidgetWrapper::new(bindings.widget())
+                .above(widget)
+                .boxed_async()
         } else {
             widget
         }
