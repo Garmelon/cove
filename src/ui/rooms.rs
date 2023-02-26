@@ -61,7 +61,7 @@ pub struct Rooms {
     order: Order,
 
     euph_server_config: ServerConfig,
-    euph_next_instance_id: u32,
+    euph_next_instance_id: usize,
     euph_rooms: HashMap<String, EuphRoom>,
 }
 

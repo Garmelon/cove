@@ -95,12 +95,14 @@ impl EuphRoom {
         self.vault().room()
     }
 
-    pub fn connect(&mut self, next_instance_id: &mut u32) {
+    pub fn connect(&mut self, next_instance_id: &mut usize) {
         if self.room.is_none() {
+            let room = self.vault().room();
             let instance_config = self
                 .server_config
                 .clone()
-                .room(*next_instance_id, self.vault().room().to_string())
+                .room(self.vault().room().to_string())
+                .name(format!("{room}-{}", next_instance_id))
                 .username(self.config.username.clone())
                 .force_username(self.config.force_username)
                 .password(self.config.password.clone());
@@ -680,9 +682,9 @@ impl EuphRoom {
             Some(room) => room,
         };
 
-        if event.config().id != room.instance().config().id {
-            // If we allowed ids other than the current one, old instances that
-            // haven't yet shut down properly could mess up our state.
+        if event.config().name != room.instance().config().name {
+            // If we allowed names other than the current one, old instances
+            // that haven't yet shut down properly could mess up our state.
             return false;
         }
 
