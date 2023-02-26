@@ -4,6 +4,7 @@ mod input;
 mod rooms;
 mod util;
 mod widgets;
+mod widgets2;
 
 use std::convert::Infallible;
 use std::io;
