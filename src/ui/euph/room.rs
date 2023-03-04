@@ -103,6 +103,7 @@ impl EuphRoom {
                 .clone()
                 .room(self.vault().room().to_string())
                 .name(format!("{room}-{}", next_instance_id))
+                .human(true)
                 .username(self.config.username.clone())
                 .force_username(self.config.force_username)
                 .password(self.config.password.clone());
