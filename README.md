@@ -18,6 +18,15 @@ things in) won't automatically shrink. If it takes up too much space, try
 running `cove gc` and waiting for it to finish. This isn't done automatically
 because it can take quite a while.
 
+## Installation
+
+At this point, cove is not available via any package manager.
+
+Cove is available as a Nix Flake. To try it out, you can use
+```bash
+$ nix run --override-input nixpkgs nixpkgs github:Garmelon/cove/latest
+```
+
 ## Manual installation
 
 This section contains instructions on how to install cove by compiling it yourself.

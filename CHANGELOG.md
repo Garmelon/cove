@@ -18,6 +18,7 @@ Procedure when bumping the version number:
 - `--verbose` flag
 - `json-stream` room export format
 - Option to export to stdout
+- `flake.nix`, making cove available as a nix flake
 
 ### Changed
 - Respect colon-delimited emoji when calculating nick hue
