@@ -27,8 +27,9 @@ const NUMBER_KEYS: [char; 10] = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0
 impl LinksState {
     pub fn new(content: &str) -> Self {
         let links = LinkFinder::new()
+            .url_must_have_scheme(false)
+            .kinds(&[LinkKind::Url])
             .links(content)
-            .filter(|l| *l.kind() == LinkKind::Url)
             .map(|l| l.as_str().to_string())
             .collect();
 
@@ -76,11 +77,16 @@ impl LinksState {
 
     fn open_link_by_id(&self, id: usize) -> EventResult {
         if let Some(link) = self.links.get(id) {
-            if let Err(error) = open::that(link) {
-                return EventResult::ErrorOpeningLink {
-                    link: link.to_string(),
-                    error,
-                };
+            // The `http://` or `https://` schema is necessary for open::that to
+            // successfully open the link in the browser.
+            let link = if link.starts_with("http://") || link.starts_with("https://") {
+                link.clone()
+            } else {
+                format!("https://{link}")
+            };
+
+            if let Err(error) = open::that(&link) {
+                return EventResult::ErrorOpeningLink { link, error };
             }
         }
         EventResult::Handled
