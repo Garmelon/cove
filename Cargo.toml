@@ -35,7 +35,7 @@ features = ["rustls-tls-native-roots"]
 
 [dependencies.euphoxide]
 git = "https://github.com/Garmelon/euphoxide.git"
-tag = "v0.3.1"
+rev = "768a259f02f5743f7812904657a99f1f58b8e835"
 features = ["bot"]
 
 # [patch."https://github.com/Garmelon/euphoxide.git"]

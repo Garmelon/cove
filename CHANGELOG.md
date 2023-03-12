@@ -83,6 +83,9 @@ Procedure when bumping the version number:
 ### Changed
 - Some key bindings in the rooms list
 
+### Fixed
+- Rooms being stuck in "Connecting" state
+
 ## v0.3.0 - 2022-08-22
 
 ### Added
