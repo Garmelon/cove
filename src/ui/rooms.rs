@@ -317,10 +317,9 @@ impl Rooms {
 
     fn sort_rooms(&self, rooms: &mut [(&String, Option<&euph::State>, usize)]) {
         match self.order {
-            Order::Alphabet => rooms.sort_unstable_by_key(|(n, _, _)| *n),
-            Order::Importance => rooms.sort_unstable_by_key(|(n, s, u)| {
-                let no_instance = matches!(s, None | Some(euph::State::Disconnected));
-                (no_instance, *u == 0, *n)
+            Order::Alphabet => rooms.sort_unstable_by_key(|(name, _, _)| *name),
+            Order::Importance => rooms.sort_unstable_by_key(|(name, state, unseen)| {
+                (state.is_none(), *unseen == 0, *name)
             }),
         }
     }

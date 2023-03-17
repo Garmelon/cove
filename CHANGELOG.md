@@ -25,6 +25,7 @@ Procedure when bumping the version number:
 - Display colon-delimited emoji in nicks and messages
 - Non-export info is now printed to stderr instead of stdout
 - Recognizes links without scheme (e. g. `euphoria.io` instead of `https://euphoria.io`)
+- Rooms waiting for reconnect are no longer sorted to bottom in default sort order
 
 ### Fixed
 - Mentions not being stopped by `>`
