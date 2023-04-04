@@ -15,14 +15,13 @@ Procedure when bumping the version number:
 ## Unreleased
 
 ### Added
-- `--verbose` flag
-- `json-stream` room export format
-- Option to export to stdout
+- Emoji support
 - `flake.nix`, making cove available as a nix flake
+- `json-stream` room export format
+- Option to export to stdout via `--out -`
+- `--verbose` flag
 
 ### Changed
-- Respect colon-delimited emoji when calculating nick hue
-- Display colon-delimited emoji in nicks and messages
 - Non-export info is now printed to stderr instead of stdout
 - Recognizes links without scheme (e. g. `euphoria.io` instead of `https://euphoria.io`)
 - Rooms waiting for reconnect are no longer sorted to bottom in default sort order
