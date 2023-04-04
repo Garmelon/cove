@@ -14,6 +14,9 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Changed
+- Improved JSON export performance
+
 ## v0.6.0 - 2023-04-04
 
 ### Added

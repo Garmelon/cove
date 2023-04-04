@@ -8,14 +8,13 @@ pub async fn export<W: Write>(vault: &EuphRoomVault, file: &mut W) -> anyhow::Re
     write!(file, "[")?;
 
     let mut total = 0;
-    let mut offset = 0;
+    let mut last_msg_id = None;
     loop {
-        let messages = vault.chunk_at_offset(CHUNK_SIZE, offset).await?;
-        offset += messages.len();
-
-        if messages.is_empty() {
-            break;
-        }
+        let messages = vault.chunk_after(last_msg_id, CHUNK_SIZE).await?;
+        last_msg_id = Some(match messages.last() {
+            Some(last_msg) => last_msg.id,
+            None => break, // No more messages, export finished
+        });
 
         for message in messages {
             if total == 0 {
@@ -40,14 +39,13 @@ pub async fn export<W: Write>(vault: &EuphRoomVault, file: &mut W) -> anyhow::Re
 
 pub async fn export_stream<W: Write>(vault: &EuphRoomVault, file: &mut W) -> anyhow::Result<()> {
     let mut total = 0;
-    let mut offset = 0;
+    let mut last_msg_id = None;
     loop {
-        let messages = vault.chunk_at_offset(CHUNK_SIZE, offset).await?;
-        offset += messages.len();
-
-        if messages.is_empty() {
-            break;
-        }
+        let messages = vault.chunk_after(last_msg_id, CHUNK_SIZE).await?;
+        last_msg_id = Some(match messages.last() {
+            Some(last_msg) => last_msg.id,
+            None => break, // No more messages, export finished
+        });
 
         for message in messages {
             serde_json::to_writer(&mut *file, &message)?; // Fancy reborrow! :D
