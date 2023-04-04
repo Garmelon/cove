@@ -14,6 +14,8 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+## v0.6.0 - 2023-04-04
+
 ### Added
 - Emoji support
 - `flake.nix`, making cove available as a nix flake
