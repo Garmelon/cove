@@ -32,6 +32,13 @@ use self::widgets::BoxedWidget;
 /// Time to spend batch processing events before redrawing the screen.
 const EVENT_PROCESSING_TIME: Duration = Duration::from_millis(1000 / 15); // 15 fps
 
+/// Error for anything that can go wrong while rendering.
+#[derive(Debug, thiserror::Error)]
+pub enum UiError {
+    #[error("{0}")]
+    Io(#[from] io::Error),
+}
+
 pub enum UiEvent {
     GraphemeWidthsChanged,
     LogChanged,
@@ -50,8 +57,6 @@ enum Mode {
     Main,
     Log,
 }
-
-// TODO Add Error for anything that can go wrong while rendering
 
 pub struct Ui {
     event_tx: UnboundedSender<UiEvent>,
