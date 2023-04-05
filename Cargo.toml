@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.70"
+async-recursion = "1.0.4"
 async-trait = "0.1.68"
 clap = { version = "4.2.1", features = ["derive", "deprecated"] }
 cookie = "0.17.0"

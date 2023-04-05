@@ -36,9 +36,13 @@ impl Text {
 
 #[async_trait]
 impl Widget for Text {
-    fn size(&self, frame: &mut Frame, max_width: Option<u16>, _max_height: Option<u16>) -> Size {
-        let lines = self.wrapped(frame.widthdb(), max_width);
-        let widthdb = frame.widthdb();
+    async fn size(
+        &self,
+        widthdb: &mut WidthDb,
+        max_width: Option<u16>,
+        _max_height: Option<u16>,
+    ) -> Size {
+        let lines = self.wrapped(widthdb, max_width);
         let min_width = lines
             .iter()
             .map(|l| widthdb.width(l.text().trim_end()))

@@ -20,11 +20,12 @@ pub struct Block<I> {
 }
 
 impl<I> Block<I> {
-    pub fn new<W: Into<BoxedWidget>>(frame: &mut Frame, id: I, widget: W) -> Self {
+    pub async fn new<W: Into<BoxedWidget>>(frame: &mut Frame, id: I, widget: W) -> Self {
         // Interestingly, rust-analyzer fails to deduce the type of `widget`
         // here but rustc knows it's a `BoxedWidget`.
         let widget = widget.into();
-        let size = widget.size(frame, Some(frame.size().width), None);
+        let max_width = frame.size().width;
+        let size = widget.size(frame.widthdb(), Some(max_width), None).await;
         let height = size.height.into();
         Self {
             id,

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use toss::{Frame, Pos, Size};
+use toss::{Frame, Pos, Size, WidthDb};
 
 use super::{BoxedWidget, Widget};
 
@@ -31,14 +31,22 @@ impl Float {
 
 #[async_trait]
 impl Widget for Float {
-    fn size(&self, frame: &mut Frame, max_width: Option<u16>, max_height: Option<u16>) -> Size {
-        self.inner.size(frame, max_width, max_height)
+    async fn size(
+        &self,
+        widthdb: &mut WidthDb,
+        max_width: Option<u16>,
+        max_height: Option<u16>,
+    ) -> Size {
+        self.inner.size(widthdb, max_width, max_height).await
     }
 
     async fn render(self: Box<Self>, frame: &mut Frame) {
         let size = frame.size();
 
-        let mut inner_size = self.inner.size(frame, Some(size.width), Some(size.height));
+        let mut inner_size = self
+            .inner
+            .size(frame.widthdb(), Some(size.width), Some(size.height))
+            .await;
         inner_size.width = inner_size.width.min(size.width);
         inner_size.height = inner_size.height.min(size.height);
 

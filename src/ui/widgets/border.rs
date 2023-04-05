@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use toss::{Frame, Pos, Size, Style};
+use toss::{Frame, Pos, Size, Style, WidthDb};
 
 use super::{BoxedWidget, Widget};
 
@@ -24,10 +24,15 @@ impl Border {
 
 #[async_trait]
 impl Widget for Border {
-    fn size(&self, frame: &mut Frame, max_width: Option<u16>, max_height: Option<u16>) -> Size {
+    async fn size(
+        &self,
+        widthdb: &mut WidthDb,
+        max_width: Option<u16>,
+        max_height: Option<u16>,
+    ) -> Size {
         let max_width = max_width.map(|w| w.saturating_sub(2));
         let max_height = max_height.map(|h| h.saturating_sub(2));
-        let size = self.inner.size(frame, max_width, max_height);
+        let size = self.inner.size(widthdb, max_width, max_height).await;
         size + Size::new(2, 2)
     }
 

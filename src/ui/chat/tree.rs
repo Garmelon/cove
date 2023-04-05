@@ -12,7 +12,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use parking_lot::FairMutex;
 use tokio::sync::Mutex;
-use toss::{Frame, Pos, Size, Terminal};
+use toss::{Frame, Pos, Size, Terminal, WidthDb};
 
 use crate::macros::logging_unwrap;
 use crate::store::{Msg, MsgStore};
@@ -427,12 +427,17 @@ pub struct TreeView<M: Msg, S: MsgStore<M>> {
 #[async_trait]
 impl<M, S> Widget for TreeView<M, S>
 where
-    M: Msg + ChatMsg,
+    M: Msg + ChatMsg + Send + Sync,
     M::Id: Send + Sync,
     S: MsgStore<M> + Send + Sync,
     S::Error: fmt::Display,
 {
-    fn size(&self, _frame: &mut Frame, _max_width: Option<u16>, _max_height: Option<u16>) -> Size {
+    async fn size(
+        &self,
+        _widthdb: &mut WidthDb,
+        _max_width: Option<u16>,
+        _max_height: Option<u16>,
+    ) -> Size {
         Size::ZERO
     }
 

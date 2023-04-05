@@ -11,7 +11,7 @@ use std::{fmt, io};
 use async_trait::async_trait;
 use parking_lot::FairMutex;
 use time::OffsetDateTime;
-use toss::{Frame, Size, Styled, Terminal};
+use toss::{Frame, Size, Styled, Terminal, WidthDb};
 
 use crate::store::{Msg, MsgStore};
 
@@ -139,14 +139,19 @@ pub enum Chat<M: Msg, S: MsgStore<M>> {
 #[async_trait]
 impl<M, S> Widget for Chat<M, S>
 where
-    M: Msg + ChatMsg,
+    M: Msg + ChatMsg + Send + Sync,
     M::Id: Send + Sync,
     S: MsgStore<M> + Send + Sync,
     S::Error: fmt::Display,
 {
-    fn size(&self, frame: &mut Frame, max_width: Option<u16>, max_height: Option<u16>) -> Size {
+    async fn size(
+        &self,
+        widthdb: &mut WidthDb,
+        max_width: Option<u16>,
+        max_height: Option<u16>,
+    ) -> Size {
         match self {
-            Self::Tree(tree) => tree.size(frame, max_width, max_height),
+            Self::Tree(tree) => tree.size(widthdb, max_width, max_height).await,
         }
     }
 

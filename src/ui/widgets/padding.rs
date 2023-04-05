@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use toss::{Frame, Pos, Size};
+use toss::{Frame, Pos, Size, WidthDb};
 
 use super::{BoxedWidget, Widget};
 
@@ -66,14 +66,19 @@ impl Padding {
 
 #[async_trait]
 impl Widget for Padding {
-    fn size(&self, frame: &mut Frame, max_width: Option<u16>, max_height: Option<u16>) -> Size {
+    async fn size(
+        &self,
+        widthdb: &mut WidthDb,
+        max_width: Option<u16>,
+        max_height: Option<u16>,
+    ) -> Size {
         let horizontal = self.left + self.right;
         let vertical = self.top + self.bottom;
 
         let max_width = max_width.map(|w| w.saturating_sub(horizontal));
         let max_height = max_height.map(|h| h.saturating_sub(vertical));
 
-        let size = self.inner.size(frame, max_width, max_height);
+        let size = self.inner.size(widthdb, max_width, max_height).await;
 
         size + Size::new(horizontal, vertical)
     }

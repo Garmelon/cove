@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use toss::{Frame, Size};
+use toss::{Frame, Size, WidthDb};
 
 use super::Widget;
 
@@ -31,7 +31,12 @@ impl Empty {
 
 #[async_trait]
 impl Widget for Empty {
-    fn size(&self, _frame: &mut Frame, _max_width: Option<u16>, _max_height: Option<u16>) -> Size {
+    async fn size(
+        &self,
+        _widthdb: &mut WidthDb,
+        _max_width: Option<u16>,
+        _max_height: Option<u16>,
+    ) -> Size {
         self.size
     }
 

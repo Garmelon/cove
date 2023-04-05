@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use toss::{Frame, Size};
+use toss::{Frame, Size, WidthDb};
 
 use super::{BoxedWidget, Widget};
 
@@ -45,7 +45,12 @@ impl Resize {
 
 #[async_trait]
 impl Widget for Resize {
-    fn size(&self, frame: &mut Frame, max_width: Option<u16>, max_height: Option<u16>) -> Size {
+    async fn size(
+        &self,
+        widthdb: &mut WidthDb,
+        max_width: Option<u16>,
+        max_height: Option<u16>,
+    ) -> Size {
         let max_width = match (max_width, self.max_width) {
             (None, None) => None,
             (Some(w), None) => Some(w),
@@ -60,7 +65,7 @@ impl Widget for Resize {
             (Some(h), Some(sh)) => Some(h.min(sh)),
         };
 
-        let size = self.inner.size(frame, max_width, max_height);
+        let size = self.inner.size(widthdb, max_width, max_height).await;
 
         let width = match self.min_width {
             Some(min_width) => size.width.max(min_width),

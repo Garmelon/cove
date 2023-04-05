@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use toss::{Frame, Pos, Size};
+use toss::{Frame, Pos, Size, WidthDb};
 
 use super::{BoxedWidget, Widget};
 
@@ -54,9 +54,9 @@ impl SizedSegment {
     }
 }
 
-fn sizes_horiz(
+async fn sizes_horiz(
     segments: &[Segment],
-    frame: &mut Frame,
+    widthdb: &mut WidthDb,
     max_width: Option<u16>,
     max_height: Option<u16>,
 ) -> Vec<SizedSegment> {
@@ -74,7 +74,8 @@ fn sizes_horiz(
             .map(|w| w.saturating_sub(total_width));
         s.size = segments[s.idx]
             .widget
-            .size(frame, available_width, max_height);
+            .size(widthdb, available_width, max_height)
+            .await;
         if let Some(available_width) = available_width {
             s.size.width = s.size.width.min(available_width);
         }
@@ -84,9 +85,9 @@ fn sizes_horiz(
     sized
 }
 
-fn sizes_vert(
+async fn sizes_vert(
     segments: &[Segment],
-    frame: &mut Frame,
+    widthdb: &mut WidthDb,
     max_width: Option<u16>,
     max_height: Option<u16>,
 ) -> Vec<SizedSegment> {
@@ -104,7 +105,8 @@ fn sizes_vert(
             .map(|w| w.saturating_sub(total_height));
         s.size = segments[s.idx]
             .widget
-            .size(frame, max_width, available_height);
+            .size(widthdb, max_width, available_height)
+            .await;
         if let Some(available_height) = available_height {
             s.size.height = s.size.height.min(available_height);
         }
@@ -177,8 +179,13 @@ impl HJoin {
 
 #[async_trait]
 impl Widget for HJoin {
-    fn size(&self, frame: &mut Frame, max_width: Option<u16>, max_height: Option<u16>) -> Size {
-        let sizes = sizes_horiz(&self.segments, frame, max_width, max_height);
+    async fn size(
+        &self,
+        widthdb: &mut WidthDb,
+        max_width: Option<u16>,
+        max_height: Option<u16>,
+    ) -> Size {
+        let sizes = sizes_horiz(&self.segments, widthdb, max_width, max_height).await;
         let width = sizes.iter().map(|s| s.size.width).sum::<u16>();
         let height = sizes.iter().map(|s| s.size.height).max().unwrap_or(0);
         Size::new(width, height)
@@ -187,7 +194,13 @@ impl Widget for HJoin {
     async fn render(self: Box<Self>, frame: &mut Frame) {
         let size = frame.size();
 
-        let mut sizes = sizes_horiz(&self.segments, frame, Some(size.width), Some(size.height));
+        let mut sizes = sizes_horiz(
+            &self.segments,
+            frame.widthdb(),
+            Some(size.width),
+            Some(size.height),
+        )
+        .await;
         expand_horiz(&mut sizes, size.width);
 
         sizes.sort_by_key(|s| s.idx);
@@ -215,8 +228,13 @@ impl VJoin {
 
 #[async_trait]
 impl Widget for VJoin {
-    fn size(&self, frame: &mut Frame, max_width: Option<u16>, max_height: Option<u16>) -> Size {
-        let sizes = sizes_vert(&self.segments, frame, max_width, max_height);
+    async fn size(
+        &self,
+        widthdb: &mut WidthDb,
+        max_width: Option<u16>,
+        max_height: Option<u16>,
+    ) -> Size {
+        let sizes = sizes_vert(&self.segments, widthdb, max_width, max_height).await;
         let width = sizes.iter().map(|s| s.size.width).max().unwrap_or(0);
         let height = sizes.iter().map(|s| s.size.height).sum::<u16>();
         Size::new(width, height)
@@ -225,7 +243,13 @@ impl Widget for VJoin {
     async fn render(self: Box<Self>, frame: &mut Frame) {
         let size = frame.size();
 
-        let mut sizes = sizes_vert(&self.segments, frame, Some(size.width), Some(size.height));
+        let mut sizes = sizes_vert(
+            &self.segments,
+            frame.widthdb(),
+            Some(size.width),
+            Some(size.height),
+        )
+        .await;
         expand_vert(&mut sizes, size.height);
 
         sizes.sort_by_key(|s| s.idx);

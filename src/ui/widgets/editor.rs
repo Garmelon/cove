@@ -493,9 +493,14 @@ impl Editor {
 
 #[async_trait]
 impl Widget for Editor {
-    fn size(&self, frame: &mut Frame, max_width: Option<u16>, max_height: Option<u16>) -> Size {
+    async fn size(
+        &self,
+        widthdb: &mut WidthDb,
+        max_width: Option<u16>,
+        max_height: Option<u16>,
+    ) -> Size {
         if let Some(placeholder) = &self.hidden {
-            let mut size = placeholder.size(frame, max_width, max_height);
+            let mut size = placeholder.size(widthdb, max_width, max_height).await;
 
             // Cursor needs to fit regardless of focus
             size.width = size.width.max(1);
@@ -503,8 +508,6 @@ impl Widget for Editor {
 
             return size;
         }
-
-        let widthdb = frame.widthdb();
 
         let max_width = max_width.map(|w| w as usize).unwrap_or(usize::MAX).max(1);
         let max_text_width = max_width - 1;

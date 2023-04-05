@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use parking_lot::Mutex;
-use toss::{Frame, Pos, Size};
+use toss::{Frame, Pos, Size, WidthDb};
 
 use super::{BoxedWidget, Widget};
 
@@ -266,14 +266,19 @@ impl<Id> Row<Id> {
         }
     }
 
-    fn size(&self, frame: &mut Frame, max_width: Option<u16>, max_height: Option<u16>) -> Size {
+    async fn size(
+        &self,
+        widthdb: &mut WidthDb,
+        max_width: Option<u16>,
+        max_height: Option<u16>,
+    ) -> Size {
         match self {
-            Self::Unselectable { normal } => normal.size(frame, max_width, max_height),
+            Self::Unselectable { normal } => normal.size(widthdb, max_width, max_height).await,
             Self::Selectable {
                 normal, selected, ..
             } => {
-                let normal_size = normal.size(frame, max_width, max_height);
-                let selected_size = selected.size(frame, max_width, max_height);
+                let normal_size = normal.size(widthdb, max_width, max_height).await;
+                let selected_size = selected.size(widthdb, max_width, max_height).await;
                 Size::new(
                     normal_size.width.max(selected_size.width),
                     normal_size.height.max(selected_size.height),
@@ -327,14 +332,18 @@ impl<Id> List<Id> {
 }
 
 #[async_trait]
-impl<Id: Clone + Eq + Send> Widget for List<Id> {
-    fn size(&self, frame: &mut Frame, max_width: Option<u16>, _max_height: Option<u16>) -> Size {
-        let width = self
-            .rows
-            .iter()
-            .map(|r| r.size(frame, max_width, Some(1)).width)
-            .max()
-            .unwrap_or(0);
+impl<Id: Clone + Eq + Send + Sync> Widget for List<Id> {
+    async fn size(
+        &self,
+        widthdb: &mut WidthDb,
+        max_width: Option<u16>,
+        _max_height: Option<u16>,
+    ) -> Size {
+        let mut width = 0;
+        for row in &self.rows {
+            let size = row.size(widthdb, max_width, Some(1)).await;
+            width = width.max(size.width);
+        }
         let height = self.rows.len();
         Size::new(width, height as u16)
     }

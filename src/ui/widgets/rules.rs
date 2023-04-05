@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use toss::{Frame, Pos, Size};
+use toss::{Frame, Pos, Size, WidthDb};
 
 use super::Widget;
 
@@ -7,7 +7,12 @@ pub struct HRule;
 
 #[async_trait]
 impl Widget for HRule {
-    fn size(&self, _frame: &mut Frame, _max_width: Option<u16>, _max_height: Option<u16>) -> Size {
+    async fn size(
+        &self,
+        _widthdb: &mut WidthDb,
+        _max_width: Option<u16>,
+        _max_height: Option<u16>,
+    ) -> Size {
         Size::new(0, 1)
     }
 
@@ -23,7 +28,12 @@ pub struct VRule;
 
 #[async_trait]
 impl Widget for VRule {
-    fn size(&self, _frame: &mut Frame, _max_width: Option<u16>, _max_height: Option<u16>) -> Size {
+    async fn size(
+        &self,
+        _widthdb: &mut WidthDb,
+        _max_width: Option<u16>,
+        _max_height: Option<u16>,
+    ) -> Size {
         Size::new(1, 0)
     }
 

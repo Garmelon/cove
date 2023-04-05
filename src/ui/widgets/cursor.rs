@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use toss::{Frame, Pos, Size};
+use toss::{Frame, Pos, Size, WidthDb};
 
 use super::{BoxedWidget, Widget};
 
@@ -28,8 +28,13 @@ impl Cursor {
 
 #[async_trait]
 impl Widget for Cursor {
-    fn size(&self, frame: &mut Frame, max_width: Option<u16>, max_height: Option<u16>) -> Size {
-        self.inner.size(frame, max_width, max_height)
+    async fn size(
+        &self,
+        widthdb: &mut WidthDb,
+        max_width: Option<u16>,
+        max_height: Option<u16>,
+    ) -> Size {
+        self.inner.size(widthdb, max_width, max_height).await
     }
 
     async fn render(self: Box<Self>, frame: &mut Frame) {

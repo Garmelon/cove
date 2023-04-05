@@ -19,20 +19,25 @@ pub mod rules;
 pub mod text;
 
 use async_trait::async_trait;
-use toss::{Frame, Size};
+use toss::{Frame, Size, WidthDb};
 
 // TODO Add Error type and return Result-s (at least in Widget::render)
 
 #[async_trait]
 pub trait Widget {
-    fn size(&self, frame: &mut Frame, max_width: Option<u16>, max_height: Option<u16>) -> Size;
+    async fn size(
+        &self,
+        widthdb: &mut WidthDb,
+        max_width: Option<u16>,
+        max_height: Option<u16>,
+    ) -> Size;
 
     async fn render(self: Box<Self>, frame: &mut Frame);
 }
 
-pub type BoxedWidget = Box<dyn Widget + Send>;
+pub type BoxedWidget = Box<dyn Widget + Send + Sync>;
 
-impl<W: 'static + Widget + Send> From<W> for BoxedWidget {
+impl<W: 'static + Widget + Send + Sync> From<W> for BoxedWidget {
     fn from(widget: W) -> Self {
         Box::new(widget)
     }

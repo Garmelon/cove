@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use toss::{Frame, Pos, Size, Style};
+use toss::{Frame, Pos, Size, Style, WidthDb};
 
 use crate::ui::widgets::Widget;
 
@@ -19,7 +19,12 @@ impl Indent {
 
 #[async_trait]
 impl Widget for Indent {
-    fn size(&self, _frame: &mut Frame, _max_width: Option<u16>, _max_height: Option<u16>) -> Size {
+    async fn size(
+        &self,
+        _widthdb: &mut WidthDb,
+        _max_width: Option<u16>,
+        _max_height: Option<u16>,
+    ) -> Size {
         Size::new((INDENT_WIDTH * self.level) as u16, 0)
     }
 

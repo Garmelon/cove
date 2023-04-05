@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use toss::{Frame, Pos, Size, Style};
+use toss::{Frame, Pos, Size, Style, WidthDb};
 
 use super::{BoxedWidget, Widget};
 
@@ -24,8 +24,13 @@ impl Background {
 
 #[async_trait]
 impl Widget for Background {
-    fn size(&self, frame: &mut Frame, max_width: Option<u16>, max_height: Option<u16>) -> Size {
-        self.inner.size(frame, max_width, max_height)
+    async fn size(
+        &self,
+        widthdb: &mut WidthDb,
+        max_width: Option<u16>,
+        max_height: Option<u16>,
+    ) -> Size {
+        self.inner.size(widthdb, max_width, max_height).await
     }
 
     async fn render(self: Box<Self>, frame: &mut Frame) {
