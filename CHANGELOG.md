@@ -17,6 +17,9 @@ Procedure when bumping the version number:
 ### Changed
 - Improved JSON export performance
 
+### Fixed
+- Rooms reconnecting instead of showing error popups
+
 ## v0.6.0 - 2023-04-04
 
 ### Added

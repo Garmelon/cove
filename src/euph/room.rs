@@ -316,7 +316,7 @@ impl Room {
     }
 
     pub fn logout(&self) -> Result<(), Error> {
-        self.conn_tx()?.send_only(Logout);
+        self.conn_tx()?.send_only(Logout {});
         Ok(())
     }
 }
