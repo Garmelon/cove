@@ -14,6 +14,8 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+## v0.6.1 - 2023-04-10
+
 ### Changed
 - Improved JSON export performance
 - Always show rooms from config file in room list
