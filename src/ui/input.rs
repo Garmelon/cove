@@ -2,19 +2,11 @@ use std::convert::Infallible;
 
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 use crossterm::style::Stylize;
-use toss::{Style, Styled};
+use toss::widgets::{BoxedAsync, Empty, Join2, Text};
+use toss::{Style, Styled, WidgetExt};
 
-use super::widgets::background::Background;
-use super::widgets::border::Border;
-use super::widgets::empty::Empty;
-use super::widgets::float::Float;
-use super::widgets::join::{HJoin, Segment};
-use super::widgets::layer::Layer;
-use super::widgets::list::{List, ListState};
-use super::widgets::padding::Padding;
-use super::widgets::resize::Resize;
-use super::widgets::text::Text;
-use super::widgets::BoxedWidget;
+use super::widgets2::ListState;
+use super::UiError;
 
 #[derive(Debug, Clone)]
 pub enum InputEvent {
@@ -83,66 +75,96 @@ macro_rules! key {
 }
 pub(crate) use key;
 
-/// Helper wrapper around a list widget for a more consistent key binding style.
-pub struct KeyBindingsList(List<Infallible>);
+enum Row {
+    Empty,
+    Heading(String),
+    Binding(String, String),
+    BindingContd(String),
+}
+
+pub struct KeyBindingsList(Vec<Row>);
 
 impl KeyBindingsList {
     /// Width of the left column of key bindings.
     const BINDING_WIDTH: u16 = 20;
 
-    pub fn new(state: &ListState<Infallible>) -> Self {
-        Self(state.widget())
+    pub fn new() -> Self {
+        Self(vec![])
     }
 
     fn binding_style() -> Style {
         Style::new().cyan()
     }
 
-    pub fn widget(self) -> BoxedWidget {
-        let binding_style = Self::binding_style();
-        Float::new(Layer::new(vec![
-            Border::new(Background::new(Padding::new(self.0).horizontal(1))).into(),
-            Float::new(
-                Padding::new(Text::new(
-                    Styled::new("jk/↓↑", binding_style)
-                        .then_plain(" to scroll, ")
-                        .then("esc", binding_style)
-                        .then_plain(" to close"),
-                ))
-                .horizontal(1),
+    fn row_widget(row: Row) -> BoxedAsync<'static, UiError> {
+        match row {
+            Row::Empty => Empty::new().boxed_async(),
+
+            Row::Heading(name) => Text::new((name, Style::new().bold())).boxed_async(),
+
+            Row::Binding(binding, description) => Join2::horizontal(
+                Text::new((binding, Self::binding_style()))
+                    .padding()
+                    .with_right(1)
+                    .resize()
+                    .with_min_width(Self::BINDING_WIDTH)
+                    .segment(),
+                Text::new(description).segment(),
             )
-            .horizontal(0.5)
-            .into(),
-        ]))
-        .horizontal(0.5)
-        .vertical(0.5)
-        .into()
+            .boxed_async(),
+
+            Row::BindingContd(description) => Join2::horizontal(
+                Empty::new().with_width(Self::BINDING_WIDTH).segment(),
+                Text::new(description).segment(),
+            )
+            .boxed_async(),
+        }
+    }
+
+    pub fn widget(self, list_state: &mut ListState<Infallible>) -> BoxedAsync<'_, UiError> {
+        let binding_style = Self::binding_style();
+
+        let hint_text = Styled::new("jk/↓↑", binding_style)
+            .then_plain(" to scroll, ")
+            .then("esc", binding_style)
+            .then_plain(" to close");
+
+        let hint = Text::new(hint_text)
+            .padding()
+            .with_horizontal(1)
+            .float()
+            .with_horizontal(0.5)
+            .with_vertical(0.0);
+
+        let mut list = list_state.widget();
+        for row in self.0 {
+            list.add_unsel(Self::row_widget(row));
+        }
+
+        list.padding()
+            .with_horizontal(1)
+            .border()
+            .below(hint)
+            .background()
+            .float()
+            .with_center()
+            .boxed_async()
     }
 
     pub fn empty(&mut self) {
-        self.0.add_unsel(Empty::new());
+        self.0.push(Row::Empty);
     }
 
     pub fn heading(&mut self, name: &str) {
-        self.0.add_unsel(Text::new((name, Style::new().bold())));
+        self.0.push(Row::Heading(name.to_string()));
     }
 
     pub fn binding(&mut self, binding: &str, description: &str) {
-        let widget = HJoin::new(vec![
-            Segment::new(
-                Resize::new(Padding::new(Text::new((binding, Self::binding_style()))).right(1))
-                    .min_width(Self::BINDING_WIDTH),
-            ),
-            Segment::new(Text::new(description)),
-        ]);
-        self.0.add_unsel(widget);
+        self.0
+            .push(Row::Binding(binding.to_string(), description.to_string()));
     }
 
     pub fn binding_ctd(&mut self, description: &str) {
-        let widget = HJoin::new(vec![
-            Segment::new(Resize::new(Empty::new()).min_width(Self::BINDING_WIDTH)),
-            Segment::new(Text::new(description)),
-        ]);
-        self.0.add_unsel(widget);
+        self.0.push(Row::BindingContd(description.to_string()));
     }
 }

@@ -28,8 +28,8 @@ pub use self::chat::ChatMsg;
 use self::chat::ChatState;
 use self::input::{key, InputEvent, KeyBindingsList};
 use self::rooms::Rooms;
-use self::widgets::list::ListState;
 use self::widgets::WidgetWrapper;
+use self::widgets2::ListState;
 
 /// Time to spend batch processing events before redrawing the screen.
 const EVENT_PROCESSING_TIME: Duration = Duration::from_millis(1000 / 15); // 15 fps
@@ -184,6 +184,14 @@ impl Ui {
     }
 
     async fn widget(&mut self) -> BoxedAsync<'_, UiError> {
+        let key_bindings_list = if self.key_bindings_list.is_some() {
+            let mut bindings = KeyBindingsList::new();
+            self.list_key_bindings(&mut bindings).await;
+            Some(bindings)
+        } else {
+            None
+        };
+
         let widget = match self.mode {
             Mode::Main => WidgetWrapper::new(self.rooms.widget().await).boxed_async(),
             Mode::Log => {
@@ -191,10 +199,12 @@ impl Ui {
             }
         };
 
-        if let Some(key_bindings_list) = &self.key_bindings_list {
-            let mut bindings = KeyBindingsList::new(key_bindings_list);
-            self.list_key_bindings(&mut bindings).await;
-            WidgetWrapper::new(bindings.widget())
+        if let Some(key_bindings_list) = key_bindings_list {
+            // We checked whether this was Some earlier.
+            let list_state = self.key_bindings_list.as_mut().unwrap();
+
+            key_bindings_list
+                .widget(list_state)
                 .above(widget)
                 .boxed_async()
         } else {
