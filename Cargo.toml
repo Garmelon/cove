@@ -55,3 +55,6 @@ features = ["tokio"]
 
 # [patch."https://github.com/Garmelon/vault.git"]
 # vault = { path = "../vault/" }
+
+[profile.dev.package."*"]
+opt-level = 3
