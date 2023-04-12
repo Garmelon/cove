@@ -8,22 +8,18 @@ use euphoxide::conn::{self, Joined, Joining, SessionInfo};
 use parking_lot::FairMutex;
 use tokio::sync::oneshot::error::TryRecvError;
 use tokio::sync::{mpsc, oneshot};
-use toss::{Style, Styled, Terminal};
+use toss::widgets::{BoxedAsync, Join2, Layer, Text};
+use toss::{AsyncWidget, Style, Styled, Terminal, WidgetExt};
 
 use crate::config;
 use crate::euph;
 use crate::macros::logging_unwrap;
 use crate::ui::chat::{ChatState, Reaction};
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
-use crate::ui::widgets::border::Border;
-use crate::ui::widgets::editor::EditorState;
-use crate::ui::widgets::join::{HJoin, Segment, VJoin};
-use crate::ui::widgets::layer::Layer;
-use crate::ui::widgets::list::ListState;
-use crate::ui::widgets::padding::Padding;
-use crate::ui::widgets::text::Text;
-use crate::ui::widgets::BoxedWidget;
-use crate::ui::{util, UiEvent};
+use crate::ui::widgets::editor::EditorState as OldEditorState;
+use crate::ui::widgets::list::ListState as OldListState;
+use crate::ui::widgets::WidgetWrapper;
+use crate::ui::{util, UiError, UiEvent};
 use crate::vault::EuphRoomVault;
 
 use super::account::{self, AccountUiState};
@@ -31,7 +27,7 @@ use super::links::{self, LinksState};
 use super::popup::RoomPopup;
 use super::{auth, inspect, nick, nick_list};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Focus {
     Chat,
     NickList,
@@ -40,13 +36,15 @@ enum Focus {
 #[allow(clippy::large_enum_variant)]
 enum State {
     Normal,
-    Auth(EditorState),
-    Nick(EditorState),
+    Auth(OldEditorState),
+    Nick(OldEditorState),
     Account(AccountUiState),
     Links(LinksState),
     InspectMessage(Message),
     InspectSession(SessionInfo),
 }
+
+type EuphChatState = ChatState<euph::SmallMessage, EuphRoomVault>;
 
 pub struct EuphRoom {
     server_config: ServerConfig,
@@ -59,10 +57,10 @@ pub struct EuphRoom {
     state: State,
     popups: VecDeque<RoomPopup>,
 
-    chat: ChatState<euph::SmallMessage, EuphRoomVault>,
+    chat: EuphChatState,
     last_msg_sent: Option<oneshot::Receiver<MessageId>>,
 
-    nick_list: ListState<SessionId>,
+    nick_list: OldListState<SessionId>,
 }
 
 impl EuphRoom {
@@ -82,7 +80,7 @@ impl EuphRoom {
             popups: VecDeque::new(),
             chat: ChatState::new(vault),
             last_msg_sent: None,
-            nick_list: ListState::new(),
+            nick_list: OldListState::new(),
         }
     }
 
@@ -205,77 +203,97 @@ impl EuphRoom {
         self.stabilize_state();
     }
 
-    pub async fn widget(&mut self) -> BoxedWidget {
+    pub async fn widget(&mut self) -> BoxedAsync<'_, UiError> {
         self.stabilize().await;
 
-        let room_state = self.room_state();
+        let room_state = self.room.as_ref().map(|room| room.state());
+        let status_widget = self.status_widget(room_state).await;
         let chat = if let Some(euph::State::Connected(_, conn::State::Joined(joined))) = room_state
         {
-            self.widget_with_nick_list(room_state, joined).await
+            Self::widget_with_nick_list(
+                &mut self.chat,
+                status_widget,
+                &mut self.nick_list,
+                joined,
+                self.focus,
+            )
         } else {
-            self.widget_without_nick_list(room_state).await
+            Self::widget_without_nick_list(&mut self.chat, status_widget)
         };
 
         let mut layers = vec![chat];
 
         match &self.state {
             State::Normal => {}
-            State::Auth(editor) => layers.push(auth::widget(editor)),
-            State::Nick(editor) => layers.push(nick::widget(editor)),
-            State::Account(account) => layers.push(account.widget()),
-            State::Links(links) => layers.push(links.widget()),
-            State::InspectMessage(message) => layers.push(inspect::message_widget(message)),
-            State::InspectSession(session) => layers.push(inspect::session_widget(session)),
+            State::Auth(editor) => {
+                layers.push(WidgetWrapper::new(auth::widget(editor)).boxed_async())
+            }
+            State::Nick(editor) => {
+                layers.push(WidgetWrapper::new(nick::widget(editor)).boxed_async())
+            }
+            State::Account(account) => {
+                layers.push(WidgetWrapper::new(account.widget()).boxed_async())
+            }
+            State::Links(links) => layers.push(WidgetWrapper::new(links.widget()).boxed_async()),
+            State::InspectMessage(message) => {
+                layers.push(WidgetWrapper::new(inspect::message_widget(message)).boxed_async())
+            }
+            State::InspectSession(session) => {
+                layers.push(WidgetWrapper::new(inspect::session_widget(session)).boxed_async())
+            }
         }
 
         for popup in &self.popups {
-            layers.push(popup.widget());
+            layers.push(WidgetWrapper::new(popup.widget()).boxed_async());
         }
 
-        Layer::new(layers).into()
+        Layer::new(layers).boxed_async()
     }
 
-    async fn widget_without_nick_list(&self, state: Option<&euph::State>) -> BoxedWidget {
-        VJoin::new(vec![
-            Segment::new(Border::new(
-                Padding::new(self.status_widget(state).await).horizontal(1),
-            )),
-            // TODO Use last known nick?
-            Segment::new(self.chat.widget(String::new(), true)).expanding(true),
-        ])
-        .into()
+    fn widget_without_nick_list(
+        chat: &mut EuphChatState,
+        status_widget: impl AsyncWidget<UiError> + Send + Sync + 'static,
+    ) -> BoxedAsync<'_, UiError> {
+        let chat_widget = WidgetWrapper::new(chat.widget(String::new(), true));
+
+        Join2::vertical(
+            status_widget.segment().with_fixed(true),
+            chat_widget.segment(),
+        )
+        .boxed_async()
     }
 
-    async fn widget_with_nick_list(
-        &self,
-        state: Option<&euph::State>,
+    fn widget_with_nick_list<'a>(
+        chat: &'a mut EuphChatState,
+        status_widget: impl AsyncWidget<UiError> + Send + Sync + 'static,
+        nick_list: &mut OldListState<SessionId>,
         joined: &Joined,
-    ) -> BoxedWidget {
-        HJoin::new(vec![
-            Segment::new(VJoin::new(vec![
-                Segment::new(Border::new(
-                    Padding::new(self.status_widget(state).await).horizontal(1),
-                )),
-                Segment::new(
-                    self.chat
-                        .widget(joined.session.name.clone(), self.focus == Focus::Chat),
-                )
-                .expanding(true),
-            ]))
-            .expanding(true),
-            Segment::new(Border::new(
-                Padding::new(nick_list::widget(
-                    &self.nick_list,
-                    joined,
-                    self.focus == Focus::NickList,
-                ))
-                .right(1),
-            )),
-        ])
-        .into()
+        focus: Focus,
+    ) -> BoxedAsync<'a, UiError> {
+        let nick_list_widget = WidgetWrapper::new(nick_list::widget(
+            nick_list,
+            joined,
+            focus == Focus::NickList,
+        ))
+        .padding()
+        .with_right(1)
+        .border();
+
+        let chat_widget =
+            WidgetWrapper::new(chat.widget(joined.session.name.clone(), focus == Focus::Chat));
+
+        Join2::horizontal(
+            Join2::vertical(
+                status_widget.segment().with_fixed(true),
+                chat_widget.segment(),
+            )
+            .segment(),
+            nick_list_widget.segment().with_fixed(true),
+        )
+        .boxed_async()
     }
 
-    async fn status_widget(&self, state: Option<&euph::State>) -> BoxedWidget {
+    async fn status_widget(&self, state: Option<&euph::State>) -> BoxedAsync<'static, UiError> {
         let room_style = Style::new().bold().blue();
         let mut info = Styled::new(format!("&{}", self.name()), room_style);
 
@@ -308,7 +326,11 @@ impl EuphRoom {
                 .then_plain(")");
         }
 
-        Text::new(info).into()
+        Text::new(info)
+            .padding()
+            .with_horizontal(1)
+            .border()
+            .boxed_async()
     }
 
     async fn list_chat_key_bindings(&self, bindings: &mut KeyBindingsList) {

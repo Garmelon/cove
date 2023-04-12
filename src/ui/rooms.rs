@@ -18,7 +18,6 @@ use crate::vault::Vault;
 
 use super::euph::room::EuphRoom;
 use super::input::{key, InputEvent, KeyBindingsList};
-use super::widgets::WidgetWrapper;
 use super::widgets2::{List, ListState, Popup};
 use super::{util2, UiError, UiEvent};
 
@@ -176,14 +175,13 @@ impl Rooms {
                 Self::rooms_widget(&mut self.list, &self.euph_rooms, self.order).await
             }
 
-            State::ShowRoom(name) => WidgetWrapper::new(
+            State::ShowRoom(name) => {
                 self.euph_rooms
                     .get_mut(name)
                     .expect("room exists after stabilization")
                     .widget()
-                    .await,
-            )
-            .boxed_async(),
+                    .await
+            }
 
             State::Connect(editor) => {
                 Self::rooms_widget(&mut self.list, &self.euph_rooms, self.order)
