@@ -16,7 +16,6 @@ use crate::euph;
 use crate::macros::logging_unwrap;
 use crate::ui::chat::{ChatState, Reaction};
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
-use crate::ui::widgets::editor::EditorState as OldEditorState;
 use crate::ui::widgets::WidgetWrapper;
 use crate::ui::widgets2::ListState;
 use crate::ui::{util2, UiError, UiEvent};
@@ -36,7 +35,7 @@ enum Focus {
 #[allow(clippy::large_enum_variant)]
 enum State {
     Normal,
-    Auth(OldEditorState),
+    Auth(EditorState),
     Nick(EditorState),
     Account(AccountUiState),
     Links(LinksState),
@@ -225,9 +224,7 @@ impl EuphRoom {
 
         match &mut self.state {
             State::Normal => {}
-            State::Auth(editor) => {
-                layers.push(WidgetWrapper::new(auth::widget(editor)).boxed_async())
-            }
+            State::Auth(editor) => layers.push(auth::widget(editor)),
             State::Nick(editor) => layers.push(nick::widget(editor)),
             State::Account(account) => {
                 layers.push(WidgetWrapper::new(account.widget()).boxed_async())
