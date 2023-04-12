@@ -193,7 +193,7 @@ impl Ui {
         };
 
         let widget = match self.mode {
-            Mode::Main => WidgetWrapper::new(self.rooms.widget().await).boxed_async(),
+            Mode::Main => self.rooms.widget().await,
             Mode::Log => {
                 WidgetWrapper::new(self.log_chat.widget(String::new(), true)).boxed_async()
             }

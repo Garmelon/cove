@@ -8,7 +8,8 @@ use euphoxide::bot::instance::{Event, ServerConfig};
 use euphoxide::conn::{self, Joined};
 use parking_lot::FairMutex;
 use tokio::sync::mpsc;
-use toss::{Style, Styled, Terminal};
+use toss::widgets::{BoxedAsync, EditorState, Empty, Join2, Text};
+use toss::{Style, Styled, Terminal, WidgetExt};
 
 use crate::config::{Config, RoomsSortOrder};
 use crate::euph;
@@ -17,15 +18,9 @@ use crate::vault::Vault;
 
 use super::euph::room::EuphRoom;
 use super::input::{key, InputEvent, KeyBindingsList};
-use super::widgets::editor::EditorState;
-use super::widgets::join::{HJoin, Segment, VJoin};
-use super::widgets::layer::Layer;
-use super::widgets::list::{List, ListState};
-use super::widgets::popup::Popup;
-use super::widgets::resize::Resize;
-use super::widgets::text::Text;
-use super::widgets::BoxedWidget;
-use super::{util, UiEvent};
+use super::widgets::WidgetWrapper;
+use super::widgets2::{List, ListState, Popup};
+use super::{util2, UiError, UiEvent};
 
 enum State {
     ShowList,
@@ -34,6 +29,7 @@ enum State {
     Delete(String, EditorState),
 }
 
+#[derive(Clone, Copy)]
 enum Order {
     Alphabet,
     Importance,
@@ -169,49 +165,59 @@ impl Rooms {
         }
     }
 
-    pub async fn widget(&mut self) -> BoxedWidget {
+    pub async fn widget(&mut self) -> BoxedAsync<'_, UiError> {
         match &self.state {
             State::ShowRoom(_) => {}
             _ => self.stabilize_rooms().await,
         }
 
-        match &self.state {
-            State::ShowList => self.rooms_widget().await,
-            State::ShowRoom(name) => {
+        match &mut self.state {
+            State::ShowList => {
+                Self::rooms_widget(&mut self.list, &self.euph_rooms, self.order).await
+            }
+
+            State::ShowRoom(name) => WidgetWrapper::new(
                 self.euph_rooms
                     .get_mut(name)
                     .expect("room exists after stabilization")
                     .widget()
+                    .await,
+            )
+            .boxed_async(),
+
+            State::Connect(editor) => {
+                Self::rooms_widget(&mut self.list, &self.euph_rooms, self.order)
                     .await
+                    .below(Self::new_room_widget(editor))
+                    .boxed_async()
             }
-            State::Connect(editor) => Layer::new(vec![
-                self.rooms_widget().await,
-                Self::new_room_widget(editor),
-            ])
-            .into(),
-            State::Delete(name, editor) => Layer::new(vec![
-                self.rooms_widget().await,
-                Self::delete_room_widget(name, editor),
-            ])
-            .into(),
+
+            State::Delete(name, editor) => {
+                Self::rooms_widget(&mut self.list, &self.euph_rooms, self.order)
+                    .await
+                    .below(Self::delete_room_widget(name, editor))
+                    .boxed_async()
+            }
         }
     }
 
-    fn new_room_widget(editor: &EditorState) -> BoxedWidget {
+    fn new_room_widget(editor: &mut EditorState) -> BoxedAsync<'_, UiError> {
         let room_style = Style::new().bold().blue();
-        let editor = editor.widget().highlight(|s| Styled::new(s, room_style));
-        Popup::new(HJoin::new(vec![
-            Segment::new(Text::new(("&", room_style))),
-            Segment::new(editor).priority(0),
-        ]))
-        .title("Connect to")
-        .build()
+
+        let inner = Join2::horizontal(
+            Text::new(("&", room_style)).segment().with_fixed(true),
+            editor
+                .widget()
+                .with_highlight(|s| Styled::new(s, room_style))
+                .segment(),
+        );
+
+        Popup::new(inner, "Connect to").boxed_async()
     }
 
-    fn delete_room_widget(name: &str, editor: &EditorState) -> BoxedWidget {
+    fn delete_room_widget<'a>(name: &str, editor: &'a mut EditorState) -> BoxedAsync<'a, UiError> {
         let warn_style = Style::new().bold().red();
         let room_style = Style::new().bold().blue();
-        let editor = editor.widget().highlight(|s| Styled::new(s, room_style));
         let text = Styled::new_plain("Are you sure you want to delete ")
             .then("&", room_style)
             .then(name, room_style)
@@ -222,20 +228,32 @@ impl Rooms {
             .then_plain(".\n\n")
             .then_plain("To confirm the deletion, ")
             .then_plain("enter the full name of the room and press enter:");
-        Popup::new(VJoin::new(vec![
-            // The HJoin prevents the text from filling up the entire available
+
+        let inner = Join2::vertical(
+            // The Join prevents the text from filling up the entire available
             // space if the editor is wider than the text.
-            Segment::new(HJoin::new(vec![Segment::new(
-                Resize::new(Text::new(text).wrap(true)).max_width(54),
-            )])),
-            Segment::new(HJoin::new(vec![
-                Segment::new(Text::new(("&", room_style))),
-                Segment::new(editor).priority(0),
-            ])),
-        ]))
-        .title(("Delete room", warn_style))
-        .border(warn_style)
-        .build()
+            Join2::horizontal(
+                Text::new(text)
+                    .resize()
+                    .with_max_width(54)
+                    .segment()
+                    .with_growing(false),
+                Empty::new().segment(),
+            )
+            .segment(),
+            Join2::horizontal(
+                Text::new(("&", room_style)).segment().with_fixed(true),
+                editor
+                    .widget()
+                    .with_highlight(|s| Styled::new(s, room_style))
+                    .segment(),
+            )
+            .segment(),
+        );
+
+        Popup::new(inner, "Delete room")
+            .with_border_style(warn_style)
+            .boxed_async()
     }
 
     fn format_pbln(joined: &Joined) -> String {
@@ -322,8 +340,8 @@ impl Rooms {
         }
     }
 
-    fn sort_rooms(&self, rooms: &mut [(&String, Option<&euph::State>, usize)]) {
-        match self.order {
+    fn sort_rooms(rooms: &mut [(&String, Option<&euph::State>, usize)], order: Order) {
+        match order {
             Order::Alphabet => rooms.sort_unstable_by_key(|(name, _, _)| *name),
             Order::Importance => rooms.sort_unstable_by_key(|(name, state, unseen)| {
                 (state.is_none(), *unseen == 0, *name)
@@ -331,8 +349,12 @@ impl Rooms {
         }
     }
 
-    async fn render_rows(&self, list: &mut List<String>) {
-        if self.euph_rooms.is_empty() {
+    async fn render_rows(
+        list: &mut List<'_, String, Text>,
+        euph_rooms: &HashMap<String, EuphRoom>,
+        order: Order,
+    ) {
+        if euph_rooms.is_empty() {
             list.add_unsel(Text::new((
                 "Press F1 for key bindings",
                 Style::new().grey().italic(),
@@ -340,37 +362,43 @@ impl Rooms {
         }
 
         let mut rooms = vec![];
-        for (name, room) in &self.euph_rooms {
+        for (name, room) in euph_rooms {
             let state = room.room_state();
             let unseen = room.unseen_msgs_count().await;
             rooms.push((name, state, unseen));
         }
-        self.sort_rooms(&mut rooms);
+        Self::sort_rooms(&mut rooms, order);
         for (name, state, unseen) in rooms {
-            let room_style = Style::new().bold().blue();
-            let room_sel_style = Style::new().bold().black().on_white();
+            let style = if list.state().selected() == Some(name) {
+                Style::new().bold().black().on_white()
+            } else {
+                Style::new().bold().blue()
+            };
 
-            let mut normal = Styled::new(format!("&{name}"), room_style);
-            let mut selected = Styled::new(format!("&{name}"), room_sel_style);
+            let text = Styled::new(format!("&{name}"), style)
+                .and_then(Self::format_room_info(state, unseen));
 
-            let info = Self::format_room_info(state, unseen);
-            normal = normal.and_then(info.clone());
-            selected = selected.and_then(info);
-
-            list.add_sel(name.clone(), Text::new(normal), Text::new(selected));
+            list.add_sel(name.clone(), Text::new(text));
         }
     }
 
-    async fn rooms_widget(&self) -> BoxedWidget {
+    async fn rooms_widget<'a>(
+        list: &'a mut ListState<String>,
+        euph_rooms: &HashMap<String, EuphRoom>,
+        order: Order,
+    ) -> BoxedAsync<'a, UiError> {
         let heading_style = Style::new().bold();
-        let amount = self.euph_rooms.len();
-        let heading =
-            Text::new(Styled::new("Rooms", heading_style).then_plain(format!(" ({amount})")));
+        let heading_text =
+            Styled::new("Rooms", heading_style).then_plain(format!(" ({})", euph_rooms.len()));
 
-        let mut list = self.list.widget().focus(true);
-        self.render_rows(&mut list).await;
+        let mut list = list.widget();
+        Self::render_rows(&mut list, euph_rooms, order).await;
 
-        VJoin::new(vec![Segment::new(heading), Segment::new(list).priority(0)]).into()
+        Join2::vertical(
+            Text::new(heading_text).segment().with_fixed(true),
+            list.segment(),
+        )
+        .boxed_async()
     }
 
     fn room_char(c: char) -> bool {
@@ -379,7 +407,7 @@ impl Rooms {
 
     fn list_showlist_key_bindings(bindings: &mut KeyBindingsList) {
         bindings.heading("Rooms");
-        util::list_list_key_bindings(bindings);
+        util2::list_list_key_bindings(bindings);
         bindings.empty();
         bindings.binding("enter", "enter selected room");
         bindings.binding("c", "connect to selected room");
@@ -395,20 +423,20 @@ impl Rooms {
     }
 
     fn handle_showlist_input_event(&mut self, event: &InputEvent) -> bool {
-        if util::handle_list_input_event(&mut self.list, event) {
+        if util2::handle_list_input_event(&mut self.list, event) {
             return true;
         }
 
         match event {
             key!(Enter) => {
-                if let Some(name) = self.list.cursor() {
-                    self.state = State::ShowRoom(name);
+                if let Some(name) = self.list.selected() {
+                    self.state = State::ShowRoom(name.clone());
                 }
                 return true;
             }
             key!('c') => {
-                if let Some(name) = self.list.cursor() {
-                    self.connect_to_room(name);
+                if let Some(name) = self.list.selected() {
+                    self.connect_to_room(name.clone());
                 }
                 return true;
             }
@@ -417,8 +445,8 @@ impl Rooms {
                 return true;
             }
             key!('d') => {
-                if let Some(name) = self.list.cursor() {
-                    self.disconnect_from_room(&name);
+                if let Some(name) = self.list.selected() {
+                    self.disconnect_from_room(&name.clone());
                 }
                 return true;
             }
@@ -454,8 +482,8 @@ impl Rooms {
                 return true;
             }
             key!('X') => {
-                if let Some(name) = self.list.cursor() {
-                    self.state = State::Delete(name, EditorState::new());
+                if let Some(name) = self.list.selected() {
+                    self.state = State::Delete(name.clone(), EditorState::new());
                 }
                 return true;
             }
@@ -493,13 +521,13 @@ impl Rooms {
                 bindings.heading("Rooms");
                 bindings.binding("esc", "abort");
                 bindings.binding("enter", "connect to room");
-                util::list_editor_key_bindings(bindings, Self::room_char);
+                util2::list_editor_key_bindings(bindings, Self::room_char);
             }
             State::Delete(_, _) => {
                 bindings.heading("Rooms");
                 bindings.binding("esc", "abort");
                 bindings.binding("enter", "delete room");
-                util::list_editor_key_bindings(bindings, Self::room_char);
+                util2::list_editor_key_bindings(bindings, Self::room_char);
             }
         }
     }
@@ -512,7 +540,7 @@ impl Rooms {
     ) -> bool {
         self.stabilize_rooms().await;
 
-        match &self.state {
+        match &mut self.state {
             State::ShowList => {
                 if self.handle_showlist_input_event(event) {
                     return true;
@@ -539,7 +567,7 @@ impl Rooms {
                     return true;
                 }
                 key!(Enter) => {
-                    let name = ed.text();
+                    let name = ed.text().to_string();
                     if !name.is_empty() {
                         self.connect_to_room(name.clone());
                         self.state = State::ShowRoom(name);
@@ -547,7 +575,7 @@ impl Rooms {
                     return true;
                 }
                 _ => {
-                    if util::handle_editor_input_event(ed, terminal, event, Self::room_char) {
+                    if util2::handle_editor_input_event(ed, terminal, event, Self::room_char) {
                         return true;
                     }
                 }
@@ -564,7 +592,7 @@ impl Rooms {
                     return true;
                 }
                 _ => {
-                    if util::handle_editor_input_event(editor, terminal, event, Self::room_char) {
+                    if util2::handle_editor_input_event(editor, terminal, event, Self::room_char) {
                         return true;
                     }
                 }
