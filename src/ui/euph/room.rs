@@ -8,7 +8,7 @@ use euphoxide::conn::{self, Joined, Joining, SessionInfo};
 use parking_lot::FairMutex;
 use tokio::sync::oneshot::error::TryRecvError;
 use tokio::sync::{mpsc, oneshot};
-use toss::widgets::{BoxedAsync, Join2, Layer, Text};
+use toss::widgets::{BoxedAsync, EditorState, Join2, Layer, Text};
 use toss::{AsyncWidget, Style, Styled, Terminal, WidgetExt};
 
 use crate::config;
@@ -37,7 +37,7 @@ enum Focus {
 enum State {
     Normal,
     Auth(OldEditorState),
-    Nick(OldEditorState),
+    Nick(EditorState),
     Account(AccountUiState),
     Links(LinksState),
     InspectMessage(Message),
@@ -223,14 +223,12 @@ impl EuphRoom {
 
         let mut layers = vec![chat];
 
-        match &self.state {
+        match &mut self.state {
             State::Normal => {}
             State::Auth(editor) => {
                 layers.push(WidgetWrapper::new(auth::widget(editor)).boxed_async())
             }
-            State::Nick(editor) => {
-                layers.push(WidgetWrapper::new(nick::widget(editor)).boxed_async())
-            }
+            State::Nick(editor) => layers.push(nick::widget(editor)),
             State::Account(account) => {
                 layers.push(WidgetWrapper::new(account.widget()).boxed_async())
             }
