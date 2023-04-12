@@ -3,6 +3,7 @@ mod euph;
 mod input;
 mod rooms;
 mod util;
+mod util2;
 mod widgets;
 mod widgets2;
 
