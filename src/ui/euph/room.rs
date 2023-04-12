@@ -17,9 +17,9 @@ use crate::macros::logging_unwrap;
 use crate::ui::chat::{ChatState, Reaction};
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
 use crate::ui::widgets::editor::EditorState as OldEditorState;
-use crate::ui::widgets::list::ListState as OldListState;
 use crate::ui::widgets::WidgetWrapper;
-use crate::ui::{util, UiError, UiEvent};
+use crate::ui::widgets2::ListState;
+use crate::ui::{util2, UiError, UiEvent};
 use crate::vault::EuphRoomVault;
 
 use super::account::{self, AccountUiState};
@@ -60,7 +60,7 @@ pub struct EuphRoom {
     chat: EuphChatState,
     last_msg_sent: Option<oneshot::Receiver<MessageId>>,
 
-    nick_list: OldListState<SessionId>,
+    nick_list: ListState<SessionId>,
 }
 
 impl EuphRoom {
@@ -80,7 +80,7 @@ impl EuphRoom {
             popups: VecDeque::new(),
             chat: ChatState::new(vault),
             last_msg_sent: None,
-            nick_list: OldListState::new(),
+            nick_list: ListState::new(),
         }
     }
 
@@ -266,18 +266,14 @@ impl EuphRoom {
     fn widget_with_nick_list<'a>(
         chat: &'a mut EuphChatState,
         status_widget: impl AsyncWidget<UiError> + Send + Sync + 'static,
-        nick_list: &mut OldListState<SessionId>,
+        nick_list: &'a mut ListState<SessionId>,
         joined: &Joined,
         focus: Focus,
     ) -> BoxedAsync<'a, UiError> {
-        let nick_list_widget = WidgetWrapper::new(nick_list::widget(
-            nick_list,
-            joined,
-            focus == Focus::NickList,
-        ))
-        .padding()
-        .with_right(1)
-        .border();
+        let nick_list_widget = nick_list::widget(nick_list, joined, focus == Focus::NickList)
+            .padding()
+            .with_right(1)
+            .border();
 
         let chat_widget =
             WidgetWrapper::new(chat.widget(joined.session.name.clone(), focus == Focus::Chat));
@@ -512,24 +508,24 @@ impl EuphRoom {
     }
 
     fn list_nick_list_focus_key_bindings(&self, bindings: &mut KeyBindingsList) {
-        util::list_list_key_bindings(bindings);
+        util2::list_list_key_bindings(bindings);
 
         bindings.binding("i", "inspect session");
     }
 
     fn handle_nick_list_focus_input_event(&mut self, event: &InputEvent) -> bool {
-        if util::handle_list_input_event(&mut self.nick_list, event) {
+        if util2::handle_list_input_event(&mut self.nick_list, event) {
             return true;
         }
 
         if let key!('i') = event {
             if let Some(euph::State::Connected(_, conn::State::Joined(joined))) = self.room_state()
             {
-                if let Some(id) = self.nick_list.cursor() {
-                    if id == joined.session.session_id {
+                if let Some(id) = self.nick_list.selected() {
+                    if *id == joined.session.session_id {
                         self.state =
                             State::InspectSession(SessionInfo::Full(joined.session.clone()));
-                    } else if let Some(session) = joined.listing.get(&id) {
+                    } else if let Some(session) = joined.listing.get(id) {
                         self.state = State::InspectSession(session.clone());
                     }
                 }

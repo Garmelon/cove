@@ -4,19 +4,21 @@ use std::iter;
 use crossterm::style::{Color, Stylize};
 use euphoxide::api::{NickEvent, SessionId, SessionType, SessionView, UserId};
 use euphoxide::conn::{Joined, SessionInfo};
-use toss::{Style, Styled};
+use toss::widgets::{BoxedAsync, Empty, Text};
+use toss::{Style, Styled, WidgetExt};
 
 use crate::euph;
-use crate::ui::widgets::background::Background;
-use crate::ui::widgets::empty::Empty;
-use crate::ui::widgets::list::{List, ListState};
-use crate::ui::widgets::text::Text;
-use crate::ui::widgets::BoxedWidget;
+use crate::ui::widgets2::{List, ListState};
+use crate::ui::UiError;
 
-pub fn widget(state: &ListState<SessionId>, joined: &Joined, focused: bool) -> BoxedWidget {
-    let mut list = state.widget().focus(focused);
-    render_rows(&mut list, joined);
-    list.into()
+pub fn widget<'a>(
+    list: &'a mut ListState<SessionId>,
+    joined: &Joined,
+    focused: bool,
+) -> BoxedAsync<'a, UiError> {
+    let mut list = list.widget();
+    render_rows(&mut list, joined, focused);
+    list.boxed_async()
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -57,7 +59,11 @@ impl HalfSession {
     }
 }
 
-fn render_rows(list: &mut List<SessionId>, joined: &Joined) {
+fn render_rows(
+    list: &mut List<'_, SessionId, BoxedAsync<'static, UiError>>,
+    joined: &Joined,
+    focused: bool,
+) {
     let mut people = vec![];
     let mut bots = vec![];
     let mut lurkers = vec![];
@@ -82,17 +88,18 @@ fn render_rows(list: &mut List<SessionId>, joined: &Joined) {
     lurkers.sort_unstable();
     nurkers.sort_unstable();
 
-    render_section(list, "People", &people, &joined.session);
-    render_section(list, "Bots", &bots, &joined.session);
-    render_section(list, "Lurkers", &lurkers, &joined.session);
-    render_section(list, "Nurkers", &nurkers, &joined.session);
+    render_section(list, "People", &people, &joined.session, focused);
+    render_section(list, "Bots", &bots, &joined.session, focused);
+    render_section(list, "Lurkers", &lurkers, &joined.session, focused);
+    render_section(list, "Nurkers", &nurkers, &joined.session, focused);
 }
 
 fn render_section(
-    list: &mut List<SessionId>,
+    list: &mut List<'_, SessionId, BoxedAsync<'static, UiError>>,
     name: &str,
     sessions: &[HalfSession],
     own_session: &SessionView,
+    focused: bool,
 ) {
     if sessions.is_empty() {
         return;
@@ -101,20 +108,25 @@ fn render_section(
     let heading_style = Style::new().bold();
 
     if !list.is_empty() {
-        list.add_unsel(Empty::new());
+        list.add_unsel(Empty::new().boxed_async());
     }
 
     let row = Styled::new_plain(" ")
         .then(name, heading_style)
         .then_plain(format!(" ({})", sessions.len()));
-    list.add_unsel(Text::new(row));
+    list.add_unsel(Text::new(row).boxed_async());
 
     for session in sessions {
-        render_row(list, session, own_session);
+        render_row(list, session, own_session, focused);
     }
 }
 
-fn render_row(list: &mut List<SessionId>, session: &HalfSession, own_session: &SessionView) {
+fn render_row(
+    list: &mut List<'_, SessionId, BoxedAsync<'static, UiError>>,
+    session: &HalfSession,
+    own_session: &SessionView,
+    focused: bool,
+) {
     let (name, style, style_inv, perms_style_inv) = if session.name.is_empty() {
         let name = "lurk";
         let style = Style::new().grey();
@@ -146,15 +158,20 @@ fn render_row(list: &mut List<SessionId>, session: &HalfSession, own_session: &S
         " "
     };
 
-    let normal = Styled::new_plain(owner)
-        .then(&name, style)
-        .then_plain(perms);
-    let selected = Styled::new_plain(owner)
-        .then(name, style_inv)
-        .then(perms, perms_style_inv);
-    list.add_sel(
-        session.session_id.clone(),
-        Text::new(normal),
-        Background::new(Text::new(selected)).style(style_inv),
-    );
+    let widget = if focused && list.state().selected() == Some(&session.session_id) {
+        let text = Styled::new_plain(owner)
+            .then(name, style_inv)
+            .then(perms, perms_style_inv);
+        Text::new(text)
+            .background()
+            .with_style(style_inv)
+            .boxed_async()
+    } else {
+        let text = Styled::new_plain(owner)
+            .then(&name, style)
+            .then_plain(perms);
+        Text::new(text).boxed_async()
+    };
+
+    list.add_sel(session.session_id.clone(), widget);
 }
