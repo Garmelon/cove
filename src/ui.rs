@@ -1,4 +1,5 @@
 mod chat;
+mod chat2;
 mod euph;
 mod input;
 mod rooms;
