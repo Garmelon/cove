@@ -14,7 +14,7 @@ use toss::{AsyncWidget, Style, Styled, Terminal, WidgetExt};
 use crate::config;
 use crate::euph;
 use crate::macros::logging_unwrap;
-use crate::ui::chat::{ChatState, Reaction};
+use crate::ui::chat2::{ChatState, Reaction};
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
 use crate::ui::widgets::WidgetWrapper;
 use crate::ui::widgets2::ListState;
@@ -150,12 +150,12 @@ impl EuphRoom {
         if let Some(id_rx) = &mut self.last_msg_sent {
             match id_rx.try_recv() {
                 Ok(id) => {
-                    self.chat.sent(Some(id)).await;
+                    self.chat.send_successful(id);
                     self.last_msg_sent = None;
                 }
                 Err(TryRecvError::Empty) => {} // Wait a bit longer
                 Err(TryRecvError::Closed) => {
-                    self.chat.sent(None).await;
+                    self.chat.send_failed();
                     self.last_msg_sent = None;
                 }
             }
@@ -243,7 +243,7 @@ impl EuphRoom {
         chat: &mut EuphChatState,
         status_widget: impl AsyncWidget<UiError> + Send + Sync + 'static,
     ) -> BoxedAsync<'_, UiError> {
-        let chat_widget = WidgetWrapper::new(chat.widget(String::new(), true));
+        let chat_widget = chat.widget(String::new(), true);
 
         Join2::vertical(
             status_widget.segment().with_fixed(true),
@@ -264,8 +264,7 @@ impl EuphRoom {
             .with_right(1)
             .border();
 
-        let chat_widget =
-            WidgetWrapper::new(chat.widget(joined.session.name.clone(), focus == Focus::Chat));
+        let chat_widget = chat.widget(joined.session.name.clone(), focus == Focus::Chat);
 
         Join2::horizontal(
             Join2::vertical(
@@ -350,7 +349,7 @@ impl EuphRoom {
                 if let Some(room) = &self.room {
                     match room.send(parent, content) {
                         Ok(id_rx) => self.last_msg_sent = Some(id_rx),
-                        Err(_) => self.chat.sent(None).await,
+                        Err(_) => self.chat.send_failed(),
                     }
                     return true;
                 }
@@ -437,16 +436,16 @@ impl EuphRoom {
         // Always applicable
         match event {
             key!('i') => {
-                if let Some(id) = self.chat.cursor().await {
-                    if let Some(msg) = logging_unwrap!(self.vault().full_msg(id).await) {
+                if let Some(id) = self.chat.cursor() {
+                    if let Some(msg) = logging_unwrap!(self.vault().full_msg(*id).await) {
                         self.state = State::InspectMessage(msg);
                     }
                 }
                 return true;
             }
             key!('I') => {
-                if let Some(id) = self.chat.cursor().await {
-                    if let Some(msg) = logging_unwrap!(self.vault().msg(id).await) {
+                if let Some(id) = self.chat.cursor() {
+                    if let Some(msg) = logging_unwrap!(self.vault().msg(*id).await) {
                         self.state = State::Links(LinksState::new(&msg.content));
                     }
                 }

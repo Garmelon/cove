@@ -32,7 +32,11 @@ impl<I> Path<I> {
     }
 
     pub fn first(&self) -> &I {
-        self.0.first().expect("path is not empty")
+        self.0.first().expect("path is empty")
+    }
+
+    pub fn into_first(self) -> I {
+        self.0.into_iter().next().expect("path is empty")
     }
 }
 
