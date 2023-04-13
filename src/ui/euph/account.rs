@@ -1,18 +1,13 @@
 use crossterm::style::Stylize;
 use euphoxide::api::PersonalAccountView;
 use euphoxide::conn;
-use toss::{Style, Terminal};
+use toss::widgets::{BoxedAsync, EditorState, Empty, Join3, Join4, Text};
+use toss::{Style, Terminal, WidgetExt};
 
 use crate::euph::{self, Room};
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
-use crate::ui::util;
-use crate::ui::widgets::editor::EditorState;
-use crate::ui::widgets::empty::Empty;
-use crate::ui::widgets::join::{HJoin, Segment, VJoin};
-use crate::ui::widgets::popup::Popup;
-use crate::ui::widgets::resize::Resize;
-use crate::ui::widgets::text::Text;
-use crate::ui::widgets::BoxedWidget;
+use crate::ui::widgets2::Popup;
+use crate::ui::{util2, UiError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Focus {
@@ -35,46 +30,55 @@ impl LoggedOut {
         }
     }
 
-    fn widget(&self) -> BoxedWidget {
+    fn widget(&mut self) -> BoxedAsync<'_, UiError> {
         let bold = Style::new().bold();
-        VJoin::new(vec![
-            Segment::new(Text::new(("Not logged in", bold.yellow()))),
-            Segment::new(Empty::new().height(1)),
-            Segment::new(HJoin::new(vec![
-                Segment::new(Text::new(("Email address:", bold))),
-                Segment::new(Empty::new().width(1)),
-                Segment::new(self.email.widget().focus(self.focus == Focus::Email)),
-            ])),
-            Segment::new(HJoin::new(vec![
-                Segment::new(Text::new(("Password:", bold))),
-                Segment::new(Empty::new().width(5 + 1)),
-                Segment::new(
-                    self.password
-                        .widget()
-                        .focus(self.focus == Focus::Password)
-                        .hidden(),
-                ),
-            ])),
-        ])
-        .into()
+        Join4::vertical(
+            Text::new(("Not logged in", bold.yellow())).segment(),
+            Empty::new().with_height(1).segment(),
+            Join3::horizontal(
+                Text::new(("Email address:", bold))
+                    .segment()
+                    .with_fixed(true),
+                Empty::new().with_width(1).segment().with_fixed(true),
+                self.email
+                    .widget()
+                    .with_focus(self.focus == Focus::Email)
+                    .segment(),
+            )
+            .segment(),
+            Join3::horizontal(
+                Text::new(("Password:", bold)).segment().with_fixed(true),
+                Empty::new().with_width(5 + 1).segment().with_fixed(true),
+                self.password
+                    .widget()
+                    .with_focus(self.focus == Focus::Password)
+                    .with_hidden_default_placeholder()
+                    .segment(),
+            )
+            .segment(),
+        )
+        .boxed_async()
     }
 }
 
 pub struct LoggedIn(PersonalAccountView);
 
 impl LoggedIn {
-    fn widget(&self) -> BoxedWidget {
+    fn widget(&self) -> BoxedAsync<'_, UiError> {
         let bold = Style::new().bold();
-        VJoin::new(vec![
-            Segment::new(Text::new(("Logged in", bold.green()))),
-            Segment::new(Empty::new().height(1)),
-            Segment::new(HJoin::new(vec![
-                Segment::new(Text::new(("Email address:", bold))),
-                Segment::new(Empty::new().width(1)),
-                Segment::new(Text::new((&self.0.email,))),
-            ])),
-        ])
-        .into()
+        Join3::vertical(
+            Text::new(("Logged in", bold.green())).segment(),
+            Empty::new().with_height(1).segment(),
+            Join3::horizontal(
+                Text::new(("Email address:", bold))
+                    .segment()
+                    .with_fixed(true),
+                Empty::new().with_width(1).segment().with_fixed(true),
+                Text::new((&self.0.email,)).segment(),
+            )
+            .segment(),
+        )
+        .boxed_async()
     }
 }
 
@@ -108,14 +112,15 @@ impl AccountUiState {
         }
     }
 
-    pub fn widget(&self) -> BoxedWidget {
+    pub fn widget(&mut self) -> BoxedAsync<'_, UiError> {
         let inner = match self {
             Self::LoggedOut(logged_out) => logged_out.widget(),
             Self::LoggedIn(logged_in) => logged_in.widget(),
-        };
-        Popup::new(Resize::new(inner).min_width(40))
-            .title("Account")
-            .build()
+        }
+        .resize()
+        .with_min_width(40);
+
+        Popup::new(inner, "Account").boxed_async()
     }
 
     pub fn list_key_bindings(&self, bindings: &mut KeyBindingsList) {
@@ -128,7 +133,7 @@ impl AccountUiState {
                     Focus::Password => bindings.binding("enter", "log in"),
                 }
                 bindings.binding("tab", "switch focus");
-                util::list_editor_key_bindings(bindings, |c| c != '\n');
+                util2::list_editor_key_bindings(bindings, |c| c != '\n');
             }
             Self::LoggedIn(_) => bindings.binding("L", "log out"),
         }
@@ -161,8 +166,8 @@ impl AccountUiState {
                             return EventResult::Handled;
                         }
 
-                        if util::handle_editor_input_event(
-                            &logged_out.email,
+                        if util2::handle_editor_input_event(
+                            &mut logged_out.email,
                             terminal,
                             event,
                             |c| c != '\n',
@@ -175,14 +180,16 @@ impl AccountUiState {
                     Focus::Password => {
                         if let key!(Enter) = event {
                             if let Some(room) = room {
-                                let _ =
-                                    room.login(logged_out.email.text(), logged_out.password.text());
+                                let _ = room.login(
+                                    logged_out.email.text().to_string(),
+                                    logged_out.password.text().to_string(),
+                                );
                             }
                             return EventResult::Handled;
                         }
 
-                        if util::handle_editor_input_event(
-                            &logged_out.password,
+                        if util2::handle_editor_input_event(
+                            &mut logged_out.password,
                             terminal,
                             event,
                             |c| c != '\n',

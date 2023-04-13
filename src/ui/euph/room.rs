@@ -226,9 +226,7 @@ impl EuphRoom {
             State::Normal => {}
             State::Auth(editor) => layers.push(auth::widget(editor)),
             State::Nick(editor) => layers.push(nick::widget(editor)),
-            State::Account(account) => {
-                layers.push(WidgetWrapper::new(account.widget()).boxed_async())
-            }
+            State::Account(account) => layers.push(account.widget()),
             State::Links(links) => layers.push(WidgetWrapper::new(links.widget()).boxed_async()),
             State::InspectMessage(message) => {
                 layers.push(WidgetWrapper::new(inspect::message_widget(message)).boxed_async())
