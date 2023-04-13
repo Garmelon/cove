@@ -21,6 +21,7 @@ mod logger;
 mod macros;
 mod store;
 mod ui;
+mod util;
 mod vault;
 
 use std::path::PathBuf;
