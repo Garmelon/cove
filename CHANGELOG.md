@@ -14,6 +14,9 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Changed
+- Simplified flake dependencies
+
 ## v0.6.1 - 2023-04-10
 
 ### Changed
