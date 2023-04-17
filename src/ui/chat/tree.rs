@@ -405,6 +405,12 @@ impl<M: Msg, S: MsgStore<M>> TreeViewState<M, S> {
         })
     }
 
+    pub fn send_successful(&mut self, id: &M::Id) {
+        if let Cursor::Pseudo { .. } = self.last_cursor {
+            self.last_cursor = Cursor::Msg(id.clone());
+        }
+    }
+
     pub fn widget<'a>(
         &'a mut self,
         cursor: &'a mut Cursor<M::Id>,

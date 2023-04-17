@@ -124,6 +124,7 @@ impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
     /// A [`Reaction::Composed`] message was sent successfully.
     pub fn send_successful(&mut self, id: M::Id) {
         if let Cursor::Pseudo { .. } = &self.cursor {
+            self.tree.send_successful(&id);
             self.cursor = Cursor::Msg(id);
             self.editor.clear();
         }
