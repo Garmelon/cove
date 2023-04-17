@@ -209,6 +209,7 @@ impl Ui {
 
             key_bindings_list
                 .widget(list_state)
+                .desync()
                 .above(widget)
                 .boxed_async()
         } else {

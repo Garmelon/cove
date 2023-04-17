@@ -9,7 +9,7 @@ use parking_lot::FairMutex;
 use tokio::sync::oneshot::error::TryRecvError;
 use tokio::sync::{mpsc, oneshot};
 use toss::widgets::{BoxedAsync, EditorState, Join2, Layer, Text};
-use toss::{AsyncWidget, Style, Styled, Terminal, WidgetExt};
+use toss::{Style, Styled, Terminal, Widget, WidgetExt};
 
 use crate::config;
 use crate::euph;
@@ -223,16 +223,20 @@ impl EuphRoom {
 
         match &mut self.state {
             State::Normal => {}
-            State::Auth(editor) => layers.push(auth::widget(editor)),
-            State::Nick(editor) => layers.push(nick::widget(editor)),
-            State::Account(account) => layers.push(account.widget()),
-            State::Links(links) => layers.push(links.widget()),
-            State::InspectMessage(message) => layers.push(inspect::message_widget(message)),
-            State::InspectSession(session) => layers.push(inspect::session_widget(session)),
+            State::Auth(editor) => layers.push(auth::widget(editor).desync().boxed_async()),
+            State::Nick(editor) => layers.push(nick::widget(editor).desync().boxed_async()),
+            State::Account(account) => layers.push(account.widget().desync().boxed_async()),
+            State::Links(links) => layers.push(links.widget().desync().boxed_async()),
+            State::InspectMessage(message) => {
+                layers.push(inspect::message_widget(message).desync().boxed_async())
+            }
+            State::InspectSession(session) => {
+                layers.push(inspect::session_widget(session).desync().boxed_async())
+            }
         }
 
         for popup in &self.popups {
-            layers.push(popup.widget());
+            layers.push(popup.widget().desync().boxed_async());
         }
 
         Layer::new(layers).boxed_async()
@@ -240,12 +244,12 @@ impl EuphRoom {
 
     fn widget_without_nick_list(
         chat: &mut EuphChatState,
-        status_widget: impl AsyncWidget<UiError> + Send + Sync + 'static,
+        status_widget: impl Widget<UiError> + Send + Sync + 'static,
     ) -> BoxedAsync<'_, UiError> {
         let chat_widget = chat.widget(String::new(), true);
 
         Join2::vertical(
-            status_widget.segment().with_fixed(true),
+            status_widget.desync().segment().with_fixed(true),
             chat_widget.segment(),
         )
         .boxed_async()
@@ -253,7 +257,7 @@ impl EuphRoom {
 
     fn widget_with_nick_list<'a>(
         chat: &'a mut EuphChatState,
-        status_widget: impl AsyncWidget<UiError> + Send + Sync + 'static,
+        status_widget: impl Widget<UiError> + Send + Sync + 'static,
         nick_list: &'a mut ListState<SessionId>,
         joined: &Joined,
         focus: Focus,
@@ -261,13 +265,14 @@ impl EuphRoom {
         let nick_list_widget = nick_list::widget(nick_list, joined, focus == Focus::NickList)
             .padding()
             .with_right(1)
-            .border();
+            .border()
+            .desync();
 
         let chat_widget = chat.widget(joined.session.name.clone(), focus == Focus::Chat);
 
         Join2::horizontal(
             Join2::vertical(
-                status_widget.segment().with_fixed(true),
+                status_widget.desync().segment().with_fixed(true),
                 chat_widget.segment(),
             )
             .segment(),
@@ -276,7 +281,7 @@ impl EuphRoom {
         .boxed_async()
     }
 
-    async fn status_widget(&self, state: Option<&euph::State>) -> BoxedAsync<'static, UiError> {
+    async fn status_widget(&self, state: Option<&euph::State>) -> impl Widget<UiError> {
         let room_style = Style::new().bold().blue();
         let mut info = Styled::new(format!("&{}", self.name()), room_style);
 
@@ -309,11 +314,7 @@ impl EuphRoom {
                 .then_plain(")");
         }
 
-        Text::new(info)
-            .padding()
-            .with_horizontal(1)
-            .border()
-            .boxed_async()
+        Text::new(info).padding().with_horizontal(1).border()
     }
 
     async fn list_chat_key_bindings(&self, bindings: &mut KeyBindingsList) {

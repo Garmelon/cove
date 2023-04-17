@@ -1,8 +1,8 @@
 use crossterm::style::Stylize;
 use euphoxide::api::{Message, NickEvent, SessionView};
 use euphoxide::conn::SessionInfo;
-use toss::widgets::{BoxedAsync, Text};
-use toss::{Style, Styled, WidgetExt};
+use toss::widgets::Text;
+use toss::{Style, Styled, Widget};
 
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
 use crate::ui::widgets::Popup;
@@ -88,7 +88,7 @@ fn message_lines(mut text: Styled, msg: &Message) -> Styled {
     text
 }
 
-pub fn session_widget(session: &SessionInfo) -> BoxedAsync<'static, UiError> {
+pub fn session_widget(session: &SessionInfo) -> impl Widget<UiError> {
     let heading_style = Style::new().bold();
 
     let text = match session {
@@ -102,10 +102,10 @@ pub fn session_widget(session: &SessionInfo) -> BoxedAsync<'static, UiError> {
         }
     };
 
-    Popup::new(Text::new(text), "Inspect session").boxed_async()
+    Popup::new(Text::new(text), "Inspect session")
 }
 
-pub fn message_widget(msg: &Message) -> BoxedAsync<'static, UiError> {
+pub fn message_widget(msg: &Message) -> impl Widget<UiError> {
     let heading_style = Style::new().bold();
 
     let mut text = Styled::new("Message", heading_style).then_plain("\n");
@@ -119,7 +119,7 @@ pub fn message_widget(msg: &Message) -> BoxedAsync<'static, UiError> {
 
     text = session_view_lines(text, &msg.sender);
 
-    Popup::new(Text::new(text), "Inspect message").boxed_async()
+    Popup::new(Text::new(text), "Inspect message")
 }
 
 pub fn list_key_bindings(bindings: &mut KeyBindingsList) {

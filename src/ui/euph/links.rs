@@ -2,8 +2,8 @@ use std::io;
 
 use crossterm::style::Stylize;
 use linkify::{LinkFinder, LinkKind};
-use toss::widgets::{BoxedAsync, Text};
-use toss::{Style, Styled, WidgetExt};
+use toss::widgets::Text;
+use toss::{Style, Styled, Widget};
 
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
 use crate::ui::widgets::{ListBuilder, ListState, Popup};
@@ -38,7 +38,7 @@ impl LinksState {
         }
     }
 
-    pub fn widget(&mut self) -> BoxedAsync<'_, UiError> {
+    pub fn widget(&mut self) -> impl Widget<UiError> + '_ {
         let style_selected = Style::new().black().on_white();
 
         let mut list_builder = ListBuilder::new();
@@ -74,7 +74,7 @@ impl LinksState {
             }
         }
 
-        Popup::new(list_builder.build(&mut self.list), "Links").boxed_async()
+        Popup::new(list_builder.build(&mut self.list), "Links")
     }
 
     fn open_link_by_id(&self, id: usize) -> EventResult {

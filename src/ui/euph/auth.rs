@@ -1,5 +1,5 @@
-use toss::widgets::{BoxedAsync, EditorState};
-use toss::{Terminal, WidgetExt};
+use toss::widgets::EditorState;
+use toss::{Terminal, Widget};
 
 use crate::euph::Room;
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
@@ -10,12 +10,11 @@ pub fn new() -> EditorState {
     EditorState::new()
 }
 
-pub fn widget(editor: &mut EditorState) -> BoxedAsync<'_, UiError> {
+pub fn widget(editor: &mut EditorState) -> impl Widget<UiError> + '_ {
     Popup::new(
         editor.widget().with_hidden_default_placeholder(),
         "Enter password",
     )
-    .boxed_async()
 }
 
 pub fn list_key_bindings(bindings: &mut KeyBindingsList) {

@@ -1,6 +1,6 @@
 use crossterm::style::Stylize;
-use toss::widgets::{BoxedAsync, Text};
-use toss::{Style, Styled, WidgetExt};
+use toss::widgets::Text;
+use toss::{Style, Styled, Widget};
 
 use crate::ui::widgets::Popup;
 use crate::ui::UiError;
@@ -10,19 +10,18 @@ pub enum RoomPopup {
 }
 
 impl RoomPopup {
-    fn server_error_widget(description: &str, reason: &str) -> BoxedAsync<'static, UiError> {
+    fn server_error_widget(description: &str, reason: &str) -> impl Widget<UiError> {
         let border_style = Style::new().red().bold();
         let text = Styled::new_plain(description)
             .then_plain("\n\n")
             .then("Reason:", Style::new().bold())
             .then_plain(" ")
             .then_plain(reason);
-        Popup::new(Text::new(text), ("Error", border_style))
-            .with_border_style(border_style)
-            .boxed_async()
+
+        Popup::new(Text::new(text), ("Error", border_style)).with_border_style(border_style)
     }
 
-    pub fn widget(&self) -> BoxedAsync<'static, UiError> {
+    pub fn widget(&self) -> impl Widget<UiError> {
         match self {
             Self::Error {
                 description,

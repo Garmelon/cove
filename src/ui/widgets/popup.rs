@@ -1,11 +1,10 @@
-use async_trait::async_trait;
-use toss::widgets::{Background, Border, Float, Layer2, Padding, Text};
-use toss::{AsyncWidget, Frame, Size, Style, Styled, WidgetExt, WidthDb};
+use toss::widgets::{Background, Border, Desync, Float, Layer2, Padding, Text};
+use toss::{Frame, Size, Style, Styled, Widget, WidgetExt, WidthDb};
 
 type Body<I> = Background<Border<Padding<I>>>;
 type Title = Float<Padding<Background<Padding<Text>>>>;
 
-pub struct Popup<I>(Float<Layer2<Body<I>, Title>>);
+pub struct Popup<I>(Float<Layer2<Body<I>, Desync<Title>>>);
 
 impl<I> Popup<I> {
     pub fn new<S: Into<Styled>>(inner: I, title: S) -> Self {
@@ -19,7 +18,8 @@ impl<I> Popup<I> {
             .with_horizontal(2)
             .float()
             .with_top()
-            .with_left();
+            .with_left()
+            .desync();
 
         let body = inner.padding().with_horizontal(1).border().background();
 
@@ -33,22 +33,20 @@ impl<I> Popup<I> {
     }
 }
 
-#[async_trait]
-impl<E, I> AsyncWidget<E> for Popup<I>
+impl<E, I> Widget<E> for Popup<I>
 where
-    E: Send,
-    I: AsyncWidget<E> + Send + Sync,
+    I: Widget<E>,
 {
-    async fn size(
+    fn size(
         &self,
         widthdb: &mut WidthDb,
         max_width: Option<u16>,
         max_height: Option<u16>,
     ) -> Result<Size, E> {
-        self.0.size(widthdb, max_width, max_height).await
+        self.0.size(widthdb, max_width, max_height)
     }
 
-    async fn draw(self, frame: &mut Frame) -> Result<(), E> {
-        self.0.draw(frame).await
+    fn draw(self, frame: &mut Frame) -> Result<(), E> {
+        self.0.draw(frame)
     }
 }

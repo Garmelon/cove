@@ -1,8 +1,8 @@
 use crossterm::style::Stylize;
 use euphoxide::api::PersonalAccountView;
 use euphoxide::conn;
-use toss::widgets::{BoxedAsync, EditorState, Empty, Join3, Join4, Text};
-use toss::{Style, Terminal, WidgetExt};
+use toss::widgets::{EditorState, Empty, Join3, Join4, Text};
+use toss::{Style, Terminal, Widget, WidgetExt};
 
 use crate::euph::{self, Room};
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
@@ -30,7 +30,7 @@ impl LoggedOut {
         }
     }
 
-    fn widget(&mut self) -> BoxedAsync<'_, UiError> {
+    fn widget(&mut self) -> impl Widget<UiError> + '_ {
         let bold = Style::new().bold();
         Join4::vertical(
             Text::new(("Not logged in", bold.yellow())).segment(),
@@ -57,14 +57,13 @@ impl LoggedOut {
             )
             .segment(),
         )
-        .boxed_async()
     }
 }
 
 pub struct LoggedIn(PersonalAccountView);
 
 impl LoggedIn {
-    fn widget(&self) -> BoxedAsync<'_, UiError> {
+    fn widget(&self) -> impl Widget<UiError> {
         let bold = Style::new().bold();
         Join3::vertical(
             Text::new(("Logged in", bold.green())).segment(),
@@ -78,7 +77,6 @@ impl LoggedIn {
             )
             .segment(),
         )
-        .boxed_async()
     }
 }
 
@@ -112,15 +110,15 @@ impl AccountUiState {
         }
     }
 
-    pub fn widget(&mut self) -> BoxedAsync<'_, UiError> {
+    pub fn widget(&mut self) -> impl Widget<UiError> + '_ {
         let inner = match self {
-            Self::LoggedOut(logged_out) => logged_out.widget(),
-            Self::LoggedIn(logged_in) => logged_in.widget(),
+            Self::LoggedOut(logged_out) => logged_out.widget().first2(),
+            Self::LoggedIn(logged_in) => logged_in.widget().second2(),
         }
         .resize()
         .with_min_width(40);
 
-        Popup::new(inner, "Account").boxed_async()
+        Popup::new(inner, "Account")
     }
 
     pub fn list_key_bindings(&self, bindings: &mut KeyBindingsList) {

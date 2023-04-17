@@ -3,8 +3,8 @@ use std::iter;
 use crossterm::style::{Color, Stylize};
 use euphoxide::api::{NickEvent, SessionId, SessionType, SessionView, UserId};
 use euphoxide::conn::{Joined, SessionInfo};
-use toss::widgets::{BoxedAsync, Empty, Text};
-use toss::{Style, Styled, WidgetExt};
+use toss::widgets::{Background, Text};
+use toss::{Style, Styled, Widget, WidgetExt};
 
 use crate::euph;
 use crate::ui::widgets::{ListBuilder, ListState};
@@ -14,10 +14,10 @@ pub fn widget<'a>(
     list: &'a mut ListState<SessionId>,
     joined: &Joined,
     focused: bool,
-) -> BoxedAsync<'a, UiError> {
+) -> impl Widget<UiError> + 'a {
     let mut list_builder = ListBuilder::new();
     render_rows(&mut list_builder, joined, focused);
-    list_builder.build(list).boxed_async()
+    list_builder.build(list)
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -59,7 +59,7 @@ impl HalfSession {
 }
 
 fn render_rows(
-    list_builder: &mut ListBuilder<'_, SessionId, BoxedAsync<'static, UiError>>,
+    list_builder: &mut ListBuilder<'_, SessionId, Background<Text>>,
     joined: &Joined,
     focused: bool,
 ) {
@@ -94,7 +94,7 @@ fn render_rows(
 }
 
 fn render_section(
-    list_builder: &mut ListBuilder<'_, SessionId, BoxedAsync<'static, UiError>>,
+    list_builder: &mut ListBuilder<'_, SessionId, Background<Text>>,
     name: &str,
     sessions: &[HalfSession],
     own_session: &SessionView,
@@ -107,13 +107,13 @@ fn render_section(
     let heading_style = Style::new().bold();
 
     if !list_builder.is_empty() {
-        list_builder.add_unsel(Empty::new().boxed_async());
+        list_builder.add_unsel(Text::new("").background());
     }
 
     let row = Styled::new_plain(" ")
         .then(name, heading_style)
         .then_plain(format!(" ({})", sessions.len()));
-    list_builder.add_unsel(Text::new(row).boxed_async());
+    list_builder.add_unsel(Text::new(row).background());
 
     for session in sessions {
         render_row(list_builder, session, own_session, focused);
@@ -121,7 +121,7 @@ fn render_section(
 }
 
 fn render_row(
-    list_builder: &mut ListBuilder<'_, SessionId, BoxedAsync<'static, UiError>>,
+    list_builder: &mut ListBuilder<'_, SessionId, Background<Text>>,
     session: &HalfSession,
     own_session: &SessionView,
     focused: bool,
@@ -163,15 +163,12 @@ fn render_row(
             let text = Styled::new_plain(owner)
                 .then(name, style_inv)
                 .then(perms, perms_style_inv);
-            Text::new(text)
-                .background()
-                .with_style(style_inv)
-                .boxed_async()
+            Text::new(text).background().with_style(style_inv)
         } else {
             let text = Styled::new_plain(owner)
                 .then(&name, style)
                 .then_plain(perms);
-            Text::new(text).boxed_async()
+            Text::new(text).background()
         }
     });
 }

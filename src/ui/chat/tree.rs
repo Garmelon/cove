@@ -12,7 +12,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use parking_lot::FairMutex;
 use toss::widgets::EditorState;
-use toss::{AsyncWidget, Frame, Pos, Size, Terminal, WidthDb};
+use toss::{AsyncWidget, Frame, Pos, Size, Terminal, WidgetExt, WidthDb};
 
 use crate::store::{Msg, MsgStore};
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
@@ -488,7 +488,7 @@ where
         for (range, block) in renderer.into_visible_blocks() {
             let widget = block.into_widget();
             frame.push(Pos::new(0, range.top), widget.size());
-            widget.draw(frame).await.infallible();
+            widget.desync().draw(frame).await.infallible();
             frame.pop();
         }
 

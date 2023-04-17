@@ -9,7 +9,7 @@ use euphoxide::conn::{self, Joined};
 use parking_lot::FairMutex;
 use tokio::sync::mpsc;
 use toss::widgets::{BoxedAsync, EditorState, Empty, Join2, Text};
-use toss::{Style, Styled, Terminal, WidgetExt};
+use toss::{Style, Styled, Terminal, Widget, WidgetExt};
 
 use crate::config::{Config, RoomsSortOrder};
 use crate::euph;
@@ -171,9 +171,10 @@ impl Rooms {
         }
 
         match &mut self.state {
-            State::ShowList => {
-                Self::rooms_widget(&mut self.list, &self.euph_rooms, self.order).await
-            }
+            State::ShowList => Self::rooms_widget(&mut self.list, &self.euph_rooms, self.order)
+                .await
+                .desync()
+                .boxed_async(),
 
             State::ShowRoom(name) => {
                 self.euph_rooms
@@ -187,6 +188,7 @@ impl Rooms {
                 Self::rooms_widget(&mut self.list, &self.euph_rooms, self.order)
                     .await
                     .below(Self::new_room_widget(editor))
+                    .desync()
                     .boxed_async()
             }
 
@@ -194,12 +196,13 @@ impl Rooms {
                 Self::rooms_widget(&mut self.list, &self.euph_rooms, self.order)
                     .await
                     .below(Self::delete_room_widget(name, editor))
+                    .desync()
                     .boxed_async()
             }
         }
     }
 
-    fn new_room_widget(editor: &mut EditorState) -> BoxedAsync<'_, UiError> {
+    fn new_room_widget(editor: &mut EditorState) -> impl Widget<UiError> + '_ {
         let room_style = Style::new().bold().blue();
 
         let inner = Join2::horizontal(
@@ -210,10 +213,13 @@ impl Rooms {
                 .segment(),
         );
 
-        Popup::new(inner, "Connect to").boxed_async()
+        Popup::new(inner, "Connect to")
     }
 
-    fn delete_room_widget<'a>(name: &str, editor: &'a mut EditorState) -> BoxedAsync<'a, UiError> {
+    fn delete_room_widget<'a>(
+        name: &str,
+        editor: &'a mut EditorState,
+    ) -> impl Widget<UiError> + 'a {
         let warn_style = Style::new().bold().red();
         let room_style = Style::new().bold().blue();
         let text = Styled::new_plain("Are you sure you want to delete ")
@@ -249,9 +255,7 @@ impl Rooms {
             .segment(),
         );
 
-        Popup::new(inner, "Delete room")
-            .with_border_style(warn_style)
-            .boxed_async()
+        Popup::new(inner, "Delete room").with_border_style(warn_style)
     }
 
     fn format_pbln(joined: &Joined) -> String {
@@ -387,7 +391,7 @@ impl Rooms {
         list: &'a mut ListState<String>,
         euph_rooms: &HashMap<String, EuphRoom>,
         order: Order,
-    ) -> BoxedAsync<'a, UiError> {
+    ) -> impl Widget<UiError> + 'a {
         let heading_style = Style::new().bold();
         let heading_text =
             Styled::new("Rooms", heading_style).then_plain(format!(" ({})", euph_rooms.len()));
@@ -399,7 +403,6 @@ impl Rooms {
             Text::new(heading_text).segment().with_fixed(true),
             list_builder.build(list).segment(),
         )
-        .boxed_async()
     }
 
     fn room_char(c: char) -> bool {

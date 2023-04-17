@@ -1,6 +1,6 @@
 use euphoxide::conn::Joined;
-use toss::widgets::{BoxedAsync, EditorState};
-use toss::{Style, Terminal, WidgetExt};
+use toss::widgets::EditorState;
+use toss::{Style, Terminal, Widget};
 
 use crate::euph::{self, Room};
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
@@ -11,12 +11,12 @@ pub fn new(joined: Joined) -> EditorState {
     EditorState::with_initial_text(joined.session.name)
 }
 
-pub fn widget(editor: &mut EditorState) -> BoxedAsync<'_, UiError> {
+pub fn widget(editor: &mut EditorState) -> impl Widget<UiError> + '_ {
     let inner = editor
         .widget()
         .with_highlight(|s| euph::style_nick_exact(s, Style::new()));
 
-    Popup::new(inner, "Choose nick").boxed_async()
+    Popup::new(inner, "Choose nick")
 }
 
 fn nick_char(c: char) -> bool {

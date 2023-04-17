@@ -1,7 +1,6 @@
 use std::vec;
 
-use async_trait::async_trait;
-use toss::{AsyncWidget, Frame, Pos, Size, WidthDb};
+use toss::{Frame, Pos, Size, Widget, WidthDb};
 
 #[derive(Debug, Clone)]
 struct Cursor<Id> {
@@ -298,13 +297,12 @@ pub struct List<'a, Id, W> {
     rows: Vec<W>,
 }
 
-#[async_trait]
-impl<Id, E, W> AsyncWidget<E> for List<'_, Id, W>
+impl<Id, E, W> Widget<E> for List<'_, Id, W>
 where
-    Id: Clone + Eq + Send + Sync,
-    W: AsyncWidget<E> + Send + Sync,
+    Id: Clone + Eq,
+    W: Widget<E>,
 {
-    async fn size(
+    fn size(
         &self,
         widthdb: &mut WidthDb,
         max_width: Option<u16>,
@@ -312,14 +310,14 @@ where
     ) -> Result<Size, E> {
         let mut width = 0;
         for row in &self.rows {
-            let size = row.size(widthdb, max_width, Some(1)).await?;
+            let size = row.size(widthdb, max_width, Some(1))?;
             width = width.max(size.width);
         }
         let height = self.rows.len().try_into().unwrap_or(u16::MAX);
         Ok(Size::new(width, height))
     }
 
-    async fn draw(self, frame: &mut Frame) -> Result<(), E> {
+    fn draw(self, frame: &mut Frame) -> Result<(), E> {
         let size = frame.size();
 
         self.state.last_height = size.height;
@@ -332,7 +330,7 @@ where
             .enumerate()
         {
             frame.push(Pos::new(0, y as i32), Size::new(size.width, 1));
-            row.draw(frame).await?;
+            row.draw(frame)?;
             frame.pop();
         }
 

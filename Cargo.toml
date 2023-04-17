@@ -43,7 +43,7 @@ features = ["bot"]
 
 [dependencies.toss]
 git = "https://github.com/Garmelon/toss.git"
-rev = "57788a9dd9688bdf3e59bf7366ba6276fc660715"
+rev = "f414db40d526295c74cbcae6c3d194088da8f1d9"
 
 # [patch."https://github.com/Garmelon/toss.git"]
 # toss = { path = "../toss/" }

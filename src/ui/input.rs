@@ -2,8 +2,8 @@ use std::convert::Infallible;
 
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 use crossterm::style::Stylize;
-use toss::widgets::{BoxedAsync, Empty, Join2, Text};
-use toss::{Style, Styled, WidgetExt};
+use toss::widgets::{Empty, Join2, Text};
+use toss::{Style, Styled, Widget, WidgetExt};
 
 use super::widgets::{ListBuilder, ListState};
 use super::UiError;
@@ -96,11 +96,11 @@ impl KeyBindingsList {
         Style::new().cyan()
     }
 
-    fn row_widget(row: Row) -> BoxedAsync<'static, UiError> {
+    fn row_widget(row: Row) -> impl Widget<UiError> {
         match row {
-            Row::Empty => Empty::new().boxed_async(),
+            Row::Empty => Text::new("").first3(),
 
-            Row::Heading(name) => Text::new((name, Style::new().bold())).boxed_async(),
+            Row::Heading(name) => Text::new((name, Style::new().bold())).first3(),
 
             Row::Binding(binding, description) => Join2::horizontal(
                 Text::new((binding, Self::binding_style()))
@@ -111,17 +111,17 @@ impl KeyBindingsList {
                     .segment(),
                 Text::new(description).segment(),
             )
-            .boxed_async(),
+            .second3(),
 
             Row::BindingContd(description) => Join2::horizontal(
                 Empty::new().with_width(Self::BINDING_WIDTH).segment(),
                 Text::new(description).segment(),
             )
-            .boxed_async(),
+            .third3(),
         }
     }
 
-    pub fn widget(self, list_state: &mut ListState<Infallible>) -> BoxedAsync<'_, UiError> {
+    pub fn widget(self, list_state: &mut ListState<Infallible>) -> impl Widget<UiError> + '_ {
         let binding_style = Self::binding_style();
 
         let hint_text = Styled::new("jk/↓↑", binding_style)
@@ -150,7 +150,6 @@ impl KeyBindingsList {
             .background()
             .float()
             .with_center()
-            .boxed_async()
     }
 
     pub fn empty(&mut self) {
