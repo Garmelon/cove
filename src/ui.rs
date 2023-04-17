@@ -23,13 +23,13 @@ use toss::{Terminal, WidgetExt};
 use crate::config::Config;
 use crate::logger::{LogMsg, Logger};
 use crate::macros::{logging_unwrap, ok_or_return, some_or_return};
+use crate::util::InfallibleExt;
 use crate::vault::Vault;
 
 pub use self::chat::ChatMsg;
-use self::chat::ChatState;
+use self::chat2::ChatState;
 use self::input::{key, InputEvent, KeyBindingsList};
 use self::rooms::Rooms;
-use self::widgets::WidgetWrapper;
 use self::widgets2::ListState;
 
 /// Time to spend batch processing events before redrawing the screen.
@@ -42,6 +42,12 @@ pub enum UiError {
     Vault(#[from] vault::tokio::Error),
     #[error("{0}")]
     Io(#[from] io::Error),
+}
+
+impl From<Infallible> for UiError {
+    fn from(value: Infallible) -> Self {
+        Err(value).infallible()
+    }
 }
 
 pub enum UiEvent {
@@ -197,9 +203,7 @@ impl Ui {
 
         let widget = match self.mode {
             Mode::Main => self.rooms.widget().await,
-            Mode::Log => {
-                WidgetWrapper::new(self.log_chat.widget(String::new(), true)).boxed_async()
-            }
+            Mode::Log => self.log_chat.widget(String::new(), true),
         };
 
         if let Some(key_bindings_list) = key_bindings_list {

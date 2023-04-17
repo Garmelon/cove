@@ -141,3 +141,9 @@ pub enum Reaction<M: Msg> {
     },
     ComposeError(io::Error),
 }
+
+impl<M: Msg> Reaction<M> {
+    pub fn handled(&self) -> bool {
+        !matches!(self, Self::NotHandled)
+    }
+}
