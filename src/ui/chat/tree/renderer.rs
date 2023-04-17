@@ -2,10 +2,9 @@
 
 use std::convert::Infallible;
 
-use async_recursion::async_recursion;
 use async_trait::async_trait;
 use toss::widgets::{EditorState, Empty, Predrawn, Resize};
-use toss::{AsyncWidget, Size, WidthDb};
+use toss::{Size, Widget, WidthDb};
 
 use crate::store::{Msg, MsgStore, Tree};
 use crate::ui::chat::blocks::{Block, Blocks, Range};
@@ -122,26 +121,24 @@ where
         }
     }
 
-    async fn predraw<W>(widget: W, size: Size, widthdb: &mut WidthDb) -> Predrawn
+    fn predraw<W>(widget: W, size: Size, widthdb: &mut WidthDb) -> Predrawn
     where
-        W: AsyncWidget<Infallible> + Send + Sync,
+        W: Widget<Infallible>,
     {
-        Predrawn::new_async(Resize::new(widget).with_max_width(size.width), widthdb)
-            .await
-            .infallible()
+        Predrawn::new(Resize::new(widget).with_max_width(size.width), widthdb).infallible()
     }
 
-    async fn zero_height_block(&mut self, parent: Option<&M::Id>) -> TreeBlock<M::Id> {
+    fn zero_height_block(&mut self, parent: Option<&M::Id>) -> TreeBlock<M::Id> {
         let id = match parent {
             Some(parent) => TreeBlockId::After(parent.clone()),
             None => TreeBlockId::Bottom,
         };
 
-        let widget = Self::predraw(Empty::new(), self.context.size, self.widthdb).await;
+        let widget = Self::predraw(Empty::new(), self.context.size, self.widthdb);
         Block::new(id, widget, false)
     }
 
-    async fn editor_block(&mut self, indent: usize, parent: Option<&M::Id>) -> TreeBlock<M::Id> {
+    fn editor_block(&mut self, indent: usize, parent: Option<&M::Id>) -> TreeBlock<M::Id> {
         let id = match parent {
             Some(parent) => TreeBlockId::After(parent.clone()),
             None => TreeBlockId::Bottom,
@@ -149,7 +146,7 @@ where
 
         // TODO Unhighlighted version when focusing on nick list
         let widget = widgets::editor::<M>(indent, &self.context.nick, self.editor);
-        let widget = Self::predraw(widget, self.context.size, self.widthdb).await;
+        let widget = Self::predraw(widget, self.context.size, self.widthdb);
         let mut block = Block::new(id, widget, false);
 
         // Since the editor was rendered when the `Predrawn` was created, the
@@ -160,7 +157,7 @@ where
         block
     }
 
-    async fn pseudo_block(&mut self, indent: usize, parent: Option<&M::Id>) -> TreeBlock<M::Id> {
+    fn pseudo_block(&mut self, indent: usize, parent: Option<&M::Id>) -> TreeBlock<M::Id> {
         let id = match parent {
             Some(parent) => TreeBlockId::After(parent.clone()),
             None => TreeBlockId::Bottom,
@@ -168,11 +165,11 @@ where
 
         // TODO Unhighlighted version when focusing on nick list
         let widget = widgets::pseudo::<M>(indent, &self.context.nick, self.editor);
-        let widget = Self::predraw(widget, self.context.size, self.widthdb).await;
+        let widget = Self::predraw(widget, self.context.size, self.widthdb);
         Block::new(id, widget, false)
     }
 
-    async fn message_block(&mut self, indent: usize, msg: &M) -> TreeBlock<M::Id> {
+    fn message_block(&mut self, indent: usize, msg: &M) -> TreeBlock<M::Id> {
         let msg_id = msg.id();
 
         let highlighted = match self.cursor {
@@ -182,15 +179,11 @@ where
 
         // TODO Amount of folded messages
         let widget = widgets::msg(self.context.focused && highlighted, indent, msg, None);
-        let widget = Self::predraw(widget, self.context.size, self.widthdb).await;
+        let widget = Self::predraw(widget, self.context.size, self.widthdb);
         Block::new(TreeBlockId::Msg(msg_id), widget, true)
     }
 
-    async fn message_placeholder_block(
-        &mut self,
-        indent: usize,
-        msg_id: &M::Id,
-    ) -> TreeBlock<M::Id> {
+    fn message_placeholder_block(&mut self, indent: usize, msg_id: &M::Id) -> TreeBlock<M::Id> {
         let highlighted = match self.cursor {
             Cursor::Msg(id) => id == msg_id,
             _ => false,
@@ -198,28 +191,23 @@ where
 
         // TODO Amount of folded messages
         let widget = widgets::msg_placeholder(self.context.focused && highlighted, indent, None);
-        let widget = Self::predraw(widget, self.context.size, self.widthdb).await;
+        let widget = Self::predraw(widget, self.context.size, self.widthdb);
         Block::new(TreeBlockId::Msg(msg_id.clone()), widget, true)
     }
 
-    async fn layout_bottom(&mut self) -> TreeBlocks<M::Id> {
+    fn layout_bottom(&mut self) -> TreeBlocks<M::Id> {
         let mut blocks = Blocks::new(0);
 
         match self.cursor {
-            Cursor::Editor { parent: None, .. } => {
-                blocks.push_bottom(self.editor_block(0, None).await)
-            }
-            Cursor::Pseudo { parent: None, .. } => {
-                blocks.push_bottom(self.pseudo_block(0, None).await)
-            }
-            _ => blocks.push_bottom(self.zero_height_block(None).await),
+            Cursor::Editor { parent: None, .. } => blocks.push_bottom(self.editor_block(0, None)),
+            Cursor::Pseudo { parent: None, .. } => blocks.push_bottom(self.pseudo_block(0, None)),
+            _ => blocks.push_bottom(self.zero_height_block(None)),
         }
 
         blocks
     }
 
-    #[async_recursion]
-    async fn layout_subtree(
+    fn layout_subtree(
         &mut self,
         tree: &Tree<M>,
         indent: usize,
@@ -228,16 +216,16 @@ where
     ) {
         // Message itself
         let block = if let Some(msg) = tree.msg(msg_id) {
-            self.message_block(indent, msg).await
+            self.message_block(indent, msg)
         } else {
-            self.message_placeholder_block(indent, msg_id).await
+            self.message_placeholder_block(indent, msg_id)
         };
         blocks.push_bottom(block);
 
         // Children, recursively
         if let Some(children) = tree.children(msg_id) {
             for child in children {
-                self.layout_subtree(tree, indent + 1, child, blocks).await;
+                self.layout_subtree(tree, indent + 1, child, blocks);
             }
         }
 
@@ -245,21 +233,20 @@ where
         let block = match self.cursor {
             Cursor::Editor {
                 parent: Some(id), ..
-            } if id == msg_id => self.editor_block(indent + 1, Some(msg_id)).await,
+            } if id == msg_id => self.editor_block(indent + 1, Some(msg_id)),
 
             Cursor::Pseudo {
                 parent: Some(id), ..
-            } if id == msg_id => self.pseudo_block(indent + 1, Some(msg_id)).await,
+            } if id == msg_id => self.pseudo_block(indent + 1, Some(msg_id)),
 
-            _ => self.zero_height_block(Some(msg_id)).await,
+            _ => self.zero_height_block(Some(msg_id)),
         };
         blocks.push_bottom(block);
     }
 
-    async fn layout_tree(&mut self, tree: Tree<M>) -> TreeBlocks<M::Id> {
+    fn layout_tree(&mut self, tree: Tree<M>) -> TreeBlocks<M::Id> {
         let mut blocks = Blocks::new(0);
-        self.layout_subtree(&tree, 0, tree.root(), &mut blocks)
-            .await;
+        self.layout_subtree(&tree, 0, tree.root(), &mut blocks);
         blocks
     }
 
@@ -275,9 +262,9 @@ where
 
         let blocks = if let Some(root_id) = root_id {
             let tree = self.store.tree(root_id).await?;
-            self.layout_tree(tree).await
+            self.layout_tree(tree)
         } else {
-            self.layout_bottom().await
+            self.layout_bottom()
         };
         self.blocks.append_bottom(blocks);
 
@@ -429,7 +416,7 @@ where
 
         if let Some(prev_root_id) = prev_root_id {
             let tree = self.store.tree(&prev_root_id).await?;
-            let blocks = self.layout_tree(tree).await;
+            let blocks = self.layout_tree(tree);
             self.blocks.append_top(blocks);
             self.top_root_id = Some(prev_root_id);
         } else {
@@ -448,11 +435,11 @@ where
         let next_root_id = self.store.next_root_id(bottom_root_id).await?;
         if let Some(next_root_id) = next_root_id {
             let tree = self.store.tree(&next_root_id).await?;
-            let blocks = self.layout_tree(tree).await;
+            let blocks = self.layout_tree(tree);
             self.blocks.append_bottom(blocks);
             self.bottom_root_id = Some(next_root_id);
         } else {
-            let blocks = self.layout_bottom().await;
+            let blocks = self.layout_bottom();
             self.blocks.append_bottom(blocks);
             self.blocks.end_bottom();
             self.bottom_root_id = None;

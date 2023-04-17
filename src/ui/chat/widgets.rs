@@ -1,12 +1,11 @@
 use std::convert::Infallible;
 
-use async_trait::async_trait;
 use crossterm::style::Stylize;
 use time::format_description::FormatItem;
 use time::macros::format_description;
 use time::OffsetDateTime;
-use toss::widgets::{BoxedAsync, Empty, Text};
-use toss::{AsyncWidget, Frame, Pos, Size, Style, WidgetExt, WidthDb};
+use toss::widgets::{Boxed, Empty, Text};
+use toss::{Frame, Pos, Size, Style, Widget, WidgetExt, WidthDb};
 
 use crate::util::InfallibleExt;
 
@@ -24,9 +23,8 @@ impl Indent {
     }
 }
 
-#[async_trait]
-impl<E> AsyncWidget<E> for Indent {
-    async fn size(
+impl<E> Widget<E> for Indent {
+    fn size(
         &self,
         _widthdb: &mut WidthDb,
         _max_width: Option<u16>,
@@ -36,7 +34,7 @@ impl<E> AsyncWidget<E> for Indent {
         Ok(Size::new(width, 0))
     }
 
-    async fn draw(self, frame: &mut Frame) -> Result<(), E> {
+    fn draw(self, frame: &mut Frame) -> Result<(), E> {
         let size = frame.size();
         let indent_string = INDENT_STR.repeat(self.level);
 
@@ -51,7 +49,7 @@ impl<E> AsyncWidget<E> for Indent {
 const TIME_FORMAT: &[FormatItem<'_>] = format_description!("[year]-[month]-[day] [hour]:[minute]");
 const TIME_WIDTH: u16 = 16;
 
-pub struct Time(BoxedAsync<'static, Infallible>);
+pub struct Time(Boxed<'static, Infallible>);
 
 impl Time {
     pub fn new(time: Option<OffsetDateTime>, style: Style) -> Self {
@@ -60,70 +58,60 @@ impl Time {
             Text::new((text, style))
                 .background()
                 .with_style(style)
-                .boxed_async()
+                .boxed()
         } else {
             Empty::new()
                 .with_width(TIME_WIDTH)
                 .background()
                 .with_style(style)
-                .boxed_async()
+                .boxed()
         };
         Self(widget)
     }
 }
 
-#[async_trait]
-impl<E> AsyncWidget<E> for Time {
-    async fn size(
+impl<E> Widget<E> for Time {
+    fn size(
         &self,
         widthdb: &mut WidthDb,
         max_width: Option<u16>,
         max_height: Option<u16>,
     ) -> Result<Size, E> {
-        Ok(self
-            .0
-            .size(widthdb, max_width, max_height)
-            .await
-            .infallible())
+        Ok(self.0.size(widthdb, max_width, max_height).infallible())
     }
 
-    async fn draw(self, frame: &mut Frame) -> Result<(), E> {
-        self.0.draw(frame).await.infallible();
+    fn draw(self, frame: &mut Frame) -> Result<(), E> {
+        self.0.draw(frame).infallible();
         Ok(())
     }
 }
 
-pub struct Seen(BoxedAsync<'static, Infallible>);
+pub struct Seen(Boxed<'static, Infallible>);
 
 impl Seen {
     pub fn new(seen: bool) -> Self {
         let widget = if seen {
-            Empty::new().with_width(1).boxed_async()
+            Empty::new().with_width(1).boxed()
         } else {
             let style = Style::new().black().on_green();
-            Text::new("*").background().with_style(style).boxed_async()
+            Text::new("*").background().with_style(style).boxed()
         };
         Self(widget)
     }
 }
 
-#[async_trait]
-impl<E> AsyncWidget<E> for Seen {
-    async fn size(
+impl<E> Widget<E> for Seen {
+    fn size(
         &self,
         widthdb: &mut WidthDb,
         max_width: Option<u16>,
         max_height: Option<u16>,
     ) -> Result<Size, E> {
-        Ok(self
-            .0
-            .size(widthdb, max_width, max_height)
-            .await
-            .infallible())
+        Ok(self.0.size(widthdb, max_width, max_height).infallible())
     }
 
-    async fn draw(self, frame: &mut Frame) -> Result<(), E> {
-        self.0.draw(frame).await.infallible();
+    fn draw(self, frame: &mut Frame) -> Result<(), E> {
+        self.0.draw(frame).infallible();
         Ok(())
     }
 }

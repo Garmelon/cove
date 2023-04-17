@@ -1,7 +1,7 @@
 use std::convert::Infallible;
 
 use crossterm::style::Stylize;
-use toss::widgets::{BoxedAsync, EditorState, Join2, Join4, Join5, Text};
+use toss::widgets::{Boxed, EditorState, Join2, Join4, Join5, Text};
 use toss::{Style, Styled, WidgetExt};
 
 use crate::store::Msg;
@@ -47,7 +47,7 @@ pub fn msg<M: Msg + ChatMsg>(
     indent: usize,
     msg: &M,
     folded_info: Option<usize>,
-) -> BoxedAsync<'static, Infallible> {
+) -> Boxed<'static, Infallible> {
     let (nick, mut content) = msg.styled();
 
     if let Some(amount) = folded_info {
@@ -81,14 +81,14 @@ pub fn msg<M: Msg + ChatMsg>(
         // TODO Minimizing and maximizing messages
         Text::new(content).segment(),
     )
-    .boxed_async()
+    .boxed()
 }
 
 pub fn msg_placeholder(
     highlighted: bool,
     indent: usize,
     folded_info: Option<usize>,
-) -> BoxedAsync<'static, Infallible> {
+) -> Boxed<'static, Infallible> {
     let mut content = Styled::new(PLACEHOLDER, style_placeholder());
 
     if let Some(amount) = folded_info {
@@ -110,14 +110,14 @@ pub fn msg_placeholder(
             .with_fixed(true),
         Text::new(content).segment(),
     )
-    .boxed_async()
+    .boxed()
 }
 
 pub fn editor<'a, M: ChatMsg>(
     indent: usize,
     nick: &str,
     editor: &'a mut EditorState,
-) -> BoxedAsync<'a, Infallible> {
+) -> Boxed<'a, Infallible> {
     let (nick, content) = M::edit(nick, editor.text());
     let editor = editor.widget().with_highlight(|_| content);
 
@@ -144,14 +144,14 @@ pub fn editor<'a, M: ChatMsg>(
         .with_fixed(true),
         editor.segment(),
     )
-    .boxed_async()
+    .boxed()
 }
 
 pub fn pseudo<'a, M: ChatMsg>(
     indent: usize,
     nick: &str,
     editor: &'a mut EditorState,
-) -> BoxedAsync<'a, Infallible> {
+) -> Boxed<'a, Infallible> {
     let (nick, content) = M::edit(nick, editor.text());
 
     Join5::horizontal(
@@ -177,5 +177,5 @@ pub fn pseudo<'a, M: ChatMsg>(
         .with_fixed(true),
         Text::new(content).segment(),
     )
-    .boxed_async()
+    .boxed()
 }
