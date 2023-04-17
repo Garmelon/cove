@@ -18,7 +18,7 @@ use crate::vault::Vault;
 
 use super::euph::room::EuphRoom;
 use super::input::{key, InputEvent, KeyBindingsList};
-use super::widgets::{List, ListState, Popup};
+use super::widgets::{ListBuilder, ListState, Popup};
 use super::{util, UiError, UiEvent};
 
 enum State {
@@ -348,12 +348,12 @@ impl Rooms {
     }
 
     async fn render_rows(
-        list: &mut List<'_, String, Text>,
+        list_builder: &mut ListBuilder<'_, String, Text>,
         euph_rooms: &HashMap<String, EuphRoom>,
         order: Order,
     ) {
         if euph_rooms.is_empty() {
-            list.add_unsel(Text::new((
+            list_builder.add_unsel(Text::new((
                 "Press F1 for key bindings",
                 Style::new().grey().italic(),
             )))
@@ -367,16 +367,19 @@ impl Rooms {
         }
         Self::sort_rooms(&mut rooms, order);
         for (name, state, unseen) in rooms {
-            let style = if list.state().selected() == Some(name) {
-                Style::new().bold().black().on_white()
-            } else {
-                Style::new().bold().blue()
-            };
+            let name = name.clone();
+            let info = Self::format_room_info(state, unseen);
+            list_builder.add_sel(name.clone(), move |selected| {
+                let style = if selected {
+                    Style::new().bold().black().on_white()
+                } else {
+                    Style::new().bold().blue()
+                };
 
-            let text = Styled::new(format!("&{name}"), style)
-                .and_then(Self::format_room_info(state, unseen));
+                let text = Styled::new(format!("&{name}"), style).and_then(info);
 
-            list.add_sel(name.clone(), Text::new(text));
+                Text::new(text)
+            });
         }
     }
 
@@ -389,12 +392,12 @@ impl Rooms {
         let heading_text =
             Styled::new("Rooms", heading_style).then_plain(format!(" ({})", euph_rooms.len()));
 
-        let mut list = list.widget();
-        Self::render_rows(&mut list, euph_rooms, order).await;
+        let mut list_builder = ListBuilder::new();
+        Self::render_rows(&mut list_builder, euph_rooms, order).await;
 
         Join2::vertical(
             Text::new(heading_text).segment().with_fixed(true),
-            list.segment(),
+            list_builder.build(list).segment(),
         )
         .boxed_async()
     }

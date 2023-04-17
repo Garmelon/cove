@@ -5,7 +5,7 @@ use crossterm::style::Stylize;
 use toss::widgets::{BoxedAsync, Empty, Join2, Text};
 use toss::{Style, Styled, WidgetExt};
 
-use super::widgets::ListState;
+use super::widgets::{ListBuilder, ListState};
 use super::UiError;
 
 #[derive(Debug, Clone)]
@@ -136,12 +136,14 @@ impl KeyBindingsList {
             .with_horizontal(0.5)
             .with_vertical(0.0);
 
-        let mut list = list_state.widget();
+        let mut list_builder = ListBuilder::new();
         for row in self.0 {
-            list.add_unsel(Self::row_widget(row));
+            list_builder.add_unsel(Self::row_widget(row));
         }
 
-        list.padding()
+        list_builder
+            .build(list_state)
+            .padding()
             .with_horizontal(1)
             .border()
             .below(hint)

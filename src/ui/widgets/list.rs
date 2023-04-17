@@ -211,13 +211,6 @@ impl<Id: Clone> ListState<Id> {
             self.move_cursor_to(new_cursor);
         }
     }
-
-    pub fn widget<W>(&mut self) -> List<'_, Id, W> {
-        List {
-            state: self,
-            rows: vec![],
-        }
-    }
 }
 
 impl<Id: Clone + Eq> ListState<Id> {
@@ -248,39 +241,61 @@ impl<Id: Clone + Eq> ListState<Id> {
     }
 }
 
-struct Row<Id, W> {
+struct UnrenderedRow<'a, Id, W> {
     id: Option<Id>,
-    widget: W,
+    widget: Box<dyn FnOnce(bool) -> W + 'a>,
 }
 
-pub struct List<'a, Id, W> {
-    state: &'a mut ListState<Id>,
-    rows: Vec<Row<Id, W>>,
+pub struct ListBuilder<'a, Id, W> {
+    rows: Vec<UnrenderedRow<'a, Id, W>>,
 }
 
-impl<Id, W> List<'_, Id, W> {
-    pub fn state(&self) -> &ListState<Id> {
-        &self.state
-    }
-
-    pub fn state_mut(&mut self) -> &mut ListState<Id> {
-        &mut self.state
+impl<'a, Id, W> ListBuilder<'a, Id, W> {
+    pub fn new() -> Self {
+        Self { rows: vec![] }
     }
 
     pub fn is_empty(&self) -> bool {
         self.rows.is_empty()
     }
 
-    pub fn add_unsel(&mut self, widget: W) {
-        self.rows.push(Row { id: None, widget });
-    }
-
-    pub fn add_sel(&mut self, id: Id, widget: W) {
-        self.rows.push(Row {
-            id: Some(id),
-            widget,
+    pub fn add_unsel(&mut self, widget: W)
+    where
+        W: 'a,
+    {
+        self.rows.push(UnrenderedRow {
+            id: None,
+            widget: Box::new(|_| widget),
         });
     }
+
+    pub fn add_sel(&mut self, id: Id, widget: impl FnOnce(bool) -> W + 'a) {
+        self.rows.push(UnrenderedRow {
+            id: Some(id),
+            widget: Box::new(widget),
+        });
+    }
+
+    pub fn build(self, state: &mut ListState<Id>) -> List<'_, Id, W>
+    where
+        Id: Clone + Eq,
+    {
+        state.last_rows = self.rows.iter().map(|row| row.id.clone()).collect();
+        state.fix_cursor();
+
+        let selected = state.selected();
+        let rows = self
+            .rows
+            .into_iter()
+            .map(|row| (row.widget)(row.id.as_ref() == selected))
+            .collect();
+        List { state, rows }
+    }
+}
+
+pub struct List<'a, Id, W> {
+    state: &'a mut ListState<Id>,
+    rows: Vec<W>,
 }
 
 #[async_trait]
@@ -297,7 +312,7 @@ where
     ) -> Result<Size, E> {
         let mut width = 0;
         for row in &self.rows {
-            let size = row.widget.size(widthdb, max_width, Some(1)).await?;
+            let size = row.size(widthdb, max_width, Some(1)).await?;
             width = width.max(size.width);
         }
         let height = self.rows.len().try_into().unwrap_or(u16::MAX);
@@ -307,9 +322,7 @@ where
     async fn draw(self, frame: &mut Frame) -> Result<(), E> {
         let size = frame.size();
 
-        self.state.last_rows = self.rows.iter().map(|row| row.id.clone()).collect();
         self.state.last_height = size.height;
-        self.state.fix_cursor();
 
         for (y, row) in self
             .rows
@@ -319,7 +332,7 @@ where
             .enumerate()
         {
             frame.push(Pos::new(0, y as i32), Size::new(size.width, 1));
-            row.widget.draw(frame).await?;
+            row.draw(frame).await?;
             frame.pop();
         }
 

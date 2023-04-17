@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::iter;
 
 use crossterm::style::{Color, Stylize};
@@ -8,7 +7,7 @@ use toss::widgets::{BoxedAsync, Empty, Text};
 use toss::{Style, Styled, WidgetExt};
 
 use crate::euph;
-use crate::ui::widgets::{List, ListState};
+use crate::ui::widgets::{ListBuilder, ListState};
 use crate::ui::UiError;
 
 pub fn widget<'a>(
@@ -16,9 +15,9 @@ pub fn widget<'a>(
     joined: &Joined,
     focused: bool,
 ) -> BoxedAsync<'a, UiError> {
-    let mut list = list.widget();
-    render_rows(&mut list, joined, focused);
-    list.boxed_async()
+    let mut list_builder = ListBuilder::new();
+    render_rows(&mut list_builder, joined, focused);
+    list_builder.build(list).boxed_async()
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -60,7 +59,7 @@ impl HalfSession {
 }
 
 fn render_rows(
-    list: &mut List<'_, SessionId, BoxedAsync<'static, UiError>>,
+    list_builder: &mut ListBuilder<'_, SessionId, BoxedAsync<'static, UiError>>,
     joined: &Joined,
     focused: bool,
 ) {
@@ -88,14 +87,14 @@ fn render_rows(
     lurkers.sort_unstable();
     nurkers.sort_unstable();
 
-    render_section(list, "People", &people, &joined.session, focused);
-    render_section(list, "Bots", &bots, &joined.session, focused);
-    render_section(list, "Lurkers", &lurkers, &joined.session, focused);
-    render_section(list, "Nurkers", &nurkers, &joined.session, focused);
+    render_section(list_builder, "People", &people, &joined.session, focused);
+    render_section(list_builder, "Bots", &bots, &joined.session, focused);
+    render_section(list_builder, "Lurkers", &lurkers, &joined.session, focused);
+    render_section(list_builder, "Nurkers", &nurkers, &joined.session, focused);
 }
 
 fn render_section(
-    list: &mut List<'_, SessionId, BoxedAsync<'static, UiError>>,
+    list_builder: &mut ListBuilder<'_, SessionId, BoxedAsync<'static, UiError>>,
     name: &str,
     sessions: &[HalfSession],
     own_session: &SessionView,
@@ -107,39 +106,40 @@ fn render_section(
 
     let heading_style = Style::new().bold();
 
-    if !list.is_empty() {
-        list.add_unsel(Empty::new().boxed_async());
+    if !list_builder.is_empty() {
+        list_builder.add_unsel(Empty::new().boxed_async());
     }
 
     let row = Styled::new_plain(" ")
         .then(name, heading_style)
         .then_plain(format!(" ({})", sessions.len()));
-    list.add_unsel(Text::new(row).boxed_async());
+    list_builder.add_unsel(Text::new(row).boxed_async());
 
     for session in sessions {
-        render_row(list, session, own_session, focused);
+        render_row(list_builder, session, own_session, focused);
     }
 }
 
 fn render_row(
-    list: &mut List<'_, SessionId, BoxedAsync<'static, UiError>>,
+    list_builder: &mut ListBuilder<'_, SessionId, BoxedAsync<'static, UiError>>,
     session: &HalfSession,
     own_session: &SessionView,
     focused: bool,
 ) {
     let (name, style, style_inv, perms_style_inv) = if session.name.is_empty() {
-        let name = "lurk";
+        let name = "lurk".to_string();
         let style = Style::new().grey();
         let style_inv = Style::new().black().on_grey();
-        (Cow::Borrowed(name), style, style_inv, style_inv)
+        (name, style, style_inv, style_inv)
     } else {
         let name = &session.name as &str;
         let (r, g, b) = euph::nick_color(name);
+        let name = euph::EMOJI.replace(name).to_string();
         let color = Color::Rgb { r, g, b };
         let style = Style::new().bold().with(color);
         let style_inv = Style::new().bold().black().on(color);
         let perms_style_inv = Style::new().black().on(color);
-        (euph::EMOJI.replace(name), style, style_inv, perms_style_inv)
+        (name, style, style_inv, perms_style_inv)
     };
 
     let perms = if session.is_staff {
@@ -158,20 +158,20 @@ fn render_row(
         " "
     };
 
-    let widget = if focused && list.state().selected() == Some(&session.session_id) {
-        let text = Styled::new_plain(owner)
-            .then(name, style_inv)
-            .then(perms, perms_style_inv);
-        Text::new(text)
-            .background()
-            .with_style(style_inv)
-            .boxed_async()
-    } else {
-        let text = Styled::new_plain(owner)
-            .then(&name, style)
-            .then_plain(perms);
-        Text::new(text).boxed_async()
-    };
-
-    list.add_sel(session.session_id.clone(), widget);
+    list_builder.add_sel(session.session_id.clone(), move |selected| {
+        if focused && selected {
+            let text = Styled::new_plain(owner)
+                .then(name, style_inv)
+                .then(perms, perms_style_inv);
+            Text::new(text)
+                .background()
+                .with_style(style_inv)
+                .boxed_async()
+        } else {
+            let text = Styled::new_plain(owner)
+                .then(&name, style)
+                .then_plain(perms);
+            Text::new(text).boxed_async()
+        }
+    });
 }

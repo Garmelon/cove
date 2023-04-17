@@ -6,7 +6,7 @@ use toss::widgets::{BoxedAsync, Text};
 use toss::{Style, Styled, WidgetExt};
 
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
-use crate::ui::widgets::{ListState, Popup};
+use crate::ui::widgets::{ListBuilder, ListState, Popup};
 use crate::ui::UiError;
 
 pub struct LinksState {
@@ -41,36 +41,40 @@ impl LinksState {
     pub fn widget(&mut self) -> BoxedAsync<'_, UiError> {
         let style_selected = Style::new().black().on_white();
 
-        let mut list = self.list.widget();
+        let mut list_builder = ListBuilder::new();
 
         if self.links.is_empty() {
-            list.add_unsel(Text::new(("No links found", Style::new().grey().italic())))
+            list_builder.add_unsel(Text::new(("No links found", Style::new().grey().italic())))
         }
 
         for (id, link) in self.links.iter().enumerate() {
-            #[allow(clippy::collapsible_else_if)]
-            let text = if list.state().selected() == Some(&id) {
-                if let Some(number_key) = NUMBER_KEYS.get(id) {
-                    Styled::new(format!("[{number_key}]"), style_selected.bold())
-                        .then(" ", style_selected)
-                        .then(link, style_selected)
-                } else {
-                    Styled::new(format!("    {link}"), style_selected)
-                }
+            let link = link.clone();
+            if let Some(&number_key) = NUMBER_KEYS.get(id) {
+                list_builder.add_sel(id, move |selected| {
+                    let text = if selected {
+                        Styled::new(format!("[{number_key}]"), style_selected.bold())
+                            .then(" ", style_selected)
+                            .then(link, style_selected)
+                    } else {
+                        Styled::new(format!("[{number_key}]"), Style::new().dark_grey().bold())
+                            .then_plain(" ")
+                            .then_plain(link)
+                    };
+                    Text::new(text)
+                });
             } else {
-                if let Some(number_key) = NUMBER_KEYS.get(id) {
-                    Styled::new(format!("[{number_key}]"), Style::new().dark_grey().bold())
-                        .then_plain(" ")
-                        .then_plain(link)
-                } else {
-                    Styled::new_plain(format!("    {link}"))
-                }
-            };
-
-            list.add_sel(id, Text::new(text));
+                list_builder.add_sel(id, move |selected| {
+                    let text = if selected {
+                        Styled::new(format!("    {link}"), style_selected)
+                    } else {
+                        Styled::new_plain(format!("    {link}"))
+                    };
+                    Text::new(text)
+                });
+            }
         }
 
-        Popup::new(list, "Links").boxed_async()
+        Popup::new(list_builder.build(&mut self.list), "Links").boxed_async()
     }
 
     fn open_link_by_id(&self, id: usize) -> EventResult {
