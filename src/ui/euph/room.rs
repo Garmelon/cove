@@ -16,7 +16,6 @@ use crate::euph;
 use crate::macros::logging_unwrap;
 use crate::ui::chat2::{ChatState, Reaction};
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
-use crate::ui::widgets::WidgetWrapper;
 use crate::ui::widgets2::ListState;
 use crate::ui::{util2, UiError, UiEvent};
 use crate::vault::EuphRoomVault;
@@ -233,7 +232,7 @@ impl EuphRoom {
         }
 
         for popup in &self.popups {
-            layers.push(WidgetWrapper::new(popup.widget()).boxed_async());
+            layers.push(popup.widget());
         }
 
         Layer::new(layers).boxed_async()
