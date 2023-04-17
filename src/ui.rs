@@ -1,9 +1,9 @@
-mod chat2;
+mod chat;
 mod euph;
 mod input;
 mod rooms;
-mod util2;
-mod widgets2;
+mod util;
+mod widgets;
 
 use std::convert::Infallible;
 use std::io;
@@ -23,11 +23,11 @@ use crate::macros::{logging_unwrap, ok_or_return, some_or_return};
 use crate::util::InfallibleExt;
 use crate::vault::Vault;
 
-pub use self::chat2::ChatMsg;
-use self::chat2::ChatState;
+pub use self::chat::ChatMsg;
+use self::chat::ChatState;
 use self::input::{key, InputEvent, KeyBindingsList};
 use self::rooms::Rooms;
-use self::widgets2::ListState;
+use self::widgets::ListState;
 
 /// Time to spend batch processing events before redrawing the screen.
 const EVENT_PROCESSING_TIME: Duration = Duration::from_millis(1000 / 15); // 15 fps

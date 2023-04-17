@@ -14,10 +14,10 @@ use toss::{AsyncWidget, Style, Styled, Terminal, WidgetExt};
 use crate::config;
 use crate::euph;
 use crate::macros::logging_unwrap;
-use crate::ui::chat2::{ChatState, Reaction};
+use crate::ui::chat::{ChatState, Reaction};
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
-use crate::ui::widgets2::ListState;
-use crate::ui::{util2, UiError, UiEvent};
+use crate::ui::widgets::ListState;
+use crate::ui::{util, UiError, UiEvent};
 use crate::vault::EuphRoomVault;
 
 use super::account::{self, AccountUiState};
@@ -495,13 +495,13 @@ impl EuphRoom {
     }
 
     fn list_nick_list_focus_key_bindings(&self, bindings: &mut KeyBindingsList) {
-        util2::list_list_key_bindings(bindings);
+        util::list_list_key_bindings(bindings);
 
         bindings.binding("i", "inspect session");
     }
 
     fn handle_nick_list_focus_input_event(&mut self, event: &InputEvent) -> bool {
-        if util2::handle_list_input_event(&mut self.nick_list, event) {
+        if util::handle_list_input_event(&mut self.nick_list, event) {
             return true;
         }
 

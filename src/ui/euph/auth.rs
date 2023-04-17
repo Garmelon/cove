@@ -3,8 +3,8 @@ use toss::{Terminal, WidgetExt};
 
 use crate::euph::Room;
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
-use crate::ui::widgets2::Popup;
-use crate::ui::{util2, UiError};
+use crate::ui::widgets::Popup;
+use crate::ui::{util, UiError};
 
 pub fn new() -> EditorState {
     EditorState::new()
@@ -21,7 +21,7 @@ pub fn widget(editor: &mut EditorState) -> BoxedAsync<'_, UiError> {
 pub fn list_key_bindings(bindings: &mut KeyBindingsList) {
     bindings.binding("esc", "abort");
     bindings.binding("enter", "authenticate");
-    util2::list_editor_key_bindings(bindings, |_| true);
+    util::list_editor_key_bindings(bindings, |_| true);
 }
 
 pub enum EventResult {
@@ -45,7 +45,7 @@ pub fn handle_input_event(
             EventResult::ResetState
         }
         _ => {
-            if util2::handle_editor_input_event(editor, terminal, event, |_| true) {
+            if util::handle_editor_input_event(editor, terminal, event, |_| true) {
                 EventResult::Handled
             } else {
                 EventResult::NotHandled

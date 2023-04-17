@@ -4,8 +4,8 @@ use toss::{Style, Terminal, WidgetExt};
 
 use crate::euph::{self, Room};
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
-use crate::ui::widgets2::Popup;
-use crate::ui::{util2, UiError};
+use crate::ui::widgets::Popup;
+use crate::ui::{util, UiError};
 
 pub fn new(joined: Joined) -> EditorState {
     EditorState::with_initial_text(joined.session.name)
@@ -26,7 +26,7 @@ fn nick_char(c: char) -> bool {
 pub fn list_key_bindings(bindings: &mut KeyBindingsList) {
     bindings.binding("esc", "abort");
     bindings.binding("enter", "set nick");
-    util2::list_editor_key_bindings(bindings, nick_char);
+    util::list_editor_key_bindings(bindings, nick_char);
 }
 
 pub enum EventResult {
@@ -50,7 +50,7 @@ pub fn handle_input_event(
             EventResult::ResetState
         }
         _ => {
-            if util2::handle_editor_input_event(editor, terminal, event, nick_char) {
+            if util::handle_editor_input_event(editor, terminal, event, nick_char) {
                 EventResult::Handled
             } else {
                 EventResult::NotHandled

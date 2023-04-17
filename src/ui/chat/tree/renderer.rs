@@ -8,9 +8,9 @@ use toss::widgets::{EditorState, Empty, Predrawn, Resize};
 use toss::{AsyncWidget, Size, WidthDb};
 
 use crate::store::{Msg, MsgStore, Tree};
-use crate::ui::chat2::blocks::{Block, Blocks, Range};
-use crate::ui::chat2::cursor::Cursor;
-use crate::ui::chat2::renderer::{self, overlaps, Renderer};
+use crate::ui::chat::blocks::{Block, Blocks, Range};
+use crate::ui::chat::cursor::Cursor;
+use crate::ui::chat::renderer::{self, overlaps, Renderer};
 use crate::ui::ChatMsg;
 use crate::util::InfallibleExt;
 

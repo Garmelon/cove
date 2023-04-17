@@ -16,7 +16,7 @@ use toss::{AsyncWidget, Frame, Pos, Size, Terminal, WidthDb};
 
 use crate::store::{Msg, MsgStore};
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
-use crate::ui::{util2, ChatMsg, UiError};
+use crate::ui::{util, ChatMsg, UiError};
 use crate::util::InfallibleExt;
 
 use self::renderer::{TreeContext, TreeRenderer};
@@ -255,7 +255,7 @@ impl<M: Msg, S: MsgStore<M>> TreeViewState<M, S> {
     fn list_editor_key_bindings(&self, bindings: &mut KeyBindingsList) {
         bindings.binding("esc", "close editor");
         bindings.binding("enter", "send message");
-        util2::list_editor_key_bindings_allowing_external_editing(bindings, |_| true);
+        util::list_editor_key_bindings_allowing_external_editing(bindings, |_| true);
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -289,7 +289,7 @@ impl<M: Msg, S: MsgStore<M>> TreeViewState<M, S> {
             }
 
             _ => {
-                let handled = util2::handle_editor_input_event_allowing_external_editing(
+                let handled = util::handle_editor_input_event_allowing_external_editing(
                     editor,
                     terminal,
                     crossterm_lock,

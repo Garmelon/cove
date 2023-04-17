@@ -6,8 +6,8 @@ use toss::{Style, Terminal, WidgetExt};
 
 use crate::euph::{self, Room};
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
-use crate::ui::widgets2::Popup;
-use crate::ui::{util2, UiError};
+use crate::ui::widgets::Popup;
+use crate::ui::{util, UiError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Focus {
@@ -133,7 +133,7 @@ impl AccountUiState {
                     Focus::Password => bindings.binding("enter", "log in"),
                 }
                 bindings.binding("tab", "switch focus");
-                util2::list_editor_key_bindings(bindings, |c| c != '\n');
+                util::list_editor_key_bindings(bindings, |c| c != '\n');
             }
             Self::LoggedIn(_) => bindings.binding("L", "log out"),
         }
@@ -166,7 +166,7 @@ impl AccountUiState {
                             return EventResult::Handled;
                         }
 
-                        if util2::handle_editor_input_event(
+                        if util::handle_editor_input_event(
                             &mut logged_out.email,
                             terminal,
                             event,
@@ -188,7 +188,7 @@ impl AccountUiState {
                             return EventResult::Handled;
                         }
 
-                        if util2::handle_editor_input_event(
+                        if util::handle_editor_input_event(
                             &mut logged_out.password,
                             terminal,
                             event,

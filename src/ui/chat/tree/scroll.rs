@@ -2,7 +2,7 @@ use toss::widgets::EditorState;
 use toss::WidthDb;
 
 use crate::store::{Msg, MsgStore};
-use crate::ui::chat2::cursor::Cursor;
+use crate::ui::chat::cursor::Cursor;
 use crate::ui::ChatMsg;
 
 use super::renderer::{TreeContext, TreeRenderer};

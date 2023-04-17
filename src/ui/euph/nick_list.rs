@@ -8,7 +8,7 @@ use toss::widgets::{BoxedAsync, Empty, Text};
 use toss::{Style, Styled, WidgetExt};
 
 use crate::euph;
-use crate::ui::widgets2::{List, ListState};
+use crate::ui::widgets::{List, ListState};
 use crate::ui::UiError;
 
 pub fn widget<'a>(

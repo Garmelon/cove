@@ -5,7 +5,7 @@ use toss::widgets::{BoxedAsync, Text};
 use toss::{Style, Styled, WidgetExt};
 
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
-use crate::ui::widgets2::Popup;
+use crate::ui::widgets::Popup;
 use crate::ui::UiError;
 
 macro_rules! line {

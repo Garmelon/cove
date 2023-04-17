@@ -6,7 +6,7 @@ use toss::widgets::{BoxedAsync, Text};
 use toss::{Style, Styled, WidgetExt};
 
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
-use crate::ui::widgets2::{ListState, Popup};
+use crate::ui::widgets::{ListState, Popup};
 use crate::ui::UiError;
 
 pub struct LinksState {

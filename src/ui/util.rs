@@ -6,7 +6,7 @@ use toss::widgets::EditorState;
 use toss::Terminal;
 
 use super::input::{key, InputEvent, KeyBindingsList};
-use super::widgets2::ListState;
+use super::widgets::ListState;
 
 pub fn prompt(
     terminal: &mut Terminal,

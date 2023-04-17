@@ -18,8 +18,8 @@ use crate::vault::Vault;
 
 use super::euph::room::EuphRoom;
 use super::input::{key, InputEvent, KeyBindingsList};
-use super::widgets2::{List, ListState, Popup};
-use super::{util2, UiError, UiEvent};
+use super::widgets::{List, ListState, Popup};
+use super::{util, UiError, UiEvent};
 
 enum State {
     ShowList,
@@ -405,7 +405,7 @@ impl Rooms {
 
     fn list_showlist_key_bindings(bindings: &mut KeyBindingsList) {
         bindings.heading("Rooms");
-        util2::list_list_key_bindings(bindings);
+        util::list_list_key_bindings(bindings);
         bindings.empty();
         bindings.binding("enter", "enter selected room");
         bindings.binding("c", "connect to selected room");
@@ -421,7 +421,7 @@ impl Rooms {
     }
 
     fn handle_showlist_input_event(&mut self, event: &InputEvent) -> bool {
-        if util2::handle_list_input_event(&mut self.list, event) {
+        if util::handle_list_input_event(&mut self.list, event) {
             return true;
         }
 
@@ -519,13 +519,13 @@ impl Rooms {
                 bindings.heading("Rooms");
                 bindings.binding("esc", "abort");
                 bindings.binding("enter", "connect to room");
-                util2::list_editor_key_bindings(bindings, Self::room_char);
+                util::list_editor_key_bindings(bindings, Self::room_char);
             }
             State::Delete(_, _) => {
                 bindings.heading("Rooms");
                 bindings.binding("esc", "abort");
                 bindings.binding("enter", "delete room");
-                util2::list_editor_key_bindings(bindings, Self::room_char);
+                util::list_editor_key_bindings(bindings, Self::room_char);
             }
         }
     }
@@ -573,7 +573,7 @@ impl Rooms {
                     return true;
                 }
                 _ => {
-                    if util2::handle_editor_input_event(ed, terminal, event, Self::room_char) {
+                    if util::handle_editor_input_event(ed, terminal, event, Self::room_char) {
                         return true;
                     }
                 }
@@ -590,7 +590,7 @@ impl Rooms {
                     return true;
                 }
                 _ => {
-                    if util2::handle_editor_input_event(editor, terminal, event, Self::room_char) {
+                    if util::handle_editor_input_event(editor, terminal, event, Self::room_char) {
                         return true;
                     }
                 }

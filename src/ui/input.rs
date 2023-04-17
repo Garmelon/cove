@@ -5,7 +5,7 @@ use crossterm::style::Stylize;
 use toss::widgets::{BoxedAsync, Empty, Join2, Text};
 use toss::{Style, Styled, WidgetExt};
 
-use super::widgets2::ListState;
+use super::widgets::ListState;
 use super::UiError;
 
 #[derive(Debug, Clone)]

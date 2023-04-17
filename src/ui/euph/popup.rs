@@ -2,7 +2,7 @@ use crossterm::style::Stylize;
 use toss::widgets::{BoxedAsync, Text};
 use toss::{Style, Styled, WidgetExt};
 
-use crate::ui::widgets2::Popup;
+use crate::ui::widgets::Popup;
 use crate::ui::UiError;
 
 pub enum RoomPopup {
