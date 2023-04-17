@@ -26,7 +26,7 @@ use crate::macros::{logging_unwrap, ok_or_return, some_or_return};
 use crate::util::InfallibleExt;
 use crate::vault::Vault;
 
-pub use self::chat::ChatMsg;
+pub use self::chat2::ChatMsg;
 use self::chat2::ChatState;
 use self::input::{key, InputEvent, KeyBindingsList};
 use self::rooms::Rooms;

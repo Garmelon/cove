@@ -8,8 +8,9 @@ use std::io;
 use std::sync::Arc;
 
 use parking_lot::FairMutex;
+use time::OffsetDateTime;
 use toss::widgets::{BoxedAsync, EditorState};
-use toss::{Terminal, WidgetExt};
+use toss::{Styled, Terminal, WidgetExt};
 
 use crate::store::{Msg, MsgStore};
 
@@ -17,7 +18,14 @@ use self::cursor::Cursor;
 use self::tree::TreeViewState;
 
 use super::input::{InputEvent, KeyBindingsList};
-use super::{ChatMsg, UiError};
+use super::UiError;
+
+pub trait ChatMsg {
+    fn time(&self) -> OffsetDateTime;
+    fn styled(&self) -> (Styled, Styled);
+    fn edit(nick: &str, content: &str) -> (Styled, Styled);
+    fn pseudo(nick: &str, content: &str) -> (Styled, Styled);
+}
 
 pub enum Mode {
     Tree,
