@@ -2,13 +2,12 @@ use std::io;
 
 use crossterm::style::Stylize;
 use linkify::{LinkFinder, LinkKind};
-use toss::{Style, Styled};
+use toss::widgets::{BoxedAsync, Text};
+use toss::{Style, Styled, WidgetExt};
 
 use crate::ui::input::{key, InputEvent, KeyBindingsList};
-use crate::ui::widgets::list::ListState;
-use crate::ui::widgets::popup::Popup;
-use crate::ui::widgets::text::Text;
-use crate::ui::widgets::BoxedWidget;
+use crate::ui::widgets2::{ListState, Popup};
+use crate::ui::UiError;
 
 pub struct LinksState {
     links: Vec<String>,
@@ -39,34 +38,39 @@ impl LinksState {
         }
     }
 
-    pub fn widget(&self) -> BoxedWidget {
+    pub fn widget(&mut self) -> BoxedAsync<'_, UiError> {
         let style_selected = Style::new().black().on_white();
 
-        let mut list = self.list.widget().focus(true);
+        let mut list = self.list.widget();
+
         if self.links.is_empty() {
             list.add_unsel(Text::new(("No links found", Style::new().grey().italic())))
         }
+
         for (id, link) in self.links.iter().enumerate() {
-            let (line_normal, line_selected) = if let Some(number_key) = NUMBER_KEYS.get(id) {
-                (
-                    Styled::new(format!("[{number_key}]"), Style::new().dark_grey().bold())
-                        .then_plain(" ")
-                        .then_plain(link),
+            #[allow(clippy::collapsible_else_if)]
+            let text = if list.state().selected() == Some(&id) {
+                if let Some(number_key) = NUMBER_KEYS.get(id) {
                     Styled::new(format!("[{number_key}]"), style_selected.bold())
                         .then(" ", style_selected)
-                        .then(link, style_selected),
-                )
+                        .then(link, style_selected)
+                } else {
+                    Styled::new(format!("    {link}"), style_selected)
+                }
             } else {
-                (
-                    Styled::new_plain(format!("    {link}")),
-                    Styled::new(format!("    {link}"), style_selected),
-                )
+                if let Some(number_key) = NUMBER_KEYS.get(id) {
+                    Styled::new(format!("[{number_key}]"), Style::new().dark_grey().bold())
+                        .then_plain(" ")
+                        .then_plain(link)
+                } else {
+                    Styled::new_plain(format!("    {link}"))
+                }
             };
 
-            list.add_sel(id, Text::new(line_normal), Text::new(line_selected));
+            list.add_sel(id, Text::new(text));
         }
 
-        Popup::new(list).title("Links").build()
+        Popup::new(list, "Links").boxed_async()
     }
 
     fn open_link_by_id(&self, id: usize) -> EventResult {
@@ -87,8 +91,8 @@ impl LinksState {
     }
 
     fn open_link(&self) -> EventResult {
-        if let Some(id) = self.list.cursor() {
-            self.open_link_by_id(id)
+        if let Some(id) = self.list.selected() {
+            self.open_link_by_id(*id)
         } else {
             EventResult::Handled
         }

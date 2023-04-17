@@ -227,7 +227,7 @@ impl EuphRoom {
             State::Auth(editor) => layers.push(auth::widget(editor)),
             State::Nick(editor) => layers.push(nick::widget(editor)),
             State::Account(account) => layers.push(account.widget()),
-            State::Links(links) => layers.push(WidgetWrapper::new(links.widget()).boxed_async()),
+            State::Links(links) => layers.push(links.widget()),
             State::InspectMessage(message) => layers.push(inspect::message_widget(message)),
             State::InspectSession(session) => layers.push(inspect::session_widget(session)),
         }
