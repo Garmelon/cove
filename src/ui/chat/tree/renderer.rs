@@ -152,7 +152,7 @@ where
         // Since the editor was rendered when the `Predrawn` was created, the
         // last cursor pos is accurate now.
         let cursor_line = self.editor.last_cursor_pos().y;
-        block.set_focus(Range::new(cursor_line, cursor_line));
+        block.set_focus(Range::new(cursor_line, cursor_line + 1));
 
         block
     }
