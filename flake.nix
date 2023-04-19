@@ -15,9 +15,14 @@
         let
           pkgs = import nixpkgs { inherit system; };
           naersk' = pkgs.callPackage naersk { };
+          cargoToml = pkgs.lib.importTOML ./Cargo.toml;
         in
         {
-          default = naersk'.buildPackage { src = ./.; };
+          default = naersk'.buildPackage {
+            name = "cove";
+            version = cargoToml.workspace.package.version;
+            root = ./.;
+          };
         }
       );
     };
