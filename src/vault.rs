@@ -20,9 +20,10 @@ pub struct Vault {
 struct GcAction;
 
 impl Action for GcAction {
-    type Result = ();
+    type Output = ();
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         conn.execute_batch("ANALYZE; VACUUM;")
     }
 }
@@ -36,7 +37,7 @@ impl Vault {
         self.tokio_vault.stop().await;
     }
 
-    pub async fn gc(&self) -> vault::tokio::Result<()> {
+    pub async fn gc(&self) -> Result<(), vault::tokio::Error<rusqlite::Error>> {
         self.tokio_vault.execute(GcAction).await
     }
 

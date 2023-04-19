@@ -88,7 +88,7 @@ macro_rules! euph_vault_actions {
 
         impl EuphVault {
             $(
-                pub async fn $fn(&self, $( $arg: $arg_ty, )* ) -> vault::tokio::Result<$res> {
+                pub async fn $fn(&self, $( $arg: $arg_ty, )* ) -> Result<$res, vault::tokio::Error<rusqlite::Error>> {
                     self.vault.tokio_vault.execute($struct { $( $arg, )* }).await
                 }
             )*
@@ -103,9 +103,10 @@ euph_vault_actions! {
 }
 
 impl Action for GetCookies {
-    type Result = CookieJar;
+    type Output = CookieJar;
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         let cookies = conn
             .prepare(
                 "
@@ -128,9 +129,10 @@ impl Action for GetCookies {
 }
 
 impl Action for SetCookies {
-    type Result = ();
+    type Output = ();
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         let tx = conn.transaction()?;
 
         // Since euphoria sets all cookies on every response, we can just delete
@@ -154,9 +156,10 @@ impl Action for SetCookies {
 }
 
 impl Action for GetRooms {
-    type Result = Vec<String>;
+    type Output = Vec<String>;
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         conn.prepare(
             "
                 SELECT room
@@ -201,7 +204,7 @@ macro_rules! euph_room_vault_actions {
 
         impl EuphRoomVault {
             $(
-                pub async fn $fn(&self, $( $arg: $arg_ty, )* ) -> vault::tokio::Result<$res> {
+                pub async fn $fn(&self, $( $arg: $arg_ty, )* ) -> Result<$res, vault::tokio::Error<rusqlite::Error>> {
                     self.vault.vault.tokio_vault.execute($struct {
                         room: self.room.clone(),
                         $( $arg, )*
@@ -244,9 +247,10 @@ euph_room_vault_actions! {
 }
 
 impl Action for Join {
-    type Result = ();
+    type Output = ();
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         conn.execute(
             "
             INSERT INTO euph_rooms (room, first_joined, last_joined)
@@ -261,9 +265,10 @@ impl Action for Join {
 }
 
 impl Action for Delete {
-    type Result = ();
+    type Output = ();
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         conn.execute(
             "
             DELETE FROM euph_rooms
@@ -431,9 +436,10 @@ fn add_span(
 }
 
 impl Action for AddMsg {
-    type Result = ();
+    type Output = ();
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         let tx = conn.transaction()?;
 
         let end = self.msg.id;
@@ -446,9 +452,10 @@ impl Action for AddMsg {
 }
 
 impl Action for AddMsgs {
-    type Result = ();
+    type Output = ();
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         let tx = conn.transaction()?;
 
         if self.msgs.is_empty() {
@@ -469,9 +476,10 @@ impl Action for AddMsgs {
 }
 
 impl Action for GetLastSpan {
-    type Result = Option<(Option<MessageId>, Option<MessageId>)>;
+    type Output = Option<(Option<MessageId>, Option<MessageId>)>;
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         let span = conn
             .prepare(
                 "
@@ -494,9 +502,10 @@ impl Action for GetLastSpan {
 }
 
 impl Action for GetPath {
-    type Result = Path<MessageId>;
+    type Output = Path<MessageId>;
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         let path = conn
             .prepare(
                 "
@@ -523,9 +532,10 @@ impl Action for GetPath {
 }
 
 impl Action for GetMsg {
-    type Result = Option<SmallMessage>;
+    type Output = Option<SmallMessage>;
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         let msg = conn
             .query_row(
                 "
@@ -552,9 +562,10 @@ impl Action for GetMsg {
 }
 
 impl Action for GetFullMsg {
-    type Result = Option<Message>;
+    type Output = Option<Message>;
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         let mut query = conn.prepare(
             "
             SELECT
@@ -597,9 +608,10 @@ impl Action for GetFullMsg {
 }
 
 impl Action for GetTree {
-    type Result = Tree<SmallMessage>;
+    type Output = Tree<SmallMessage>;
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         let msgs = conn
             .prepare(
                 "
@@ -635,9 +647,10 @@ impl Action for GetTree {
 }
 
 impl Action for GetFirstRootId {
-    type Result = Option<MessageId>;
+    type Output = Option<MessageId>;
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         let root_id = conn
             .prepare(
                 "
@@ -657,9 +670,10 @@ impl Action for GetFirstRootId {
 }
 
 impl Action for GetLastRootId {
-    type Result = Option<MessageId>;
+    type Output = Option<MessageId>;
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         let root_id = conn
             .prepare(
                 "
@@ -679,9 +693,10 @@ impl Action for GetLastRootId {
 }
 
 impl Action for GetPrevRootId {
-    type Result = Option<MessageId>;
+    type Output = Option<MessageId>;
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         let root_id = conn
             .prepare(
                 "
@@ -702,9 +717,10 @@ impl Action for GetPrevRootId {
 }
 
 impl Action for GetNextRootId {
-    type Result = Option<MessageId>;
+    type Output = Option<MessageId>;
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         let root_id = conn
             .prepare(
                 "
@@ -725,9 +741,10 @@ impl Action for GetNextRootId {
 }
 
 impl Action for GetOldestMsgId {
-    type Result = Option<MessageId>;
+    type Output = Option<MessageId>;
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         let msg_id = conn
             .prepare(
                 "
@@ -747,9 +764,10 @@ impl Action for GetOldestMsgId {
 }
 
 impl Action for GetNewestMsgId {
-    type Result = Option<MessageId>;
+    type Output = Option<MessageId>;
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         let msg_id = conn
             .prepare(
                 "
@@ -769,9 +787,10 @@ impl Action for GetNewestMsgId {
 }
 
 impl Action for GetOlderMsgId {
-    type Result = Option<MessageId>;
+    type Output = Option<MessageId>;
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         let msg_id = conn
             .prepare(
                 "
@@ -791,9 +810,10 @@ impl Action for GetOlderMsgId {
     }
 }
 impl Action for GetNewerMsgId {
-    type Result = Option<MessageId>;
+    type Output = Option<MessageId>;
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         let msg_id = conn
             .prepare(
                 "
@@ -814,9 +834,10 @@ impl Action for GetNewerMsgId {
 }
 
 impl Action for GetOldestUnseenMsgId {
-    type Result = Option<MessageId>;
+    type Output = Option<MessageId>;
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         let msg_id = conn
             .prepare(
                 "
@@ -837,9 +858,10 @@ impl Action for GetOldestUnseenMsgId {
 }
 
 impl Action for GetNewestUnseenMsgId {
-    type Result = Option<MessageId>;
+    type Output = Option<MessageId>;
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         let msg_id = conn
             .prepare(
                 "
@@ -860,9 +882,10 @@ impl Action for GetNewestUnseenMsgId {
 }
 
 impl Action for GetOlderUnseenMsgId {
-    type Result = Option<MessageId>;
+    type Output = Option<MessageId>;
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         let msg_id = conn
             .prepare(
                 "
@@ -884,9 +907,10 @@ impl Action for GetOlderUnseenMsgId {
 }
 
 impl Action for GetNewerUnseenMsgId {
-    type Result = Option<MessageId>;
+    type Output = Option<MessageId>;
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         let msg_id = conn
             .prepare(
                 "
@@ -908,9 +932,10 @@ impl Action for GetNewerUnseenMsgId {
 }
 
 impl Action for GetUnseenMsgsCount {
-    type Result = usize;
+    type Output = usize;
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         let amount = conn
             .prepare(
                 "
@@ -927,9 +952,10 @@ impl Action for GetUnseenMsgsCount {
 }
 
 impl Action for SetSeen {
-    type Result = ();
+    type Output = ();
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         conn.execute(
             "
             UPDATE euph_msgs
@@ -944,9 +970,10 @@ impl Action for SetSeen {
 }
 
 impl Action for SetOlderSeen {
-    type Result = ();
+    type Output = ();
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         conn.execute(
             "
             UPDATE euph_msgs
@@ -962,9 +989,10 @@ impl Action for SetOlderSeen {
 }
 
 impl Action for GetChunkAfter {
-    type Result = Vec<Message>;
+    type Output = Vec<Message>;
+    type Error = rusqlite::Error;
 
-    fn run(self, conn: &mut Connection) -> rusqlite::Result<Self::Result> {
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         fn row2msg(row: &Row<'_>) -> rusqlite::Result<Message> {
             Ok(Message {
                 id: MessageId(row.get::<_, WSnowflake>(0)?.0),
@@ -1023,7 +1051,7 @@ impl Action for GetChunkAfter {
 
 #[async_trait]
 impl MsgStore<SmallMessage> for EuphRoomVault {
-    type Error = vault::tokio::Error;
+    type Error = vault::tokio::Error<rusqlite::Error>;
 
     async fn path(&self, id: &MessageId) -> Result<Path<MessageId>, Self::Error> {
         self.path(*id).await

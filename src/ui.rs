@@ -36,7 +36,7 @@ const EVENT_PROCESSING_TIME: Duration = Duration::from_millis(1000 / 15); // 15 
 #[derive(Debug, thiserror::Error)]
 pub enum UiError {
     #[error("{0}")]
-    Vault(#[from] vault::tokio::Error),
+    Vault(#[from] vault::tokio::Error<rusqlite::Error>),
     #[error("{0}")]
     Io(#[from] io::Error),
 }
