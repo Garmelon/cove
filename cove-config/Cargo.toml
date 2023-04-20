@@ -4,5 +4,7 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
+cove-macro = { path = "../cove-macro" }
+
 serde = { version = "1.0.159", features = ["derive"] }
 toml = "0.7.3"
