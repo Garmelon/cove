@@ -1,0 +1,12 @@
+[package]
+name = "cove-macro"
+version = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+proc-macro2 = "1.0.56"
+quote = "1.0.26"
+syn = "2.0.15"
+
+[lib]
+proc-macro = true
