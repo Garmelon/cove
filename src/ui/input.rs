@@ -86,7 +86,7 @@ pub struct KeyBindingsList(Vec<Row>);
 
 impl KeyBindingsList {
     /// Width of the left column of key bindings.
-    const BINDING_WIDTH: u16 = 20;
+    const BINDING_WIDTH: u16 = 24;
 
     pub fn new() -> Self {
         Self(vec![])
@@ -108,13 +108,17 @@ impl KeyBindingsList {
                     .with_right(1)
                     .resize()
                     .with_min_width(Self::BINDING_WIDTH)
-                    .segment(),
+                    .segment()
+                    .with_fixed(true),
                 Text::new(description).segment(),
             )
             .second3(),
 
             Row::BindingContd(description) => Join2::horizontal(
-                Empty::new().with_width(Self::BINDING_WIDTH).segment(),
+                Empty::new()
+                    .with_width(Self::BINDING_WIDTH)
+                    .segment()
+                    .with_fixed(true),
                 Text::new(description).segment(),
             )
             .third3(),
