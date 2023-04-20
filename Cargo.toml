@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["cove"]
+members = ["cove", "cove-*"]
 
 [workspace.package]
 version = "0.6.1"

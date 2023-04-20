@@ -1,0 +1,8 @@
+[package]
+name = "cove-config"
+version = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+serde = { version = "1.0.159", features = ["derive"] }
+toml = "0.7.3"

@@ -11,7 +11,6 @@ use tokio::sync::{mpsc, oneshot};
 use toss::widgets::{BoxedAsync, EditorState, Join2, Layer, Text};
 use toss::{Style, Styled, Terminal, Widget, WidgetExt};
 
-use crate::config;
 use crate::euph;
 use crate::macros::logging_unwrap;
 use crate::ui::chat::{ChatState, Reaction};
@@ -46,7 +45,7 @@ type EuphChatState = ChatState<euph::SmallMessage, EuphRoomVault>;
 
 pub struct EuphRoom {
     server_config: ServerConfig,
-    config: config::EuphRoom,
+    config: cove_config::EuphRoom,
     ui_event_tx: mpsc::UnboundedSender<UiEvent>,
 
     room: Option<euph::Room>,
@@ -64,7 +63,7 @@ pub struct EuphRoom {
 impl EuphRoom {
     pub fn new(
         server_config: ServerConfig,
-        config: config::EuphRoom,
+        config: cove_config::EuphRoom,
         vault: EuphRoomVault,
         ui_event_tx: mpsc::UnboundedSender<UiEvent>,
     ) -> Self {

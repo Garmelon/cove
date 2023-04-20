@@ -249,6 +249,7 @@ dependencies = [
  "async-trait",
  "clap",
  "cookie",
+ "cove-config",
  "crossterm",
  "directories",
  "edit",
@@ -259,17 +260,23 @@ dependencies = [
  "open",
  "parking_lot",
  "rusqlite",
- "serde",
  "serde_json",
  "thiserror",
  "time",
  "tokio",
  "tokio-tungstenite",
- "toml",
  "toss",
  "unicode-segmentation",
  "unicode-width",
  "vault",
+]
+
+[[package]]
+name = "cove-config"
+version = "0.6.1"
+dependencies = [
+ "serde",
+ "toml",
 ]
 
 [[package]]

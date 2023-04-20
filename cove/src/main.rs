@@ -14,7 +14,6 @@
 // TODO Time zones other than UTC
 // TODO Fix password room auth
 
-mod config;
 mod euph;
 mod export;
 mod logger;
@@ -28,12 +27,12 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use cookie::CookieJar;
+use cove_config::Config;
 use directories::{BaseDirs, ProjectDirs};
 use log::info;
 use tokio::sync::mpsc;
 use toss::Terminal;
 
-use crate::config::Config;
 use crate::logger::Logger;
 use crate::ui::Ui;
 use crate::vault::Vault;

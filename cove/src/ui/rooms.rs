@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::iter;
 use std::sync::{Arc, Mutex};
 
+use cove_config::{Config, RoomsSortOrder};
 use crossterm::style::Stylize;
 use euphoxide::api::SessionType;
 use euphoxide::bot::instance::{Event, ServerConfig};
@@ -11,7 +12,6 @@ use tokio::sync::mpsc;
 use toss::widgets::{BoxedAsync, EditorState, Empty, Join2, Text};
 use toss::{Style, Styled, Terminal, Widget, WidgetExt};
 
-use crate::config::{Config, RoomsSortOrder};
 use crate::euph;
 use crate::macros::logging_unwrap;
 use crate::vault::Vault;

@@ -1,10 +1,19 @@
+#![forbid(unsafe_code)]
+// Rustc lint groups
+#![warn(future_incompatible)]
+#![warn(rust_2018_idioms)]
+#![warn(unused)]
+// Rustc lints
+#![warn(noop_method_call)]
+#![warn(single_use_lifetimes)]
+// Clippy lints
+#![warn(clippy::use_self)]
+
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
-
-use crate::macros::ok_or_return;
 
 #[derive(Debug, Clone, Copy, Default, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -45,7 +54,7 @@ pub struct Config {
 
 impl Config {
     pub fn load(path: &Path) -> Self {
-        let content = ok_or_return!(fs::read_to_string(path), Self::default());
+        let Ok(content) = fs::read_to_string(path) else { return Self::default(); };
         match toml::from_str(&content) {
             Ok(config) => config,
             Err(err) => {

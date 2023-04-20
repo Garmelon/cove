@@ -10,6 +10,7 @@ use std::io;
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 
+use cove_config::Config;
 use parking_lot::FairMutex;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -17,7 +18,6 @@ use tokio::task;
 use toss::widgets::BoxedAsync;
 use toss::{Terminal, WidgetExt};
 
-use crate::config::Config;
 use crate::logger::{LogMsg, Logger};
 use crate::macros::{logging_unwrap, ok_or_return, some_or_return};
 use crate::util::InfallibleExt;
