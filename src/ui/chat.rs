@@ -82,7 +82,6 @@ impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
                 .tree
                 .list_key_bindings(bindings, &self.cursor, can_compose),
         }
-        todo!()
     }
 
     pub async fn handle_input_event(
