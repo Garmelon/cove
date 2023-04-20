@@ -9,6 +9,8 @@
 // Clippy lints
 #![warn(clippy::use_self)]
 
+pub mod doc;
+
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
