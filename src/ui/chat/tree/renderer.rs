@@ -283,6 +283,14 @@ where
         }
     }
 
+    fn root_id_is_above_root_id(first: Option<M::Id>, second: Option<M::Id>) -> bool {
+        match (first, second) {
+            (Some(_), None) => true,
+            (Some(a), Some(b)) => a < b,
+            _ => false,
+        }
+    }
+
     pub async fn prepare_blocks_for_drawing(&mut self) -> Result<(), S::Error> {
         let cursor_id = TreeBlockId::from_cursor(self.cursor);
         let cursor_root_id = self.root_id(&cursor_id).await?;
@@ -298,8 +306,8 @@ where
             // Since the last cursor is not within scrolling distance of our
             // current cursor, we need to estimate whether the last cursor was
             // above or below the current cursor.
-            let last_cursor_root_id = self.root_id(&cursor_id).await?;
-            if last_cursor_root_id <= cursor_root_id {
+            let last_cursor_root_id = self.root_id(&last_cursor_id).await?;
+            if Self::root_id_is_above_root_id(last_cursor_root_id, cursor_root_id) {
                 renderer::scroll_blocks_fully_below_screen(self);
             } else {
                 renderer::scroll_blocks_fully_above_screen(self);
