@@ -27,6 +27,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use cookie::CookieJar;
+use cove_config::doc::Document;
 use cove_config::Config;
 use directories::{BaseDirs, ProjectDirs};
 use log::info;
@@ -47,6 +48,8 @@ enum Command {
     Gc,
     /// Clear euphoria session cookies.
     ClearCookies,
+    /// Print config documentation as markdown.
+    HelpConfig,
 }
 
 impl Default for Command {
@@ -91,74 +94,68 @@ struct Args {
     command: Option<Command>,
 }
 
-fn set_data_dir(config: &mut Config, args_data_dir: Option<PathBuf>) {
-    if let Some(data_dir) = args_data_dir {
+fn config_path(args: &Args, dirs: &ProjectDirs) -> PathBuf {
+    args.config
+        .clone()
+        .unwrap_or_else(|| dirs.config_dir().join("config.toml"))
+}
+
+fn data_dir(config: &Config, dirs: &ProjectDirs) -> PathBuf {
+    config
+        .data_dir
+        .clone()
+        .unwrap_or_else(|| dirs.data_dir().to_path_buf())
+}
+
+fn update_config_with_args(config: &mut Config, args: &Args) {
+    if let Some(data_dir) = args.data_dir.clone() {
         // The data dir specified via args_data_dir is relative to the current
         // directory and needs no resolving.
         config.data_dir = Some(data_dir);
     } else if let Some(data_dir) = &config.data_dir {
         // Resolve the data dir specified in the config file relative to the
         // user's home directory, if possible.
-        if let Some(base_dirs) = BaseDirs::new() {
-            config.data_dir = Some(base_dirs.home_dir().join(data_dir));
-        }
+        let base_dirs = BaseDirs::new().expect("failed to find home directory");
+        config.data_dir = Some(base_dirs.home_dir().join(data_dir));
     }
+
+    config.ephemeral |= args.ephemeral;
+    config.offline |= args.offline;
 }
 
-fn set_ephemeral(config: &mut Config, args_ephemeral: bool) {
-    if args_ephemeral {
-        config.ephemeral = true;
-    }
-}
-
-fn set_offline(config: &mut Config, args_offline: bool) {
-    if args_offline {
-        config.offline = true;
+fn open_vault(config: &Config, dirs: &ProjectDirs) -> rusqlite::Result<Vault> {
+    if config.ephemeral {
+        vault::launch_in_memory()
+    } else {
+        let data_dir = data_dir(config, dirs);
+        eprintln!("Data dir:    {}", data_dir.to_string_lossy());
+        vault::launch(&data_dir.join("vault.db"))
     }
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    let (logger, logger_guard, logger_rx) = Logger::init(args.verbose);
-    let dirs = ProjectDirs::from("de", "plugh", "cove").expect("unable to determine directories");
 
-    let config_path = args
-        .config
-        .unwrap_or_else(|| dirs.config_dir().join("config.toml"));
+    let (logger, logger_guard, logger_rx) = Logger::init(args.verbose);
+    let dirs = ProjectDirs::from("de", "plugh", "cove").expect("failed to find config directory");
+
+    // Locate config
+    let config_path = config_path(&args, &dirs);
     eprintln!("Config file: {}", config_path.to_string_lossy());
+
+    // Load config
     let mut config = Config::load(&config_path);
-    set_data_dir(&mut config, args.data_dir);
-    set_ephemeral(&mut config, args.ephemeral);
-    set_offline(&mut config, args.offline);
+    update_config_with_args(&mut config, &args);
     let config = Box::leak(Box::new(config));
 
-    let vault = if config.ephemeral {
-        vault::launch_in_memory()?
-    } else {
-        let data_dir = config
-            .data_dir
-            .clone()
-            .unwrap_or_else(|| dirs.data_dir().to_path_buf());
-        eprintln!("Data dir:    {}", data_dir.to_string_lossy());
-        vault::launch(&data_dir.join("vault.db"))?
-    };
-
     match args.command.unwrap_or_default() {
-        Command::Run => run(logger, logger_rx, config, &vault, args.measure_widths).await?,
-        Command::Export(args) => export::export(&vault.euph(), args).await?,
-        Command::Gc => {
-            eprintln!("Cleaning up and compacting vault");
-            eprintln!("This may take a while...");
-            vault.gc().await?;
-        }
-        Command::ClearCookies => {
-            eprintln!("Clearing cookies");
-            vault.euph().set_cookies(CookieJar::new()).await?;
-        }
+        Command::Run => run(logger, logger_rx, config, &dirs, args.measure_widths).await?,
+        Command::Export(args) => export(config, &dirs, args).await?,
+        Command::Gc => gc(config, &dirs).await?,
+        Command::ClearCookies => clear_cookies(config, &dirs).await?,
+        Command::HelpConfig => help_config(),
     }
-
-    vault.close().await;
 
     // Print all logged errors. This should always happen, even if cove panics,
     // because the errors may be key in diagnosing what happened. Because of
@@ -173,7 +170,7 @@ async fn run(
     logger: Logger,
     logger_rx: mpsc::UnboundedReceiver<()>,
     config: &'static Config,
-    vault: &Vault,
+    dirs: &ProjectDirs,
     measure_widths: bool,
 ) -> anyhow::Result<()> {
     info!(
@@ -182,10 +179,51 @@ async fn run(
         env!("CARGO_PKG_VERSION")
     );
 
+    let vault = open_vault(config, dirs)?;
+
     let mut terminal = Terminal::new()?;
     terminal.set_measuring(measure_widths);
     Ui::run(config, &mut terminal, vault.clone(), logger, logger_rx).await?;
-    drop(terminal); // So other things can print again
+    drop(terminal);
 
+    vault.close().await;
     Ok(())
+}
+
+async fn export(
+    config: &'static Config,
+    dirs: &ProjectDirs,
+    args: export::Args,
+) -> anyhow::Result<()> {
+    let vault = open_vault(config, dirs)?;
+
+    export::export(&vault.euph(), args).await?;
+
+    vault.close().await;
+    Ok(())
+}
+
+async fn gc(config: &'static Config, dirs: &ProjectDirs) -> anyhow::Result<()> {
+    let vault = open_vault(config, dirs)?;
+
+    eprintln!("Cleaning up and compacting vault");
+    eprintln!("This may take a while...");
+    vault.gc().await?;
+
+    vault.close().await;
+    Ok(())
+}
+
+async fn clear_cookies(config: &'static Config, dirs: &ProjectDirs) -> anyhow::Result<()> {
+    let vault = open_vault(config, dirs)?;
+
+    eprintln!("Clearing cookies");
+    vault.euph().set_cookies(CookieJar::new()).await?;
+
+    vault.close().await;
+    Ok(())
+}
+
+fn help_config() {
+    print!("{}", Config::doc().format_as_markdown());
 }

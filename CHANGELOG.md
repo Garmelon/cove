@@ -14,6 +14,9 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Added
+- `help-config` CLI command
+
 ### Changed
 - Simplified flake dependencies
 
