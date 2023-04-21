@@ -1,4 +1,4 @@
-//! A [`BlockProvider`] for message trees.
+//! A [`Renderer`] for message trees.
 
 use std::convert::Infallible;
 
@@ -100,8 +100,8 @@ where
     S: MsgStore<M> + Send + Sync,
     S::Error: Send,
 {
-    /// You must call [`Self::prepare_blocks`] immediately after calling
-    /// this function.
+    /// You must call [`Self::prepare_blocks_for_drawing`] immediately after
+    /// calling this function.
     pub fn new(
         context: TreeContext<M::Id>,
         store: &'a S,
