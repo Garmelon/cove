@@ -17,6 +17,7 @@ Procedure when bumping the version number:
 
 ### Added
 - `help-config` CLI command
+- `measure_widths` config option
 
 ### Changed
 - Simplified flake dependencies

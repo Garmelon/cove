@@ -120,6 +120,7 @@ fn update_config_with_args(config: &mut Config, args: &Args) {
     }
 
     config.ephemeral |= args.ephemeral;
+    config.measure_widths |= args.measure_widths;
     config.offline |= args.offline;
 }
 
@@ -150,7 +151,7 @@ async fn main() -> anyhow::Result<()> {
     let config = Box::leak(Box::new(config));
 
     match args.command.unwrap_or_default() {
-        Command::Run => run(logger, logger_rx, config, &dirs, args.measure_widths).await?,
+        Command::Run => run(logger, logger_rx, config, &dirs).await?,
         Command::Export(args) => export(config, &dirs, args).await?,
         Command::Gc => gc(config, &dirs).await?,
         Command::ClearCookies => clear_cookies(config, &dirs).await?,
@@ -171,7 +172,6 @@ async fn run(
     logger_rx: mpsc::UnboundedReceiver<()>,
     config: &'static Config,
     dirs: &ProjectDirs,
-    measure_widths: bool,
 ) -> anyhow::Result<()> {
     info!(
         "Welcome to {} {}",
@@ -182,7 +182,7 @@ async fn run(
     let vault = open_vault(config, dirs)?;
 
     let mut terminal = Terminal::new()?;
-    terminal.set_measuring(measure_widths);
+    terminal.set_measuring(config.measure_widths);
     Ui::run(config, &mut terminal, vault.clone(), logger, logger_rx).await?;
     drop(terminal);
 

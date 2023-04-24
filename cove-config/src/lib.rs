@@ -90,6 +90,18 @@ pub struct Config {
     #[document(default = "`false`")]
     pub ephemeral: bool,
 
+    /// Whether to measure the width of characters as displayed by the terminal
+    /// emulator instead of guessing the width.
+    ///
+    /// Enabling this makes rendering a bit slower but more accurate. The screen
+    /// might also flash when encountering new characters (or, more accurately,
+    /// graphemes).
+    ///
+    /// See also the `--measure-graphemes` command line option.
+    #[serde(default)]
+    #[document(default = "`false`")]
+    pub measure_widths: bool,
+
     /// Whether to start in offline mode.
     ///
     /// In offline mode, cove won't automatically join rooms marked via the
