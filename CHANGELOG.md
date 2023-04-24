@@ -7,10 +7,11 @@ Procedure when bumping the version number:
 1. Update dependencies in a separate commit
 2. Set version number in `Cargo.toml`
 3. Add new section in this changelog
-4. Commit with message `Bump version to X.Y.Z`
-5. Create tag named `vX.Y.Z`
-6. Fast-forward branch `latest`
-7. Push `master`, `latest` and the new tag
+4. Run `cargo run help-config > CONFIG.md`
+5. Commit with message `Bump version to X.Y.Z`
+6. Create tag named `vX.Y.Z`
+7. Fast-forward branch `latest`
+8. Push `master`, `latest` and the new tag
 
 ## Unreleased
 
