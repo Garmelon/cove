@@ -281,6 +281,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "cove-input"
+version = "0.6.1"
+
+[[package]]
 name = "cove-macro"
 version = "0.6.1"
 dependencies = [
