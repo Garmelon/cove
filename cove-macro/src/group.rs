@@ -1,0 +1,63 @@
+use case::CaseExt;
+use proc_macro2::TokenStream;
+use quote::{format_ident, quote};
+use syn::spanned::Spanned;
+use syn::{Data, DeriveInput};
+
+use crate::util;
+
+fn decapitalize(s: &str) -> String {
+    let mut chars = s.chars();
+    if let Some(char) = chars.next() {
+        char.to_lowercase().chain(chars).collect()
+    } else {
+        String::new()
+    }
+}
+
+pub fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
+    let Data::Struct(data) = input.data else {
+        return Err(syn::Error::new(input.span(), "Must be a struct"));
+    };
+
+    let struct_ident = input.ident;
+    let enum_ident = format_ident!("{}Action", struct_ident);
+
+    let mut enum_variants = vec![];
+    let mut match_cases = vec![];
+    for field in &data.fields {
+        if let Some(field_ident) = &field.ident {
+            let docstring = util::docstring(field)?;
+            let variant_ident = format_ident!("{}", field_ident.to_string().to_camel());
+
+            enum_variants.push(quote! {
+                #[doc = #docstring]
+                #variant_ident,
+            });
+
+            let description = decapitalize(&docstring);
+            let description = description.strip_suffix('.').unwrap_or(&description);
+            match_cases.push(quote!{
+                () if input.matches(&self.#field_ident, #description) => Some(Self::Action::#variant_ident),
+            });
+        }
+    }
+
+    Ok(quote! {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        pub enum #enum_ident {
+            #( #enum_variants )*
+        }
+
+        impl crate::Group for #struct_ident {
+            type Action = #enum_ident;
+
+            fn action(&self, input: &mut crate::Input) -> Option<Self::Action> {
+                match () {
+                    #( #match_cases )*
+                    () => None,
+                }
+            }
+        }
+    })
+}
