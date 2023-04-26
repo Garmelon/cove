@@ -290,6 +290,7 @@ dependencies = [
 name = "cove-input"
 version = "0.6.1"
 dependencies = [
+ "cove-macro",
  "crossterm",
  "serde",
  "serde_either",
