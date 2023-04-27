@@ -7,7 +7,7 @@ pub use input::*;
 pub use keys::*;
 
 pub trait Group {
-    type Action;
+    type Event;
 
-    fn action(&self, input: &mut Input) -> Option<Self::Action>;
+    fn event(&self, input: &mut Input) -> Option<Self::Event>;
 }

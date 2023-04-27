@@ -56,7 +56,7 @@ default_bindings! {
         pub fn to_next_unseen_message => ["L", "ctrl+right"];
     }
 
-    pub mod tree_op {
+    pub mod tree_action {
         pub fn reply => ["r"];
         pub fn reply_alternate => ["R"];
         pub fn new_thread => ["t"];
@@ -77,7 +77,7 @@ default_bindings! {
         pub fn down => [];
     }
 
-    pub mod editor_op {
+    pub mod editor_action {
         pub fn newline => [];
         pub fn backspace => [];
         pub fn delete => [];
@@ -227,28 +227,28 @@ impl Default for EditorCursor {
 }
 
 #[derive(Debug, Deserialize, Document, Group)]
-pub struct EditorOp {
+pub struct EditorAction {
     /// Insert newline.
-    #[serde(default = "default::editor_op::newline")]
+    #[serde(default = "default::editor_action::newline")]
     pub newline: KeyBinding,
     /// Delete before cursor.
-    #[serde(default = "default::editor_op::backspace")]
+    #[serde(default = "default::editor_action::backspace")]
     pub backspace: KeyBinding,
     /// Delete after cursor.
-    #[serde(default = "default::editor_op::delete")]
+    #[serde(default = "default::editor_action::delete")]
     pub delete: KeyBinding,
     /// Clear editor contents.
-    #[serde(default = "default::editor_op::clear")]
+    #[serde(default = "default::editor_action::clear")]
     pub clear: KeyBinding,
 }
 
-impl Default for EditorOp {
+impl Default for EditorAction {
     fn default() -> Self {
         Self {
-            newline: default::editor_op::newline(),
-            backspace: default::editor_op::backspace(),
-            delete: default::editor_op::delete(),
-            clear: default::editor_op::clear(),
+            newline: default::editor_action::newline(),
+            backspace: default::editor_action::backspace(),
+            delete: default::editor_action::delete(),
+            clear: default::editor_action::clear(),
         }
     }
 }
@@ -261,7 +261,7 @@ pub struct Editor {
 
     #[serde(default)]
     #[document(no_default)]
-    pub action: EditorOp,
+    pub action: EditorAction,
 }
 
 #[derive(Debug, Deserialize, Document, Group)]
@@ -308,40 +308,40 @@ impl Default for TreeCursor {
 }
 
 #[derive(Debug, Deserialize, Document, Group)]
-pub struct TreeOp {
+pub struct TreeAction {
     /// Reply to message (inline if possible).
-    #[serde(default = "default::tree_op::reply")]
+    #[serde(default = "default::tree_action::reply")]
     pub reply: KeyBinding,
     /// Reply to message, opposite of normal reply.
-    #[serde(default = "default::tree_op::reply_alternate")]
+    #[serde(default = "default::tree_action::reply_alternate")]
     pub reply_alternate: KeyBinding,
     /// Start a new thread.
-    #[serde(default = "default::tree_op::new_thread")]
+    #[serde(default = "default::tree_action::new_thread")]
     pub new_thread: KeyBinding,
     /// Fold current message's subtree.
-    #[serde(default = "default::tree_op::fold_tree")]
+    #[serde(default = "default::tree_action::fold_tree")]
     pub fold_tree: KeyBinding,
     /// Toggle current message's seen status.
-    #[serde(default = "default::tree_op::toggle_seen")]
+    #[serde(default = "default::tree_action::toggle_seen")]
     pub toggle_seen: KeyBinding,
     /// Mark all visible messages as seen.
-    #[serde(default = "default::tree_op::mark_visible_seen")]
+    #[serde(default = "default::tree_action::mark_visible_seen")]
     pub mark_visible_seen: KeyBinding,
     /// Mark all older messages as seen.
-    #[serde(default = "default::tree_op::mark_older_seen")]
+    #[serde(default = "default::tree_action::mark_older_seen")]
     pub mark_older_seen: KeyBinding,
 }
 
-impl Default for TreeOp {
+impl Default for TreeAction {
     fn default() -> Self {
         Self {
-            reply: default::tree_op::reply(),
-            reply_alternate: default::tree_op::reply_alternate(),
-            new_thread: default::tree_op::new_thread(),
-            fold_tree: default::tree_op::fold_tree(),
-            toggle_seen: default::tree_op::toggle_seen(),
-            mark_visible_seen: default::tree_op::mark_visible_seen(),
-            mark_older_seen: default::tree_op::mark_older_seen(),
+            reply: default::tree_action::reply(),
+            reply_alternate: default::tree_action::reply_alternate(),
+            new_thread: default::tree_action::new_thread(),
+            fold_tree: default::tree_action::fold_tree(),
+            toggle_seen: default::tree_action::toggle_seen(),
+            mark_visible_seen: default::tree_action::mark_visible_seen(),
+            mark_older_seen: default::tree_action::mark_older_seen(),
         }
     }
 }
@@ -354,7 +354,7 @@ pub struct Tree {
 
     #[serde(default)]
     #[document(no_default)]
-    pub action: TreeOp,
+    pub action: TreeAction,
 }
 
 #[derive(Debug, Default, Deserialize, Document)]

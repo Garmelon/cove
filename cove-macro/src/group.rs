@@ -21,7 +21,7 @@ pub fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
     };
 
     let struct_ident = input.ident;
-    let enum_ident = format_ident!("{}Action", struct_ident);
+    let enum_ident = format_ident!("{}Event", struct_ident);
 
     let mut enum_variants = vec![];
     let mut match_cases = vec![];
@@ -38,7 +38,7 @@ pub fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
             let description = decapitalize(&docstring);
             let description = description.strip_suffix('.').unwrap_or(&description);
             match_cases.push(quote!{
-                () if input.matches(&self.#field_ident, #description) => Some(Self::Action::#variant_ident),
+                () if input.matches(&self.#field_ident, #description) => Some(Self::Event::#variant_ident),
             });
         }
     }
@@ -50,9 +50,9 @@ pub fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
         }
 
         impl ::cove_input::Group for #struct_ident {
-            type Action = #enum_ident;
+            type Event = #enum_ident;
 
-            fn action(&self, input: &mut ::cove_input::Input) -> Option<Self::Action> {
+            fn event(&self, input: &mut ::cove_input::Input) -> Option<Self::Event> {
                 match () {
                     #( #match_cases )*
                     () => None,
