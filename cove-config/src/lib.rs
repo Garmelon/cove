@@ -80,7 +80,6 @@ pub struct Config {
     #[document(default = "`alphabet`")]
     pub rooms_sort_order: RoomsSortOrder,
 
-    // TODO Invoke external notification command?
     pub euph: Euph,
 
     #[serde(default)]
