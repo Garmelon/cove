@@ -38,7 +38,7 @@ pub fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
             let description = decapitalize(&docstring);
             let description = description.strip_suffix('.').unwrap_or(&description);
             match_cases.push(quote!{
-                () if input.matches(&self.#field_ident, #description) => Some(Self::Event::#variant_ident),
+                () if event.matches_key_binding(&self.#field_ident, #description) => Some(Self::Event::#variant_ident),
             });
         }
     }
@@ -52,7 +52,7 @@ pub fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
         impl ::cove_input::KeyGroup for #struct_ident {
             type Event = #enum_ident;
 
-            fn event(&self, input: &mut ::cove_input::Input) -> Option<Self::Event> {
+            fn match_input_event(&self, event: &mut ::cove_input::InputEvent) -> Option<Self::Event> {
                 match () {
                     #( #match_cases )*
                     () => None,
