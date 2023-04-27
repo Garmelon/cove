@@ -48,8 +48,8 @@ impl KeyPress {
             "delete" => KeyCode::Delete,
             "insert" => KeyCode::Insert,
             "esc" => KeyCode::Esc,
-            c if c.starts_with('F') => KeyCode::F(c.strip_prefix('F').unwrap().parse()?),
             c if c.chars().count() == 1 => KeyCode::Char(c.chars().next().unwrap()),
+            c if c.starts_with('f') => KeyCode::F(c.strip_prefix('f').unwrap().parse()?),
             "" => return Err(ParseKeysError::NoKeyCode),
             c => return Err(ParseKeysError::UnknownKeyCode(c.to_string())),
         };
@@ -79,7 +79,7 @@ impl KeyPress {
             KeyCode::Delete => "delete".to_string(),
             KeyCode::Insert => "insert".to_string(),
             KeyCode::Esc => "esc".to_string(),
-            KeyCode::F(n) => format!("F{n}"),
+            KeyCode::F(n) => format!("f{n}"),
             KeyCode::Char(c) => c.to_string(),
             _ => "unknown".to_string(),
         }
