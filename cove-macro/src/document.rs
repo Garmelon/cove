@@ -3,7 +3,7 @@ use quote::quote;
 use syn::spanned::Spanned;
 use syn::{Data, DataEnum, DataStruct, DeriveInput, ExprPath, Field, Ident, LitStr, Type};
 
-use crate::util::{self, docstring};
+use crate::util;
 
 enum SerdeDefault {
     Default(Type),
@@ -21,7 +21,7 @@ struct FieldInfo {
 
 impl FieldInfo {
     fn initialize_from_field(&mut self, field: &Field) -> syn::Result<()> {
-        let docstring = docstring(field)?;
+        let docstring = util::docstring(field)?;
         if !docstring.is_empty() {
             self.description = Some(docstring);
         }

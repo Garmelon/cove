@@ -17,7 +17,7 @@ fn decapitalize(s: &str) -> String {
 
 pub fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
     let Data::Struct(data) = input.data else {
-        return Err(syn::Error::new(input.span(), "Must be a struct"));
+        return util::bail(input.span(), "Must be a struct");
     };
 
     let struct_ident = input.ident;
