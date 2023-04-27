@@ -7,7 +7,7 @@ use cove_input::KeyBinding;
 pub use cove_macro::Document;
 use serde::Serialize;
 
-pub(crate) fn toml_value_as_markdown<T: Serialize>(value: &T) -> String {
+pub fn toml_value_as_markdown<T: Serialize>(value: &T) -> String {
     let mut result = String::new();
     value
         .serialize(toml::ser::ValueSerializer::new(&mut result))

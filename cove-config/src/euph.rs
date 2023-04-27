@@ -1,27 +1,15 @@
 use std::collections::HashMap;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-use crate::doc::{Doc, Document};
+use crate::doc::Document;
 
-#[derive(Debug, Clone, Copy, Default, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Document)]
 #[serde(rename_all = "snake_case")]
 pub enum RoomsSortOrder {
     #[default]
     Alphabet,
     Importance,
-}
-
-impl Document for RoomsSortOrder {
-    fn doc() -> Doc {
-        let mut doc = String::doc();
-        doc.value_info.values = Some(vec![
-            // TODO Generate by serializing
-            "`alphabet`".to_string(),
-            "`importance`".to_string(),
-        ]);
-        doc
-    }
 }
 
 // TODO Mark favourite rooms via printable ascii characters

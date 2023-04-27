@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::spanned::Spanned;
-use syn::{Data, DeriveInput, ExprPath, Field, LitStr, Type};
+use syn::{Data, DataEnum, DataStruct, DeriveInput, ExprPath, Field, Ident, LitStr, Type};
 
 use crate::util::{self, docstring};
 
@@ -75,11 +75,7 @@ impl FieldInfo {
     }
 }
 
-pub fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
-    let Data::Struct(data) = input.data else {
-        return Err(syn::Error::new(input.span(), "must be a struct"));
-    };
-
+fn from_struct(ident: Ident, data: DataStruct) -> syn::Result<TokenStream> {
     let mut fields = vec![];
     for field in data.fields {
         let Some(ident) = field.ident.as_ref() else {
@@ -129,7 +125,6 @@ pub fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
         });
     }
 
-    let ident = input.ident;
     let tokens = quote!(
         impl crate::doc::Document for #ident {
             fn doc() -> crate::doc::Doc {
@@ -144,4 +139,34 @@ pub fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
     );
 
     Ok(tokens)
+}
+
+fn from_enum(ident: Ident, data: DataEnum) -> syn::Result<TokenStream> {
+    let mut values = vec![];
+    for variant in data.variants {
+        let ident = variant.ident;
+        values.push(quote! {
+            crate::doc::toml_value_as_markdown(&Self::#ident)
+        });
+    }
+
+    let tokens = quote!(
+        impl crate::doc::Document for #ident {
+            fn doc() -> crate::doc::Doc {
+                let mut doc = <String as crate::doc::Document>::doc();
+                doc.value_info.values = Some(vec![ #( #values ),* ]);
+                doc
+            }
+        }
+    );
+
+    Ok(tokens)
+}
+
+pub fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
+    match input.data {
+        Data::Struct(data) => from_struct(input.ident, data),
+        Data::Enum(data) => from_enum(input.ident, data),
+        Data::Union(_) => util::bail(input.span(), "must be an enum or a struct"),
+    }
 }
