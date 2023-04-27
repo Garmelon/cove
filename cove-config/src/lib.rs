@@ -82,6 +82,9 @@ pub struct Config {
 
     // TODO Invoke external notification command?
     pub euph: Euph,
+
+    #[serde(default)]
+    pub keys: Keys,
 }
 
 impl Config {

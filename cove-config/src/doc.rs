@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use cove_input::KeyBinding;
 pub use cove_macro::Document;
 
 #[derive(Clone, Default)]
@@ -189,6 +190,15 @@ impl<I: Document> Document for HashMap<String, I> {
     fn doc() -> Doc {
         let mut doc = Doc::default();
         doc.wrap_info.inner = Some(Box::new(I::doc()));
+        doc
+    }
+}
+
+impl Document for KeyBinding {
+    fn doc() -> Doc {
+        let mut doc = Doc::default();
+        doc.value_info.required = Some(true);
+        doc.value_info.r#type = Some("key binding".to_string());
         doc
     }
 }
