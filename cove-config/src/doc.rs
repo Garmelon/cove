@@ -1,5 +1,9 @@
+//! Auto-generate markdown documentation.
+
 use std::collections::HashMap;
 use std::path::PathBuf;
+
+pub use cove_macro::Document;
 
 #[derive(Clone, Default)]
 pub struct ValueInfo {
