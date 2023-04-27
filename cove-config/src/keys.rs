@@ -1,4 +1,4 @@
-use cove_input::{Group, KeyBinding};
+use cove_input::{KeyBinding, KeyGroup};
 use serde::Deserialize;
 
 use crate::doc::Document;
@@ -86,7 +86,7 @@ default_bindings! {
 
 }
 
-#[derive(Debug, Deserialize, Document, Group)]
+#[derive(Debug, Deserialize, Document, KeyGroup)]
 pub struct General {
     /// Quit cove.
     #[serde(default = "default::general::exit")]
@@ -117,7 +117,7 @@ impl Default for General {
     }
 }
 
-#[derive(Debug, Deserialize, Document, Group)]
+#[derive(Debug, Deserialize, Document, KeyGroup)]
 pub struct Scroll {
     /// Scroll up one line.
     #[serde(default = "default::scroll::up_line")]
@@ -152,7 +152,7 @@ impl Default for Scroll {
     }
 }
 
-#[derive(Debug, Deserialize, Document, Group)]
+#[derive(Debug, Deserialize, Document, KeyGroup)]
 pub struct Cursor {
     /// Move cursor up.
     #[serde(default = "default::cursor::up")]
@@ -183,7 +183,7 @@ impl Default for Cursor {
     }
 }
 
-#[derive(Debug, Deserialize, Document, Group)]
+#[derive(Debug, Deserialize, Document, KeyGroup)]
 pub struct EditorCursor {
     /// Move cursor left.
     #[serde(default = "default::editor_cursor::left")]
@@ -226,7 +226,7 @@ impl Default for EditorCursor {
     }
 }
 
-#[derive(Debug, Deserialize, Document, Group)]
+#[derive(Debug, Deserialize, Document, KeyGroup)]
 pub struct EditorAction {
     /// Insert newline.
     #[serde(default = "default::editor_action::newline")]
@@ -264,7 +264,7 @@ pub struct Editor {
     pub action: EditorAction,
 }
 
-#[derive(Debug, Deserialize, Document, Group)]
+#[derive(Debug, Deserialize, Document, KeyGroup)]
 pub struct TreeCursor {
     /// Move cursor to above sibling.
     #[serde(default = "default::tree_cursor::to_above_sibling")]
@@ -307,7 +307,7 @@ impl Default for TreeCursor {
     }
 }
 
-#[derive(Debug, Deserialize, Document, Group)]
+#[derive(Debug, Deserialize, Document, KeyGroup)]
 pub struct TreeAction {
     /// Reply to message (inline if possible).
     #[serde(default = "default::tree_action::reply")]

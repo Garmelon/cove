@@ -49,7 +49,7 @@ pub fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
             #( #enum_variants )*
         }
 
-        impl ::cove_input::Group for #struct_ident {
+        impl ::cove_input::KeyGroup for #struct_ident {
             type Event = #enum_ident;
 
             fn event(&self, input: &mut ::cove_input::Input) -> Option<Self::Event> {
