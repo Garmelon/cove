@@ -226,5 +226,5 @@ async fn clear_cookies(config: &'static Config, dirs: &ProjectDirs) -> anyhow::R
 }
 
 fn help_config() {
-    print!("{}", Config::doc().format_as_markdown());
+    print!("{}", Config::doc().as_markdown());
 }

@@ -5,6 +5,15 @@ use std::path::PathBuf;
 
 use cove_input::KeyBinding;
 pub use cove_macro::Document;
+use serde::Serialize;
+
+pub(crate) fn toml_value_as_markdown<T: Serialize>(value: &T) -> String {
+    let mut result = String::new();
+    value
+        .serialize(toml::ser::ValueSerializer::new(&mut result))
+        .expect("not a valid toml value");
+    format!("`{result}`")
+}
 
 #[derive(Clone, Default)]
 pub struct ValueInfo {
@@ -118,7 +127,7 @@ impl Doc {
         entries
     }
 
-    pub fn format_as_markdown(&self) -> String {
+    pub fn as_markdown(&self) -> String {
         // Print entries in alphabetical order to make generated documentation
         // format more stable.
         let mut entries = self.entries();

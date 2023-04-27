@@ -80,9 +80,12 @@ pub struct Config {
     #[document(default = "`alphabet`")]
     pub rooms_sort_order: RoomsSortOrder,
 
+    #[serde(default)]
+    #[document(no_default)]
     pub euph: Euph,
 
     #[serde(default)]
+    #[document(no_default)]
     pub keys: Keys,
 }
 

@@ -256,8 +256,11 @@ impl Default for EditorOp {
 #[derive(Debug, Default, Deserialize, Document)]
 pub struct Editor {
     #[serde(default)]
+    #[document(no_default)]
     pub cursor: EditorCursor,
+
     #[serde(default)]
+    #[document(no_default)]
     pub action: EditorOp,
 }
 
@@ -346,21 +349,33 @@ impl Default for TreeOp {
 #[derive(Debug, Default, Deserialize, Document)]
 pub struct Tree {
     #[serde(default)]
+    #[document(no_default)]
     pub cursor: TreeCursor,
+
     #[serde(default)]
+    #[document(no_default)]
     pub action: TreeOp,
 }
 
 #[derive(Debug, Default, Deserialize, Document)]
 pub struct Keys {
     #[serde(default)]
+    #[document(no_default)]
     pub general: General,
+
     #[serde(default)]
+    #[document(no_default)]
     pub scroll: Scroll,
+
     #[serde(default)]
+    #[document(no_default)]
     pub cursor: Cursor,
+
     #[serde(default)]
+    #[document(no_default)]
     pub editor: Editor,
+
     #[serde(default)]
+    #[document(no_default)]
     pub tree: Tree,
 }

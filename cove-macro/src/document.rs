@@ -1,89 +1,142 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use syn::{Data, DeriveInput, Field, MetaNameValue, Token};
+use syn::{Data, DeriveInput, ExprPath, Field, LitStr, Type};
 
-use crate::util::docstring;
+use crate::util::{self, docstring};
 
-/// Given a struct field, this finds all key-value pairs of the form
-/// `#[document(key = value, ...)]`.
-fn document_attributes(field: &Field) -> syn::Result<Vec<MetaNameValue>> {
-    let mut attrs = vec![];
-
-    for attr in field
-        .attrs
-        .iter()
-        .filter(|attr| attr.path().is_ident("document"))
-    {
-        let args =
-            attr.parse_args_with(Punctuated::<MetaNameValue, Token![,]>::parse_terminated)?;
-        attrs.extend(args);
-    }
-
-    Ok(attrs)
+enum SerdeDefault {
+    Default(Type),
+    Path(ExprPath),
 }
 
-fn field_doc(field: &Field) -> syn::Result<Option<TokenStream>> {
-    let Some(ident) = field.ident.as_ref() else { return Ok(None); };
-    let ident = ident.to_string();
-    let ty = &field.ty;
+#[derive(Default)]
+struct FieldInfo {
+    description: Option<String>,
+    metavar: Option<LitStr>,
+    default: Option<LitStr>,
+    serde_default: Option<SerdeDefault>,
+    no_default: bool,
+}
 
-    let mut setters = vec![];
-
-    let docstring = docstring(field)?;
-    if !docstring.is_empty() {
-        setters.push(quote! {
-            doc.description = Some(#docstring.to_string());
-        });
-    }
-
-    for attr in document_attributes(field)? {
-        let value = attr.value;
-        if attr.path.is_ident("default") {
-            setters.push(quote! { doc.value_info.default = Some(#value.to_string()); });
-        } else if attr.path.is_ident("metavar") {
-            setters.push(quote! { doc.wrap_info.metavar = Some(#value.to_string()); });
-        } else {
-            return Err(syn::Error::new(attr.path.span(), "unknown argument name"));
+impl FieldInfo {
+    fn initialize_from_field(&mut self, field: &Field) -> syn::Result<()> {
+        let docstring = docstring(field)?;
+        if !docstring.is_empty() {
+            self.description = Some(docstring);
         }
+
+        for arg in util::attribute_arguments(field, "document")? {
+            if arg.path.is_ident("metavar") {
+                // Parse `#[document(metavar = "bla")]`
+                if let Some(metavar) = arg.value.and_then(util::into_litstr) {
+                    self.metavar = Some(metavar);
+                } else {
+                    util::bail(arg.path.span(), "must be of the form `key = \"value\"`")?;
+                }
+            } else if arg.path.is_ident("default") {
+                // Parse `#[document(default = "bla")]`
+                if let Some(value) = arg.value.and_then(util::into_litstr) {
+                    self.default = Some(value);
+                } else {
+                    util::bail(arg.path.span(), "must be of the form `key = \"value\"`")?;
+                }
+            } else if arg.path.is_ident("no_default") {
+                // Parse #[document(no_default)]
+                if arg.value.is_some() {
+                    util::bail(arg.path.span(), "must not have a value")?;
+                }
+                self.no_default = true;
+            } else {
+                util::bail(arg.path.span(), "unknown argument name")?;
+            }
+        }
+
+        // Find `#[serde(default)]` or `#[serde(default = "bla")]`.
+        for arg in util::attribute_arguments(field, "serde")? {
+            if arg.path.is_ident("default") {
+                if let Some(value) = arg.value {
+                    if let Some(path) = util::into_litstr(value) {
+                        self.serde_default = Some(SerdeDefault::Path(path.parse()?));
+                    }
+                } else {
+                    self.serde_default = Some(SerdeDefault::Default(field.ty.clone()));
+                }
+            }
+        }
+
+        Ok(())
     }
 
-    Ok(Some(quote! {
-        fields.insert(
-            #ident.to_string(),
-            {
-                let mut doc = <#ty as Document>::doc();
-                #( #setters )*
-                Box::new(doc)
-            }
-        );
-    }))
+    fn from_field(field: &Field) -> syn::Result<Self> {
+        let mut result = Self::default();
+        result.initialize_from_field(field)?;
+        Ok(result)
+    }
 }
 
 pub fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
     let Data::Struct(data) = input.data else {
-        return Err(syn::Error::new(input.span(), "Must be a struct"));
+        return Err(syn::Error::new(input.span(), "must be a struct"));
     };
 
-    let mut fields = Vec::new();
-    for field in data.fields.iter() {
-        if let Some(field) = field_doc(field)? {
-            fields.push(field);
+    let mut fields = vec![];
+    for field in data.fields {
+        let Some(ident) = field.ident.as_ref() else {
+            return util::bail(field.span(), "must not be a tuple struct");
+        };
+        let ident = ident.to_string();
+
+        let info = FieldInfo::from_field(&field)?;
+
+        let mut setters = vec![];
+        if let Some(description) = info.description {
+            setters.push(quote! {
+                doc.description = Some(#description.to_string());
+            });
         }
+        if let Some(metavar) = info.metavar {
+            setters.push(quote! {
+                doc.wrap_info.metavar = Some(#metavar.to_string());
+            });
+        }
+        if info.no_default {
+        } else if let Some(default) = info.default {
+            setters.push(quote! {
+                doc.value_info.default = Some(#default.to_string());
+            });
+        } else if let Some(serde_default) = info.serde_default {
+            setters.push(match serde_default {
+                SerdeDefault::Default(ty) => quote! {
+                    doc.value_info.default = Some(crate::doc::toml_value_as_markdown(&<#ty as Default>::default()));
+                },
+                SerdeDefault::Path(path) => quote! {
+                    doc.value_info.default = Some(crate::doc::toml_value_as_markdown(&#path()));
+                },
+            });
+        }
+
+        let ty = field.ty;
+        fields.push(quote! {
+            fields.insert(
+                #ident.to_string(),
+                {
+                    let mut doc = <#ty as crate::doc::Document>::doc();
+                    #( #setters )*
+                    ::std::boxed::Box::new(doc)
+                }
+            );
+        });
     }
 
     let ident = input.ident;
     let tokens = quote!(
         impl crate::doc::Document for #ident {
             fn doc() -> crate::doc::Doc {
-                use ::std::{boxed::Box, collections::HashMap};
-                use crate::doc::{Doc, Document};
-
-                let mut fields = HashMap::new();
+                let mut fields = ::std::collections::HashMap::new();
                 #( #fields )*
 
-                let mut doc = Doc::default();
+                let mut doc = crate::doc::Doc::default();
                 doc.struct_info.fields = fields;
                 doc
             }

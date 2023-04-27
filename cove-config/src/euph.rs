@@ -29,7 +29,6 @@ impl Document for RoomsSortOrder {
 pub struct EuphRoom {
     /// Whether to automatically join this room on startup.
     #[serde(default)]
-    #[document(default = "`false`")]
     pub autojoin: bool,
 
     /// If set, cove will set this username upon joining if there is no username
@@ -40,7 +39,6 @@ pub struct EuphRoom {
     /// username even if there is already a different username associated with
     /// the current session.
     #[serde(default)]
-    #[document(default = "`false`")]
     pub force_username: bool,
 
     /// If set, cove will try once to use this password to authenticate, should
