@@ -1,8 +1,8 @@
-mod groups;
 mod input;
 mod keys;
 
-pub use groups::*;
+pub use cove_macro::Group;
+
 pub use input::*;
 pub use keys::*;
 

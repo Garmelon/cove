@@ -49,10 +49,10 @@ pub fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
             #( #enum_variants )*
         }
 
-        impl crate::Group for #struct_ident {
+        impl ::cove_input::Group for #struct_ident {
             type Action = #enum_ident;
 
-            fn action(&self, input: &mut crate::Input) -> Option<Self::Action> {
+            fn action(&self, input: &mut ::cove_input::Input) -> Option<Self::Action> {
                 match () {
                     #( #match_cases )*
                     () => None,

@@ -281,6 +281,7 @@ dependencies = [
 name = "cove-config"
 version = "0.6.1"
 dependencies = [
+ "cove-input",
  "cove-macro",
  "serde",
  "toml",

@@ -11,6 +11,7 @@
 
 pub mod doc;
 mod euph;
+mod keys;
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -19,6 +20,7 @@ use doc::Document;
 use serde::Deserialize;
 
 pub use crate::euph::*;
+pub use crate::keys::*;
 
 #[derive(Debug, Default, Deserialize, Document)]
 pub struct Config {

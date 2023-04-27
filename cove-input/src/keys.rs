@@ -173,8 +173,32 @@ impl<'de> Deserialize<'de> for KeyPress {
 pub struct KeyBinding(Vec<KeyPress>);
 
 impl KeyBinding {
+    pub fn new() -> Self {
+        Self(vec![])
+    }
+
+    pub fn with_key(self, key: &str) -> Result<Self, ParseKeysError> {
+        self.with_keys([key])
+    }
+
+    pub fn with_keys<'a, I>(mut self, keys: I) -> Result<Self, ParseKeysError>
+    where
+        I: IntoIterator<Item = &'a str>,
+    {
+        for key in keys {
+            self.0.push(key.parse()?);
+        }
+        Ok(self)
+    }
+
     pub fn matches(&self, event: KeyEvent) -> bool {
         self.0.iter().any(|kp| kp.matches(event))
+    }
+}
+
+impl Default for KeyBinding {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

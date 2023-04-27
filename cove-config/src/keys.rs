@@ -1,6 +1,4 @@
-use cove_macro::Group;
-
-use crate::KeyBinding;
+use cove_input::{Group, KeyBinding};
 
 #[derive(Debug, Group)]
 pub struct General {
