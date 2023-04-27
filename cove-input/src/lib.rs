@@ -8,7 +8,5 @@ pub use keys::*;
 
 /// A group of related key bindings.
 pub trait KeyGroup {
-    type Event;
-
-    fn match_input_event(&self, event: &mut InputEvent) -> Option<Self::Event>;
+    fn bindings(&self) -> Vec<(&KeyBinding, &'static str)>;
 }

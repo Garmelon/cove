@@ -1,6 +1,5 @@
-use case::CaseExt;
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote};
+use quote::quote;
 use syn::spanned::Spanned;
 use syn::{Data, DeriveInput};
 
@@ -17,46 +16,29 @@ fn decapitalize(s: &str) -> String {
 
 pub fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
     let Data::Struct(data) = input.data else {
-        return util::bail(input.span(), "Must be a struct");
+        return util::bail(input.span(), "must be a struct");
     };
 
-    let struct_ident = input.ident;
-    let enum_ident = format_ident!("{}Event", struct_ident);
-
-    let mut enum_variants = vec![];
-    let mut match_cases = vec![];
+    let mut bindings = vec![];
     for field in &data.fields {
         if let Some(field_ident) = &field.ident {
             let docstring = util::docstring(field)?;
-            let variant_ident = format_ident!("{}", field_ident.to_string().to_camel());
-
-            enum_variants.push(quote! {
-                #[doc = #docstring]
-                #variant_ident,
-            });
-
             let description = decapitalize(&docstring);
             let description = description.strip_suffix('.').unwrap_or(&description);
-            match_cases.push(quote!{
-                () if event.matches_key_binding(&self.#field_ident, #description) => Some(Self::Event::#variant_ident),
+
+            bindings.push(quote! {
+                (&self.#field_ident, #description)
             });
         }
     }
 
+    let ident = input.ident;
     Ok(quote! {
-        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-        pub enum #enum_ident {
-            #( #enum_variants )*
-        }
-
-        impl ::cove_input::KeyGroup for #struct_ident {
-            type Event = #enum_ident;
-
-            fn match_input_event(&self, event: &mut ::cove_input::InputEvent) -> Option<Self::Event> {
-                match () {
-                    #( #match_cases )*
-                    () => None,
-                }
+        impl ::cove_input::KeyGroup for #ident {
+            fn bindings(&self) -> Vec<(&::cove_input::KeyBinding, &'static str)> {
+                vec![
+                    #( #bindings, )*
+                ]
             }
         }
     })
