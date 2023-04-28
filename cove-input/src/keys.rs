@@ -138,16 +138,16 @@ impl fmt::Display for KeyPress {
 
         let mut segments = vec![];
         if self.shift {
-            segments.push("Shift");
+            segments.push("shift");
         }
         if self.ctrl {
-            segments.push("Ctrl");
+            segments.push("ctrl");
         }
         if self.alt {
-            segments.push("Alt");
+            segments.push("alt");
         }
         if self.any {
-            segments.push("Any");
+            segments.push("any");
         }
         segments.push(&code);
 
