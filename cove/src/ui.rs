@@ -1,6 +1,7 @@
 mod chat;
 mod euph;
 mod input;
+mod key_bindings;
 mod rooms;
 mod util;
 mod widgets;
@@ -67,13 +68,16 @@ enum Mode {
 }
 
 pub struct Ui {
+    config: &'static Config,
     event_tx: UnboundedSender<UiEvent>,
 
     mode: Mode,
 
     rooms: Rooms,
     log_chat: ChatState<LogMsg, Logger>,
-    key_bindings_list: Option<ListState<Infallible>>,
+
+    key_bindings_visible: bool,
+    key_bindings_list: ListState<Infallible>,
 }
 
 impl Ui {
@@ -106,11 +110,13 @@ impl Ui {
         // On the other hand, if the crossterm_event_task stops for any reason,
         // the rest of the UI is also shut down and the client stops.
         let mut ui = Self {
+            config,
             event_tx: event_tx.clone(),
             mode: Mode::Main,
             rooms: Rooms::new(config, vault, event_tx.clone()).await,
             log_chat: ChatState::new(logger),
-            key_bindings_list: None,
+            key_bindings_visible: false,
+            key_bindings_list: ListState::new(),
         };
         tokio::select! {
             e = ui.run_main(terminal, event_rx, crossterm_lock) => e?,
@@ -190,36 +196,16 @@ impl Ui {
     }
 
     async fn widget(&mut self) -> BoxedAsync<'_, UiError> {
-        let key_bindings_list = if self.key_bindings_list.is_some() {
-            let mut bindings = KeyBindingsList::new();
-            self.list_key_bindings(&mut bindings).await;
-            Some(bindings)
-        } else {
-            None
-        };
-
         let widget = match self.mode {
             Mode::Main => self.rooms.widget().await,
             Mode::Log => self.log_chat.widget(String::new(), true),
         };
 
-        if let Some(key_bindings_list) = key_bindings_list {
-            // We checked whether this was Some earlier.
-            let list_state = self.key_bindings_list.as_mut().unwrap();
-
-            key_bindings_list
-                .widget(list_state)
-                .desync()
-                .above(widget)
-                .boxed_async()
+        if self.key_bindings_visible {
+            let popup = key_bindings::widget(&mut self.key_bindings_list, self.config);
+            popup.desync().above(widget).boxed_async()
         } else {
             widget
-        }
-    }
-
-    fn show_key_bindings(&mut self) {
-        if self.key_bindings_list.is_none() {
-            self.key_bindings_list = Some(ListState::new())
         }
     }
 
@@ -275,11 +261,11 @@ impl Ui {
         }
 
         // Key bindings list overrides any other bindings if visible
-        if let Some(key_bindings_list) = &mut self.key_bindings_list {
+        if self.key_bindings_visible {
             match event {
-                key!(Esc) | key!(F 1) | key!('?') => self.key_bindings_list = None,
-                key!('k') | key!(Up) => key_bindings_list.scroll_up(1),
-                key!('j') | key!(Down) => key_bindings_list.scroll_down(1),
+                key!(Esc) | key!(F 1) | key!('?') => self.key_bindings_visible = false,
+                key!('k') | key!(Up) => self.key_bindings_list.scroll_up(1),
+                key!('j') | key!(Down) => self.key_bindings_list.scroll_down(1),
                 _ => return EventHandleResult::Continue,
             }
             return EventHandleResult::Redraw;
@@ -287,7 +273,7 @@ impl Ui {
 
         match event {
             key!(F 1) => {
-                self.key_bindings_list = Some(ListState::new());
+                self.key_bindings_visible = true;
                 return EventHandleResult::Redraw;
             }
             key!(F 12) => {
@@ -321,7 +307,7 @@ impl Ui {
         // text editor.
         if !handled {
             if let key!('?') = event {
-                self.show_key_bindings();
+                self.key_bindings_visible = true;
                 handled = true;
             }
         }

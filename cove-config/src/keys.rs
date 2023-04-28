@@ -154,16 +154,16 @@ impl Default for Scroll {
 
 #[derive(Debug, Deserialize, Document, KeyGroup)]
 pub struct Cursor {
-    /// Move cursor up.
+    /// Move up.
     #[serde(default = "default::cursor::up")]
     pub up: KeyBinding,
-    /// Move cursor down.
+    /// Move down.
     #[serde(default = "default::cursor::down")]
     pub down: KeyBinding,
-    /// Move cursor to top.
+    /// Move to top.
     #[serde(default = "default::cursor::to_top")]
     pub to_top: KeyBinding,
-    /// Move cursor to bottom.
+    /// Move to bottom.
     #[serde(default = "default::cursor::to_bottom")]
     pub to_bottom: KeyBinding,
     /// Center cursor.
@@ -185,28 +185,28 @@ impl Default for Cursor {
 
 #[derive(Debug, Deserialize, Document, KeyGroup)]
 pub struct EditorCursor {
-    /// Move cursor left.
+    /// Move left.
     #[serde(default = "default::editor_cursor::left")]
     pub left: KeyBinding,
-    /// Move cursor right.
+    /// Move right.
     #[serde(default = "default::editor_cursor::right")]
     pub right: KeyBinding,
-    /// Move cursor left a word.
+    /// Move left a word.
     #[serde(default = "default::editor_cursor::left_word")]
     pub left_word: KeyBinding,
-    /// Move cursor right a word.
+    /// Move right a word.
     #[serde(default = "default::editor_cursor::right_word")]
     pub right_word: KeyBinding,
-    /// Move cursor to start of line.
+    /// Move to start of line.
     #[serde(default = "default::editor_cursor::start")]
     pub start: KeyBinding,
-    /// Move cursor to end of line.
+    /// Move to end of line.
     #[serde(default = "default::editor_cursor::end")]
     pub end: KeyBinding,
-    /// Move cursor up.
+    /// Move up.
     #[serde(default = "default::editor_cursor::up")]
     pub up: KeyBinding,
-    /// Move cursor down.
+    /// Move down.
     #[serde(default = "default::editor_cursor::down")]
     pub down: KeyBinding,
 }
@@ -266,30 +266,31 @@ pub struct Editor {
 
 #[derive(Debug, Deserialize, Document, KeyGroup)]
 pub struct TreeCursor {
-    /// Move cursor to above sibling.
+    /// Move to above sibling.
     #[serde(default = "default::tree_cursor::to_above_sibling")]
     pub to_above_sibling: KeyBinding,
-    /// Move cursor to below sibling.
+    /// Move to below sibling.
     #[serde(default = "default::tree_cursor::to_below_sibling")]
     pub to_below_sibling: KeyBinding,
-    /// Move cursor to parent.
+    /// Move to parent.
     #[serde(default = "default::tree_cursor::to_parent")]
     pub to_parent: KeyBinding,
-    /// Move cursor to root.
+    /// Move to root.
     #[serde(default = "default::tree_cursor::to_root")]
     pub to_root: KeyBinding,
-    /// Move cursor to previous message.
+    /// Move to previous message.
     #[serde(default = "default::tree_cursor::to_prev_message")]
     pub to_prev_message: KeyBinding,
-    /// Move cursor to next message.
+    /// Move to next message.
     #[serde(default = "default::tree_cursor::to_next_message")]
     pub to_next_message: KeyBinding,
-    /// Move cursor to previous unseen message.
+    /// Move to previous unseen message.
     #[serde(default = "default::tree_cursor::to_prev_unseen_message")]
     pub to_prev_unseen_message: KeyBinding,
-    /// Move cursor to next unseen message.
+    /// Move to next unseen message.
     #[serde(default = "default::tree_cursor::to_next_unseen_message")]
     pub to_next_unseen_message: KeyBinding,
+    // TODO Bindings inspired by vim's ()/[]/{} bindings?
 }
 
 impl Default for TreeCursor {
@@ -309,10 +310,10 @@ impl Default for TreeCursor {
 
 #[derive(Debug, Deserialize, Document, KeyGroup)]
 pub struct TreeAction {
-    /// Reply to message (inline if possible).
+    /// Reply to message, inline if possible.
     #[serde(default = "default::tree_action::reply")]
     pub reply: KeyBinding,
-    /// Reply to message, opposite of normal reply.
+    /// Reply opposite to normal reply.
     #[serde(default = "default::tree_action::reply_alternate")]
     pub reply_alternate: KeyBinding,
     /// Start a new thread.

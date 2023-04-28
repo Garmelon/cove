@@ -177,6 +177,10 @@ impl KeyBinding {
         Self(vec![])
     }
 
+    pub fn keys(&self) -> &[KeyPress] {
+        &self.0
+    }
+
     pub fn with_key(self, key: &str) -> Result<Self, ParseKeysError> {
         self.with_keys([key])
     }
