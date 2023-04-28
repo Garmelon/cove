@@ -35,6 +35,7 @@ default_bindings! {
         pub fn down_half => ["ctrl+d"];
         pub fn up_full => ["ctrl+b"];
         pub fn down_full => ["ctrl+f"];
+        pub fn center_cursor => ["z"];
     }
 
     pub mod cursor {
@@ -42,7 +43,6 @@ default_bindings! {
         pub fn down => ["j", "down"];
         pub fn to_top => ["g", "home"];
         pub fn to_bottom => ["G", "end"];
-        pub fn center => ["z"];
     }
 
     pub mod tree_cursor {
@@ -137,6 +137,9 @@ pub struct Scroll {
     /// Scroll down a full screen.
     #[serde(default = "default::scroll::down_full")]
     pub down_full: KeyBinding,
+    /// Center cursor.
+    #[serde(default = "default::scroll::center_cursor")]
+    pub center_cursor: KeyBinding,
 }
 
 impl Default for Scroll {
@@ -148,6 +151,7 @@ impl Default for Scroll {
             down_half: default::scroll::down_half(),
             up_full: default::scroll::up_full(),
             down_full: default::scroll::down_full(),
+            center_cursor: default::scroll::center_cursor(),
         }
     }
 }
@@ -166,9 +170,6 @@ pub struct Cursor {
     /// Move to bottom.
     #[serde(default = "default::cursor::to_bottom")]
     pub to_bottom: KeyBinding,
-    /// Center cursor.
-    #[serde(default = "default::cursor::center")]
-    pub center: KeyBinding,
 }
 
 impl Default for Cursor {
@@ -178,7 +179,6 @@ impl Default for Cursor {
             down: default::cursor::down(),
             to_top: default::cursor::to_top(),
             to_bottom: default::cursor::to_bottom(),
-            center: default::cursor::center(),
         }
     }
 }
