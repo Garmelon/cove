@@ -105,7 +105,7 @@ impl KeyPress {
             return false;
         }
 
-        if self.any {
+        if self.any && !event.modifiers.is_empty() {
             return true;
         }
 
