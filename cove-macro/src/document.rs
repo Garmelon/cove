@@ -1,14 +1,9 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::spanned::Spanned;
-use syn::{Data, DataEnum, DataStruct, DeriveInput, ExprPath, Field, Ident, LitStr, Type};
+use syn::{Data, DataEnum, DataStruct, DeriveInput, Field, Ident, LitStr};
 
-use crate::util;
-
-enum SerdeDefault {
-    Default(Type),
-    Path(ExprPath),
-}
+use crate::util::{self, SerdeDefault};
 
 #[derive(Default)]
 struct FieldInfo {
@@ -53,17 +48,7 @@ impl FieldInfo {
         }
 
         // Find `#[serde(default)]` or `#[serde(default = "bla")]`.
-        for arg in util::attribute_arguments(field, "serde")? {
-            if arg.path.is_ident("default") {
-                if let Some(value) = arg.value {
-                    if let Some(path) = util::into_litstr(value) {
-                        self.serde_default = Some(SerdeDefault::Path(path.parse()?));
-                    }
-                } else {
-                    self.serde_default = Some(SerdeDefault::Default(field.ty.clone()));
-                }
-            }
-        }
+        self.serde_default = util::serde_default(field)?;
 
         Ok(())
     }
@@ -102,13 +87,9 @@ fn from_struct(ident: Ident, data: DataStruct) -> syn::Result<TokenStream> {
                 doc.value_info.default = Some(#default.to_string());
             });
         } else if let Some(serde_default) = info.serde_default {
-            setters.push(match serde_default {
-                SerdeDefault::Default(ty) => quote! {
-                    doc.value_info.default = Some(crate::doc::toml_value_as_markdown(&<#ty as Default>::default()));
-                },
-                SerdeDefault::Path(path) => quote! {
-                    doc.value_info.default = Some(crate::doc::toml_value_as_markdown(&#path()));
-                },
+            let value = serde_default.value();
+            setters.push(quote! {
+                doc.value_info.default = Some(crate::doc::toml_value_as_markdown(&#value));
             });
         }
 

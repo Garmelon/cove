@@ -132,19 +132,6 @@ pub struct General {
     pub log: KeyBinding,
 }
 
-impl Default for General {
-    fn default() -> Self {
-        Self {
-            exit: default::general::exit(),
-            abort: default::general::abort(),
-            confirm: default::general::confirm(),
-            focus: default::general::focus(),
-            help: default::general::help(),
-            log: default::general::log(),
-        }
-    }
-}
-
 #[derive(Debug, Deserialize, Document, KeyGroup)]
 pub struct Scroll {
     /// Scroll up one line.
@@ -170,20 +157,6 @@ pub struct Scroll {
     pub center_cursor: KeyBinding,
 }
 
-impl Default for Scroll {
-    fn default() -> Self {
-        Self {
-            up_line: default::scroll::up_line(),
-            down_line: default::scroll::down_line(),
-            up_half: default::scroll::up_half(),
-            down_half: default::scroll::down_half(),
-            up_full: default::scroll::up_full(),
-            down_full: default::scroll::down_full(),
-            center_cursor: default::scroll::center_cursor(),
-        }
-    }
-}
-
 #[derive(Debug, Deserialize, Document, KeyGroup)]
 pub struct Cursor {
     /// Move up.
@@ -198,17 +171,6 @@ pub struct Cursor {
     /// Move to bottom.
     #[serde(default = "default::cursor::to_bottom")]
     pub to_bottom: KeyBinding,
-}
-
-impl Default for Cursor {
-    fn default() -> Self {
-        Self {
-            up: default::cursor::up(),
-            down: default::cursor::down(),
-            to_top: default::cursor::to_top(),
-            to_bottom: default::cursor::to_bottom(),
-        }
-    }
 }
 
 #[derive(Debug, Deserialize, Document, KeyGroup)]
@@ -239,21 +201,6 @@ pub struct EditorCursor {
     pub down: KeyBinding,
 }
 
-impl Default for EditorCursor {
-    fn default() -> Self {
-        Self {
-            left: default::editor_cursor::left(),
-            right: default::editor_cursor::right(),
-            left_word: default::editor_cursor::left_word(),
-            right_word: default::editor_cursor::right_word(),
-            start: default::editor_cursor::start(),
-            end: default::editor_cursor::end(),
-            up: default::editor_cursor::up(),
-            down: default::editor_cursor::down(),
-        }
-    }
-}
-
 #[derive(Debug, Deserialize, Document, KeyGroup)]
 pub struct EditorAction {
     /// Delete before cursor.
@@ -268,17 +215,6 @@ pub struct EditorAction {
     /// Edit in external editor.
     #[serde(default = "default::editor_action::external")]
     pub external: KeyBinding,
-}
-
-impl Default for EditorAction {
-    fn default() -> Self {
-        Self {
-            backspace: default::editor_action::backspace(),
-            delete: default::editor_action::delete(),
-            clear: default::editor_action::clear(),
-            external: default::editor_action::external(),
-        }
-    }
 }
 
 #[derive(Debug, Default, Deserialize, Document)]
@@ -323,22 +259,6 @@ pub struct RoomsAction {
     pub change_sort_order: KeyBinding,
 }
 
-impl Default for RoomsAction {
-    fn default() -> Self {
-        Self {
-            connect: default::rooms_action::connect(),
-            connect_all: default::rooms_action::connect_all(),
-            disconnect: default::rooms_action::disconnect(),
-            disconnect_all: default::rooms_action::disconnect_all(),
-            connect_autojoin: default::rooms_action::connect_autojoin(),
-            disconnect_non_autojoin: default::rooms_action::disconnect_non_autojoin(),
-            new: default::rooms_action::new(),
-            delete: default::rooms_action::delete(),
-            change_sort_order: default::rooms_action::change_sort_order(),
-        }
-    }
-}
-
 #[derive(Debug, Default, Deserialize, Document)]
 pub struct Rooms {
     #[serde(default)]
@@ -363,18 +283,6 @@ pub struct RoomAction {
     /// Open room's plugh.de/present page.
     #[serde(default = "default::room_action::present")]
     pub present: KeyBinding,
-}
-
-impl Default for RoomAction {
-    fn default() -> Self {
-        Self {
-            authenticate: default::room_action::authenticate(),
-            account: default::room_action::account(),
-            nick: default::room_action::nick(),
-            more_messages: default::room_action::more_messages(),
-            present: default::room_action::present(),
-        }
-    }
 }
 
 #[derive(Debug, Default, Deserialize, Document)]
@@ -413,21 +321,6 @@ pub struct TreeCursor {
     // TODO Bindings inspired by vim's ()/[]/{} bindings?
 }
 
-impl Default for TreeCursor {
-    fn default() -> Self {
-        Self {
-            to_above_sibling: default::tree_cursor::to_above_sibling(),
-            to_below_sibling: default::tree_cursor::to_below_sibling(),
-            to_parent: default::tree_cursor::to_parent(),
-            to_root: default::tree_cursor::to_root(),
-            to_older_message: default::tree_cursor::to_older_message(),
-            to_newer_message: default::tree_cursor::to_newer_message(),
-            to_older_unseen_message: default::tree_cursor::to_older_unseen_message(),
-            to_newer_unseen_message: default::tree_cursor::to_newer_unseen_message(),
-        }
-    }
-}
-
 // TODO Split up in "message", "nicklist", "room"?
 #[derive(Debug, Deserialize, Document, KeyGroup)]
 pub struct TreeAction {
@@ -458,22 +351,6 @@ pub struct TreeAction {
     /// List links found in message.
     #[serde(default = "default::tree_action::links")]
     pub links: KeyBinding,
-}
-
-impl Default for TreeAction {
-    fn default() -> Self {
-        Self {
-            reply: default::tree_action::reply(),
-            reply_alternate: default::tree_action::reply_alternate(),
-            new_thread: default::tree_action::new_thread(),
-            fold_tree: default::tree_action::fold_tree(),
-            toggle_seen: default::tree_action::toggle_seen(),
-            mark_visible_seen: default::tree_action::mark_visible_seen(),
-            mark_older_seen: default::tree_action::mark_older_seen(),
-            inspect: default::tree_action::info(),
-            links: default::tree_action::links(),
-        }
-    }
 }
 
 #[derive(Debug, Default, Deserialize, Document)]

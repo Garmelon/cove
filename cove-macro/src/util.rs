@@ -1,7 +1,8 @@
-use proc_macro2::Span;
+use proc_macro2::{Span, TokenStream};
+use quote::quote;
 use syn::parse::Parse;
 use syn::punctuated::Punctuated;
-use syn::{Expr, ExprLit, Field, Lit, LitStr, Path, Token};
+use syn::{Expr, ExprLit, ExprPath, Field, Lit, LitStr, Path, Token, Type};
 
 pub fn bail<T>(span: Span, message: &str) -> syn::Result<T> {
     Err(syn::Error::new(span, message))
@@ -79,4 +80,38 @@ pub fn attribute_arguments(field: &Field, path: &str) -> syn::Result<Vec<Attribu
     }
 
     Ok(attrs)
+}
+
+pub enum SerdeDefault {
+    Default(Type),
+    Path(ExprPath),
+}
+
+impl SerdeDefault {
+    pub fn value(&self) -> TokenStream {
+        match self {
+            Self::Default(ty) => quote! {
+                <#ty as Default>::default()
+            },
+            Self::Path(path) => quote! {
+                #path()
+            },
+        }
+    }
+}
+
+/// Find `#[serde(default)]` or `#[serde(default = "bla")]`.
+pub fn serde_default(field: &Field) -> syn::Result<Option<SerdeDefault>> {
+    for arg in attribute_arguments(field, "serde")? {
+        if arg.path.is_ident("default") {
+            if let Some(value) = arg.value {
+                if let Some(path) = into_litstr(value) {
+                    return Ok(Some(SerdeDefault::Path(path.parse()?)));
+                }
+            } else {
+                return Ok(Some(SerdeDefault::Default(field.ty.clone())));
+            }
+        }
+    }
+    Ok(None)
 }
