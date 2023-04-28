@@ -1,3 +1,5 @@
+use std::io;
+
 use crossterm::style::Stylize;
 use toss::widgets::Text;
 use toss::{Style, Styled, Widget};
@@ -29,4 +31,11 @@ impl RoomPopup {
             } => Self::server_error_widget(description, reason),
         }
     }
+}
+
+pub enum PopupResult {
+    NotHandled,
+    Handled,
+    Close,
+    ErrorOpeningLink { link: String, error: io::Error },
 }

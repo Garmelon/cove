@@ -7,8 +7,10 @@ edition = { workspace = true }
 cove-macro = { path = "../cove-macro" }
 
 crossterm = { workspace = true }
-parking_lot = {workspace = true}
+parking_lot = { workspace = true }
 serde = { workspace = true }
 serde_either = { workspace = true }
 thiserror = { workspace = true }
-toss = {workspace = true}
+toss = { workspace = true }
+
+edit = "0.1.4"

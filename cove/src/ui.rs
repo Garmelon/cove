@@ -1,6 +1,5 @@
 mod chat;
 mod euph;
-mod input;
 mod key_bindings;
 mod rooms;
 mod util;
@@ -12,6 +11,7 @@ use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 
 use cove_config::Config;
+use cove_input::InputEvent;
 use parking_lot::FairMutex;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -26,7 +26,6 @@ use crate::vault::Vault;
 
 pub use self::chat::ChatMsg;
 use self::chat::ChatState;
-use self::input::{key, InputEvent, KeyBindingsList};
 use self::rooms::Rooms;
 use self::widgets::ListState;
 
@@ -209,17 +208,6 @@ impl Ui {
         }
     }
 
-    async fn list_key_bindings(&self, bindings: &mut KeyBindingsList) {
-        bindings.binding("ctrl+c", "quit cove");
-        bindings.binding("F1, ?", "show this menu");
-        bindings.binding("F12", "toggle log");
-        bindings.empty();
-        match self.mode {
-            Mode::Main => self.rooms.list_key_bindings(bindings).await,
-            Mode::Log => self.log_chat.list_key_bindings(bindings, false).await,
-        }
-    }
-
     async fn handle_event(
         &mut self,
         terminal: &mut Terminal,
@@ -232,7 +220,7 @@ impl Ui {
             UiEvent::LogChanged => EventHandleResult::Continue,
             UiEvent::Term(crossterm::event::Event::Resize(_, _)) => EventHandleResult::Redraw,
             UiEvent::Term(event) => {
-                self.handle_term_event(terminal, crossterm_lock, event)
+                self.handle_term_event(terminal, crossterm_lock.clone(), event)
                     .await
             }
             UiEvent::Euph(event) => {
@@ -248,74 +236,60 @@ impl Ui {
     async fn handle_term_event(
         &mut self,
         terminal: &mut Terminal,
-        crossterm_lock: &Arc<FairMutex<()>>,
+        crossterm_lock: Arc<FairMutex<()>>,
         event: crossterm::event::Event,
     ) -> EventHandleResult {
-        let event = some_or_return!(InputEvent::from_event(event), EventHandleResult::Continue);
+        let mut event = InputEvent::new(event, terminal, crossterm_lock);
+        let keys = &self.config.keys;
 
-        if let key!(Ctrl + 'c') = event {
-            // Exit unconditionally on ctrl+c. Previously, shift+q would also
-            // unconditionally exit, but that interfered with typing text in
-            // inline editors.
+        if event.matches(&keys.general.exit) {
             return EventHandleResult::Stop;
         }
 
         // Key bindings list overrides any other bindings if visible
         if self.key_bindings_visible {
-            match event {
-                key!(Esc) | key!(F 1) | key!('?') => self.key_bindings_visible = false,
-                key!('k') | key!(Up) => self.key_bindings_list.scroll_up(1),
-                key!('j') | key!(Down) => self.key_bindings_list.scroll_down(1),
-                _ => return EventHandleResult::Continue,
+            if event.matches(&keys.general.abort) {
+                self.key_bindings_visible = false;
+                return EventHandleResult::Redraw;
             }
+            if util::handle_list_input_event(&mut self.key_bindings_list, &event, keys) {
+                return EventHandleResult::Redraw;
+            }
+            // ... and does not let anything below the popup receive events
+            return EventHandleResult::Continue;
+        }
+
+        // Other general bindings that override any other bindings
+        if event.matches(&keys.general.help) {
+            self.key_bindings_visible = true;
+            return EventHandleResult::Redraw;
+        }
+        if event.matches(&keys.general.log) {
+            self.mode = match self.mode {
+                Mode::Main => Mode::Log,
+                Mode::Log => Mode::Main,
+            };
             return EventHandleResult::Redraw;
         }
 
-        match event {
-            key!(F 1) => {
-                self.key_bindings_visible = true;
-                return EventHandleResult::Redraw;
-            }
-            key!(F 12) => {
-                self.mode = match self.mode {
-                    Mode::Main => Mode::Log,
-                    Mode::Log => Mode::Main,
-                };
-                return EventHandleResult::Redraw;
-            }
-            _ => {}
-        }
-
-        let mut handled = match self.mode {
+        match self.mode {
             Mode::Main => {
-                self.rooms
-                    .handle_input_event(terminal, crossterm_lock, &event)
-                    .await
+                if self.rooms.handle_input_event(&mut event, keys).await {
+                    return EventHandleResult::Redraw;
+                }
             }
             Mode::Log => {
                 let reaction = self
                     .log_chat
-                    .handle_input_event(terminal, crossterm_lock, &event, false)
+                    .handle_input_event(&mut event, keys, false)
                     .await;
                 let reaction = logging_unwrap!(reaction);
-                reaction.handled()
-            }
-        };
-
-        // Pressing '?' should only open the key bindings list if it doesn't
-        // interfere with any part of the main UI, such as entering text in a
-        // text editor.
-        if !handled {
-            if let key!('?') = event {
-                self.key_bindings_visible = true;
-                handled = true;
+                if reaction.handled() {
+                    return EventHandleResult::Redraw;
+                }
             }
         }
 
-        if handled {
-            EventHandleResult::Redraw
-        } else {
-            EventHandleResult::Continue
-        }
+        EventHandleResult::Continue
     }
 }

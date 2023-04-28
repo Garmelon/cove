@@ -170,6 +170,22 @@ impl<Id: Clone> ListState<Id> {
         self.scroll_to(self.offset.saturating_add(lines));
     }
 
+    pub fn scroll_up_half(&mut self) {
+        self.scroll_up((self.last_height / 2).into());
+    }
+
+    pub fn scroll_down_half(&mut self) {
+        self.scroll_down((self.last_height / 2).into());
+    }
+
+    pub fn scroll_up_full(&mut self) {
+        self.scroll_up(self.last_height.saturating_sub(1).into());
+    }
+
+    pub fn scroll_down_full(&mut self) {
+        self.scroll_down(self.last_height.saturating_sub(1).into());
+    }
+
     /// Scroll so that the cursor is in the center of the widget, or at least as
     /// close as possible.
     pub fn center_cursor(&mut self) {

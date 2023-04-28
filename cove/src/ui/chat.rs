@@ -4,20 +4,17 @@ mod renderer;
 mod tree;
 mod widgets;
 
-use std::io;
-use std::sync::Arc;
-
-use parking_lot::FairMutex;
+use cove_config::Keys;
+use cove_input::InputEvent;
 use time::OffsetDateTime;
 use toss::widgets::{BoxedAsync, EditorState};
-use toss::{Styled, Terminal, WidgetExt};
+use toss::{Styled, WidgetExt};
 
 use crate::store::{Msg, MsgStore};
 
 use self::cursor::Cursor;
 use self::tree::TreeViewState;
 
-use super::input::{InputEvent, KeyBindingsList};
 use super::UiError;
 
 pub trait ChatMsg {
@@ -76,19 +73,10 @@ impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
         }
     }
 
-    pub async fn list_key_bindings(&self, bindings: &mut KeyBindingsList, can_compose: bool) {
-        match self.mode {
-            Mode::Tree => self
-                .tree
-                .list_key_bindings(bindings, &self.cursor, can_compose),
-        }
-    }
-
     pub async fn handle_input_event(
         &mut self,
-        terminal: &mut Terminal,
-        crossterm_lock: &Arc<FairMutex<()>>,
-        event: &InputEvent,
+        event: &mut InputEvent<'_>,
+        keys: &Keys,
         can_compose: bool,
     ) -> Result<Reaction<M>, S::Error>
     where
@@ -101,9 +89,8 @@ impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
             Mode::Tree => {
                 self.tree
                     .handle_input_event(
-                        terminal,
-                        crossterm_lock,
                         event,
+                        keys,
                         &mut self.cursor,
                         &mut self.editor,
                         can_compose,
@@ -147,7 +134,6 @@ pub enum Reaction<M: Msg> {
         parent: Option<M::Id>,
         content: String,
     },
-    ComposeError(io::Error),
 }
 
 impl<M: Msg> Reaction<M> {

@@ -1,12 +1,15 @@
+use cove_config::Keys;
+use cove_input::InputEvent;
 use crossterm::style::Stylize;
 use euphoxide::api::{Message, NickEvent, SessionView};
 use euphoxide::conn::SessionInfo;
 use toss::widgets::Text;
 use toss::{Style, Styled, Widget};
 
-use crate::ui::input::{key, InputEvent, KeyBindingsList};
 use crate::ui::widgets::Popup;
 use crate::ui::UiError;
+
+use super::popup::PopupResult;
 
 macro_rules! line {
     ( $text:ident, $name:expr, $val:expr ) => {
@@ -122,18 +125,10 @@ pub fn message_widget(msg: &Message) -> impl Widget<UiError> {
     Popup::new(Text::new(text), "Inspect message")
 }
 
-pub fn list_key_bindings(bindings: &mut KeyBindingsList) {
-    bindings.binding("esc", "close");
-}
-
-pub enum EventResult {
-    NotHandled,
-    Close,
-}
-
-pub fn handle_input_event(event: &InputEvent) -> EventResult {
-    match event {
-        key!(Esc) => EventResult::Close,
-        _ => EventResult::NotHandled,
+pub fn handle_input_event(event: &mut InputEvent<'_>, keys: &Keys) -> PopupResult {
+    if event.matches(&keys.general.abort) {
+        return PopupResult::Close;
     }
+
+    PopupResult::NotHandled
 }

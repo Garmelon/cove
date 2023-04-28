@@ -1,27 +1,26 @@
 use std::collections::VecDeque;
-use std::sync::Arc;
 
+use cove_config::Keys;
+use cove_input::InputEvent;
 use crossterm::style::Stylize;
 use euphoxide::api::{Data, Message, MessageId, PacketType, SessionId};
 use euphoxide::bot::instance::{Event, ServerConfig};
 use euphoxide::conn::{self, Joined, Joining, SessionInfo};
-use parking_lot::FairMutex;
 use tokio::sync::oneshot::error::TryRecvError;
 use tokio::sync::{mpsc, oneshot};
 use toss::widgets::{BoxedAsync, EditorState, Join2, Layer, Text};
-use toss::{Style, Styled, Terminal, Widget, WidgetExt};
+use toss::{Style, Styled, Widget, WidgetExt};
 
 use crate::euph;
 use crate::macros::logging_unwrap;
 use crate::ui::chat::{ChatState, Reaction};
-use crate::ui::input::{key, InputEvent, KeyBindingsList};
 use crate::ui::widgets::ListState;
 use crate::ui::{util, UiError, UiEvent};
 use crate::vault::EuphRoomVault;
 
-use super::account::{self, AccountUiState};
-use super::links::{self, LinksState};
-use super::popup::RoomPopup;
+use super::account::AccountUiState;
+use super::links::LinksState;
+use super::popup::{PopupResult, RoomPopup};
 use super::{auth, inspect, nick, nick_list};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -316,29 +315,13 @@ impl EuphRoom {
         Text::new(info).padding().with_horizontal(1).border()
     }
 
-    async fn list_chat_key_bindings(&self, bindings: &mut KeyBindingsList) {
-        let can_compose = matches!(
-            self.room_state(),
-            Some(euph::State::Connected(_, conn::State::Joined(_)))
-        );
-        self.chat.list_key_bindings(bindings, can_compose).await;
-    }
-
-    async fn handle_chat_input_event(
-        &mut self,
-        terminal: &mut Terminal,
-        crossterm_lock: &Arc<FairMutex<()>>,
-        event: &InputEvent,
-    ) -> bool {
+    async fn handle_chat_input_event(&mut self, event: &mut InputEvent<'_>, keys: &Keys) -> bool {
         let can_compose = matches!(
             self.room_state(),
             Some(euph::State::Connected(_, conn::State::Joined(_)))
         );
 
-        let reaction = self
-            .chat
-            .handle_input_event(terminal, crossterm_lock, event, can_compose)
-            .await;
+        let reaction = self.chat.handle_input_event(event, keys, can_compose).await;
         let reaction = logging_unwrap!(reaction);
 
         match reaction {
@@ -353,19 +336,12 @@ impl EuphRoom {
                     return true;
                 }
             }
-            Reaction::ComposeError(e) => {
-                self.popups.push_front(RoomPopup::Error {
-                    description: "Failed to use external editor".to_string(),
-                    reason: format!("{e}"),
-                });
-                return true;
-            }
         }
 
         false
     }
 
-    fn list_room_key_bindings(&self, bindings: &mut KeyBindingsList) {
+    async fn handle_room_input_event(&mut self, event: &mut InputEvent<'_>, keys: &Keys) -> bool {
         match self.room_state() {
             // Authenticating
             Some(euph::State::Connected(
@@ -374,138 +350,95 @@ impl EuphRoom {
                     bounce: Some(_), ..
                 }),
             )) => {
-                bindings.binding("a", "authenticate");
-            }
-
-            // Connected
-            Some(euph::State::Connected(_, conn::State::Joined(_))) => {
-                bindings.binding("n", "change nick");
-                bindings.binding("m", "download more messages");
-                bindings.binding("A", "show account ui");
-            }
-
-            // Otherwise
-            _ => {}
-        }
-
-        // Inspecting messages
-        bindings.binding("i", "inspect message");
-        bindings.binding("I", "show message links");
-        bindings.binding("ctrl+p", "open room's plugh.de/present page");
-    }
-
-    async fn handle_room_input_event(&mut self, event: &InputEvent) -> bool {
-        match self.room_state() {
-            // Authenticating
-            Some(euph::State::Connected(
-                _,
-                conn::State::Joining(Joining {
-                    bounce: Some(_), ..
-                }),
-            )) => {
-                if let key!('a') = event {
+                if event.matches(&keys.room.action.authenticate) {
                     self.state = State::Auth(auth::new());
                     return true;
                 }
             }
 
             // Joined
-            Some(euph::State::Connected(_, conn::State::Joined(joined))) => match event {
-                key!('n') | key!('N') => {
+            Some(euph::State::Connected(_, conn::State::Joined(joined))) => {
+                if event.matches(&keys.room.action.nick) {
                     self.state = State::Nick(nick::new(joined.clone()));
                     return true;
                 }
-                key!('m') => {
+                if event.matches(&keys.room.action.more_messages) {
                     if let Some(room) = &self.room {
                         let _ = room.log();
                     }
                     return true;
                 }
-                key!('A') => {
+                if event.matches(&keys.room.action.account) {
                     self.state = State::Account(AccountUiState::new());
                     return true;
                 }
-                _ => {}
-            },
+            }
 
             // Otherwise
             _ => {}
         }
 
         // Always applicable
-        match event {
-            key!('i') => {
-                if let Some(id) = self.chat.cursor() {
-                    if let Some(msg) = logging_unwrap!(self.vault().full_msg(*id).await) {
-                        self.state = State::InspectMessage(msg);
-                    }
-                }
-                return true;
+        if event.matches(&keys.room.action.present) {
+            let link = format!("https://plugh.de/present/{}/", self.name());
+            if let Err(error) = open::that(&link) {
+                self.popups.push_front(RoomPopup::Error {
+                    description: format!("Failed to open link: {link}"),
+                    reason: format!("{error}"),
+                });
             }
-            key!('I') => {
-                if let Some(id) = self.chat.cursor() {
-                    if let Some(msg) = logging_unwrap!(self.vault().msg(*id).await) {
-                        self.state = State::Links(LinksState::new(&msg.content));
-                    }
-                }
-                return true;
-            }
-            key!(Ctrl + 'p') => {
-                let link = format!("https://plugh.de/present/{}/", self.name());
-                if let Err(error) = open::that(&link) {
-                    self.popups.push_front(RoomPopup::Error {
-                        description: format!("Failed to open link: {link}"),
-                        reason: format!("{error}"),
-                    });
-                }
-                return true;
-            }
-            _ => {}
+            return true;
         }
 
         false
-    }
-
-    async fn list_chat_focus_key_bindings(&self, bindings: &mut KeyBindingsList) {
-        self.list_room_key_bindings(bindings);
-        bindings.empty();
-        self.list_chat_key_bindings(bindings).await;
     }
 
     async fn handle_chat_focus_input_event(
         &mut self,
-        terminal: &mut Terminal,
-        crossterm_lock: &Arc<FairMutex<()>>,
-        event: &InputEvent,
+        event: &mut InputEvent<'_>,
+        keys: &Keys,
     ) -> bool {
         // We need to handle chat input first, otherwise the other
         // key bindings will shadow characters in the editor.
-        if self
-            .handle_chat_input_event(terminal, crossterm_lock, event)
-            .await
-        {
+        if self.handle_chat_input_event(event, keys).await {
             return true;
         }
 
-        if self.handle_room_input_event(event).await {
+        if self.handle_room_input_event(event, keys).await {
+            return true;
+        }
+
+        if event.matches(&keys.tree.action.inspect) {
+            if let Some(id) = self.chat.cursor() {
+                if let Some(msg) = logging_unwrap!(self.vault().full_msg(*id).await) {
+                    self.state = State::InspectMessage(msg);
+                }
+            }
+            return true;
+        }
+
+        if event.matches(&keys.tree.action.links) {
+            if let Some(id) = self.chat.cursor() {
+                if let Some(msg) = logging_unwrap!(self.vault().msg(*id).await) {
+                    self.state = State::Links(LinksState::new(&msg.content));
+                }
+            }
             return true;
         }
 
         false
     }
 
-    fn list_nick_list_focus_key_bindings(&self, bindings: &mut KeyBindingsList) {
-        util::list_list_key_bindings(bindings);
-
-        bindings.binding("i", "inspect session");
-    }
-
-    fn handle_nick_list_focus_input_event(&mut self, event: &InputEvent) -> bool {
-        if util::handle_list_input_event(&mut self.nick_list, event) {
+    fn handle_nick_list_focus_input_event(
+        &mut self,
+        event: &mut InputEvent<'_>,
+        keys: &Keys,
+    ) -> bool {
+        if util::handle_list_input_event(&mut self.nick_list, event, keys) {
             return true;
         }
 
-        if let key!('i') = event {
+        if event.matches(&keys.tree.action.inspect) {
             if let Some(euph::State::Connected(_, conn::State::Joined(joined))) = self.room_state()
             {
                 if let Some(id) = self.nick_list.selected() {
@@ -523,58 +456,27 @@ impl EuphRoom {
         false
     }
 
-    pub async fn list_normal_key_bindings(&self, bindings: &mut KeyBindingsList) {
-        // Handled in rooms list, not here
-        bindings.binding("esc", "leave room");
-
+    async fn handle_normal_input_event(&mut self, event: &mut InputEvent<'_>, keys: &Keys) -> bool {
         match self.focus {
             Focus::Chat => {
-                if let Some(euph::State::Connected(_, conn::State::Joined(_))) = self.room_state() {
-                    bindings.binding("tab", "focus on nick list");
-                }
-
-                self.list_chat_focus_key_bindings(bindings).await;
-            }
-            Focus::NickList => {
-                bindings.binding("tab, esc", "focus on chat");
-                bindings.empty();
-                bindings.heading("Nick list");
-                self.list_nick_list_focus_key_bindings(bindings);
-            }
-        }
-    }
-
-    async fn handle_normal_input_event(
-        &mut self,
-        terminal: &mut Terminal,
-        crossterm_lock: &Arc<FairMutex<()>>,
-        event: &InputEvent,
-    ) -> bool {
-        match self.focus {
-            Focus::Chat => {
-                // Needs to be handled first or the tab key may be shadowed
-                // during editing.
-                if self
-                    .handle_chat_focus_input_event(terminal, crossterm_lock, event)
-                    .await
-                {
+                if self.handle_chat_focus_input_event(event, keys).await {
                     return true;
                 }
 
                 if let Some(euph::State::Connected(_, conn::State::Joined(_))) = self.room_state() {
-                    if let key!(Tab) = event {
+                    if event.matches(&keys.general.focus) {
                         self.focus = Focus::NickList;
                         return true;
                     }
                 }
             }
             Focus::NickList => {
-                if let key!(Tab) | key!(Esc) = event {
+                if event.matches(&keys.general.abort) || event.matches(&keys.general.focus) {
                     self.focus = Focus::Chat;
                     return true;
                 }
 
-                if self.handle_nick_list_focus_input_event(event) {
+                if self.handle_nick_list_focus_input_event(event, keys) {
                     return true;
                 }
             }
@@ -583,100 +485,40 @@ impl EuphRoom {
         false
     }
 
-    pub async fn list_key_bindings(&self, bindings: &mut KeyBindingsList) {
-        bindings.heading("Room");
-
+    pub async fn handle_input_event(&mut self, event: &mut InputEvent<'_>, keys: &Keys) -> bool {
         if !self.popups.is_empty() {
-            bindings.binding("esc", "close popup");
-            return;
-        }
-
-        match &self.state {
-            State::Normal => self.list_normal_key_bindings(bindings).await,
-            State::Auth(_) => auth::list_key_bindings(bindings),
-            State::Nick(_) => nick::list_key_bindings(bindings),
-            State::Account(account) => account.list_key_bindings(bindings),
-            State::Links(links) => links.list_key_bindings(bindings),
-            State::InspectMessage(_) | State::InspectSession(_) => {
-                inspect::list_key_bindings(bindings)
-            }
-        }
-    }
-
-    pub async fn handle_input_event(
-        &mut self,
-        terminal: &mut Terminal,
-        crossterm_lock: &Arc<FairMutex<()>>,
-        event: &InputEvent,
-    ) -> bool {
-        if !self.popups.is_empty() {
-            if matches!(event, key!(Esc)) {
+            if event.matches(&keys.general.abort) {
                 self.popups.pop_back();
                 return true;
             }
+            // Prevent event from reaching anything below the popup
             return false;
         }
 
-        // TODO Use a common EventResult
-
-        match &mut self.state {
-            State::Normal => {
-                self.handle_normal_input_event(terminal, crossterm_lock, event)
-                    .await
-            }
-            State::Auth(editor) => {
-                match auth::handle_input_event(terminal, event, &self.room, editor) {
-                    auth::EventResult::NotHandled => false,
-                    auth::EventResult::Handled => true,
-                    auth::EventResult::ResetState => {
-                        self.state = State::Normal;
-                        true
-                    }
-                }
-            }
-            State::Nick(editor) => {
-                match nick::handle_input_event(terminal, event, &self.room, editor) {
-                    nick::EventResult::NotHandled => false,
-                    nick::EventResult::Handled => true,
-                    nick::EventResult::ResetState => {
-                        self.state = State::Normal;
-                        true
-                    }
-                }
-            }
-            State::Account(account) => {
-                match account.handle_input_event(terminal, event, &self.room) {
-                    account::EventResult::NotHandled => false,
-                    account::EventResult::Handled => true,
-                    account::EventResult::ResetState => {
-                        self.state = State::Normal;
-                        true
-                    }
-                }
-            }
-            State::Links(links) => match links.handle_input_event(event) {
-                links::EventResult::NotHandled => false,
-                links::EventResult::Handled => true,
-                links::EventResult::Close => {
-                    self.state = State::Normal;
-                    true
-                }
-                links::EventResult::ErrorOpeningLink { link, error } => {
-                    self.popups.push_front(RoomPopup::Error {
-                        description: format!("Failed to open link: {link}"),
-                        reason: format!("{error}"),
-                    });
-                    true
-                }
-            },
+        let result = match &mut self.state {
+            State::Normal => return self.handle_normal_input_event(event, keys).await,
+            State::Auth(editor) => auth::handle_input_event(event, keys, &self.room, editor),
+            State::Nick(editor) => nick::handle_input_event(event, keys, &self.room, editor),
+            State::Account(account) => account.handle_input_event(event, keys, &self.room),
+            State::Links(links) => links.handle_input_event(event, keys),
             State::InspectMessage(_) | State::InspectSession(_) => {
-                match inspect::handle_input_event(event) {
-                    inspect::EventResult::NotHandled => false,
-                    inspect::EventResult::Close => {
-                        self.state = State::Normal;
-                        true
-                    }
-                }
+                inspect::handle_input_event(event, keys)
+            }
+        };
+
+        match result {
+            PopupResult::NotHandled => false,
+            PopupResult::Handled => true,
+            PopupResult::Close => {
+                self.state = State::Normal;
+                true
+            }
+            PopupResult::ErrorOpeningLink { link, error } => {
+                self.popups.push_front(RoomPopup::Error {
+                    description: format!("Failed to open link: {link}"),
+                    reason: format!("{error}"),
+                });
+                true
             }
         }
     }

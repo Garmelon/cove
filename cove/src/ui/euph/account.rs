@@ -1,13 +1,16 @@
+use cove_config::Keys;
+use cove_input::InputEvent;
 use crossterm::style::Stylize;
 use euphoxide::api::PersonalAccountView;
 use euphoxide::conn;
-use toss::widgets::{EditorState, Empty, Join3, Join4, Text};
-use toss::{Style, Terminal, Widget, WidgetExt};
+use toss::widgets::{EditorState, Empty, Join3, Join4, Join5, Text};
+use toss::{Style, Widget, WidgetExt};
 
 use crate::euph::{self, Room};
-use crate::ui::input::{key, InputEvent, KeyBindingsList};
 use crate::ui::widgets::Popup;
 use crate::ui::{util, UiError};
+
+use super::popup::PopupResult;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Focus {
@@ -65,7 +68,7 @@ pub struct LoggedIn(PersonalAccountView);
 impl LoggedIn {
     fn widget(&self) -> impl Widget<UiError> {
         let bold = Style::new().bold();
-        Join3::vertical(
+        Join5::vertical(
             Text::new(("Logged in", bold.green())).segment(),
             Empty::new().with_height(1).segment(),
             Join3::horizontal(
@@ -76,6 +79,8 @@ impl LoggedIn {
                 Text::new((&self.0.email,)).segment(),
             )
             .segment(),
+            Empty::new().with_height(1).segment(),
+            Text::new(("Log out", Style::new().black().on_white())).segment(),
         )
     }
 }
@@ -83,12 +88,6 @@ impl LoggedIn {
 pub enum AccountUiState {
     LoggedOut(LoggedOut),
     LoggedIn(LoggedIn),
-}
-
-pub enum EventResult {
-    NotHandled,
-    Handled,
-    ResetState,
 }
 
 impl AccountUiState {
@@ -121,94 +120,74 @@ impl AccountUiState {
         Popup::new(inner, "Account")
     }
 
-    pub fn list_key_bindings(&self, bindings: &mut KeyBindingsList) {
-        bindings.binding("esc", "close account ui");
-
-        match self {
-            Self::LoggedOut(logged_out) => {
-                match logged_out.focus {
-                    Focus::Email => bindings.binding("enter", "focus on password"),
-                    Focus::Password => bindings.binding("enter", "log in"),
-                }
-                bindings.binding("tab", "switch focus");
-                util::list_editor_key_bindings(bindings, |c| c != '\n');
-            }
-            Self::LoggedIn(_) => bindings.binding("L", "log out"),
-        }
-    }
-
     pub fn handle_input_event(
         &mut self,
-        terminal: &mut Terminal,
-        event: &InputEvent,
+        event: &mut InputEvent<'_>,
+        keys: &Keys,
         room: &Option<Room>,
-    ) -> EventResult {
-        if let key!(Esc) = event {
-            return EventResult::ResetState;
+    ) -> PopupResult {
+        if event.matches(&keys.general.abort) {
+            return PopupResult::Close;
         }
 
         match self {
             Self::LoggedOut(logged_out) => {
-                if let key!(Tab) = event {
+                if event.matches(&keys.general.focus) {
                     logged_out.focus = match logged_out.focus {
                         Focus::Email => Focus::Password,
                         Focus::Password => Focus::Email,
                     };
-                    return EventResult::Handled;
+                    return PopupResult::Handled;
                 }
 
                 match logged_out.focus {
                     Focus::Email => {
-                        if let key!(Enter) = event {
+                        if event.matches(&keys.general.confirm) {
                             logged_out.focus = Focus::Password;
-                            return EventResult::Handled;
+                            return PopupResult::Handled;
                         }
 
                         if util::handle_editor_input_event(
                             &mut logged_out.email,
-                            terminal,
                             event,
+                            keys,
                             |c| c != '\n',
                         ) {
-                            EventResult::Handled
-                        } else {
-                            EventResult::NotHandled
+                            return PopupResult::Handled;
                         }
                     }
                     Focus::Password => {
-                        if let key!(Enter) = event {
+                        if event.matches(&keys.general.confirm) {
                             if let Some(room) = room {
                                 let _ = room.login(
                                     logged_out.email.text().to_string(),
                                     logged_out.password.text().to_string(),
                                 );
                             }
-                            return EventResult::Handled;
+                            return PopupResult::Handled;
                         }
 
                         if util::handle_editor_input_event(
                             &mut logged_out.password,
-                            terminal,
                             event,
+                            keys,
                             |c| c != '\n',
                         ) {
-                            EventResult::Handled
-                        } else {
-                            EventResult::NotHandled
+                            return PopupResult::Handled;
                         }
                     }
                 }
             }
             Self::LoggedIn(_) => {
-                if let key!('L') = event {
+                if event.matches(&keys.general.confirm) {
                     if let Some(room) = room {
                         let _ = room.logout();
                     }
-                    EventResult::Handled
-                } else {
-                    EventResult::NotHandled
+                    return PopupResult::Handled;
                 }
             }
         }
+
+        PopupResult::NotHandled
     }
 }

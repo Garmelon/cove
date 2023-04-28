@@ -259,7 +259,6 @@ dependencies = [
  "cove-input",
  "crossterm",
  "directories",
- "edit",
  "euphoxide",
  "linkify",
  "log",
@@ -294,6 +293,7 @@ version = "0.6.1"
 dependencies = [
  "cove-macro",
  "crossterm",
+ "edit",
  "parking_lot",
  "serde",
  "serde_either",

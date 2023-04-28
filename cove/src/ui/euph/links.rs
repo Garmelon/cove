@@ -1,24 +1,19 @@
-use std::io;
-
+use cove_config::Keys;
+use cove_input::InputEvent;
+use crossterm::event::KeyCode;
 use crossterm::style::Stylize;
 use linkify::{LinkFinder, LinkKind};
 use toss::widgets::Text;
 use toss::{Style, Styled, Widget};
 
-use crate::ui::input::{key, InputEvent, KeyBindingsList};
 use crate::ui::widgets::{ListBuilder, ListState, Popup};
-use crate::ui::UiError;
+use crate::ui::{util, UiError};
+
+use super::popup::PopupResult;
 
 pub struct LinksState {
     links: Vec<String>,
     list: ListState<usize>,
-}
-
-pub enum EventResult {
-    NotHandled,
-    Handled,
-    Close,
-    ErrorOpeningLink { link: String, error: io::Error },
 }
 
 const NUMBER_KEYS: [char; 10] = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
@@ -77,7 +72,7 @@ impl LinksState {
         Popup::new(list_builder.build(&mut self.list), "Links")
     }
 
-    fn open_link_by_id(&self, id: usize) -> EventResult {
+    fn open_link_by_id(&self, id: usize) -> PopupResult {
         if let Some(link) = self.links.get(id) {
             // The `http://` or `https://` schema is necessary for open::that to
             // successfully open the link in the browser.
@@ -88,53 +83,52 @@ impl LinksState {
             };
 
             if let Err(error) = open::that(&link) {
-                return EventResult::ErrorOpeningLink { link, error };
+                return PopupResult::ErrorOpeningLink { link, error };
             }
         }
-        EventResult::Handled
+        PopupResult::Handled
     }
 
-    fn open_link(&self) -> EventResult {
+    fn open_link(&self) -> PopupResult {
         if let Some(id) = self.list.selected() {
             self.open_link_by_id(*id)
         } else {
-            EventResult::Handled
+            PopupResult::Handled
         }
     }
 
-    pub fn list_key_bindings(&self, bindings: &mut KeyBindingsList) {
-        bindings.binding("esc", "close links popup");
-        bindings.binding("j/k, ↓/↑", "move cursor up/down");
-        bindings.binding("g, home", "move cursor to top");
-        bindings.binding("G, end", "move cursor to bottom");
-        bindings.binding("ctrl+y/e", "scroll up/down");
-        bindings.empty();
-        bindings.binding("enter", "open selected link");
-        bindings.binding("1,2,...", "open link by position");
-    }
-
-    pub fn handle_input_event(&mut self, event: &InputEvent) -> EventResult {
-        match event {
-            key!(Esc) => return EventResult::Close,
-            key!('k') | key!(Up) => self.list.move_cursor_up(),
-            key!('j') | key!(Down) => self.list.move_cursor_down(),
-            key!('g') | key!(Home) => self.list.move_cursor_to_top(),
-            key!('G') | key!(End) => self.list.move_cursor_to_bottom(),
-            key!(Ctrl + 'y') => self.list.scroll_up(1),
-            key!(Ctrl + 'e') => self.list.scroll_down(1),
-            key!(Enter) => return self.open_link(),
-            key!('1') => return self.open_link_by_id(0),
-            key!('2') => return self.open_link_by_id(1),
-            key!('3') => return self.open_link_by_id(2),
-            key!('4') => return self.open_link_by_id(3),
-            key!('5') => return self.open_link_by_id(4),
-            key!('6') => return self.open_link_by_id(5),
-            key!('7') => return self.open_link_by_id(6),
-            key!('8') => return self.open_link_by_id(7),
-            key!('9') => return self.open_link_by_id(8),
-            key!('0') => return self.open_link_by_id(9),
-            _ => return EventResult::NotHandled,
+    pub fn handle_input_event(&mut self, event: &mut InputEvent<'_>, keys: &Keys) -> PopupResult {
+        if event.matches(&keys.general.abort) {
+            return PopupResult::Close;
         }
-        EventResult::Handled
+
+        if event.matches(&keys.general.confirm) {
+            return self.open_link();
+        }
+
+        if util::handle_list_input_event(&mut self.list, event, keys) {
+            return PopupResult::Handled;
+        }
+
+        // TODO Mention that this is possible in the UI
+        if let Some(key_event) = event.key_event() {
+            if key_event.modifiers.is_empty() {
+                match key_event.code {
+                    KeyCode::Char('1') => return self.open_link_by_id(0),
+                    KeyCode::Char('2') => return self.open_link_by_id(1),
+                    KeyCode::Char('3') => return self.open_link_by_id(2),
+                    KeyCode::Char('4') => return self.open_link_by_id(3),
+                    KeyCode::Char('5') => return self.open_link_by_id(4),
+                    KeyCode::Char('6') => return self.open_link_by_id(5),
+                    KeyCode::Char('7') => return self.open_link_by_id(6),
+                    KeyCode::Char('8') => return self.open_link_by_id(7),
+                    KeyCode::Char('9') => return self.open_link_by_id(8),
+                    KeyCode::Char('0') => return self.open_link_by_id(9),
+                    _ => {}
+                }
+            }
+        }
+
+        PopupResult::NotHandled
     }
 }

@@ -1,11 +1,12 @@
 mod keys;
 
+use std::io;
 use std::sync::Arc;
 
 pub use cove_macro::KeyGroup;
 use crossterm::event::{Event, KeyEvent};
 use parking_lot::FairMutex;
-use toss::Terminal;
+use toss::{Frame, Terminal, WidthDb};
 
 pub use crate::keys::*;
 
@@ -52,5 +53,23 @@ impl<'a> InputEvent<'a> {
             Some(event) => binding.matches(event),
             None => false,
         }
+    }
+
+    pub fn frame(&mut self) -> &mut Frame {
+        self.terminal.frame()
+    }
+
+    pub fn widthdb(&mut self) -> &mut WidthDb {
+        self.terminal.widthdb()
+    }
+
+    pub fn prompt(&mut self, initial_text: &str) -> io::Result<String> {
+        let guard = self.crossterm_lock.lock();
+        self.terminal.suspend().expect("failed to suspend");
+        let content = edit::edit(initial_text);
+        self.terminal.unsuspend().expect("fauled to unsuspend");
+        drop(guard);
+
+        content
     }
 }
