@@ -74,6 +74,9 @@ pub fn widget<'a>(
     render_title(&mut list_builder, "Editor actions");
     render_group(&mut list_builder, &config.keys.editor.action);
     render_empty(&mut list_builder);
+    render_title(&mut list_builder, "Room list actions");
+    render_group(&mut list_builder, &config.keys.rooms.action);
+    render_empty(&mut list_builder);
     render_title(&mut list_builder, "Tree cursor movement");
     render_group(&mut list_builder, &config.keys.tree.cursor);
     render_empty(&mut list_builder);

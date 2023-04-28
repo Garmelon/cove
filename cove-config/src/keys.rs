@@ -24,7 +24,8 @@ default_bindings! {
         pub fn exit => ["ctrl+c"];
         pub fn abort => ["esc"];
         pub fn confirm => ["enter"];
-        pub fn help => ["f1", "?"];
+        pub fn focus => ["tab"];
+        pub fn help => ["f1"];
         pub fn log => ["f12"];
     }
 
@@ -33,8 +34,8 @@ default_bindings! {
         pub fn down_line => ["ctrl+e"];
         pub fn up_half => ["ctrl+u"];
         pub fn down_half => ["ctrl+d"];
-        pub fn up_full => ["ctrl+b"];
-        pub fn down_full => ["ctrl+f"];
+        pub fn up_full => ["ctrl+b", "pageup"];
+        pub fn down_full => ["ctrl+f", "pagedown"];
         pub fn center_cursor => ["z"];
     }
 
@@ -45,15 +46,53 @@ default_bindings! {
         pub fn to_bottom => ["G", "end"];
     }
 
+    pub mod editor_cursor {
+        pub fn left => ["ctrl+b","left"];
+        pub fn right => ["ctrl+f", "right"];
+        pub fn left_word => ["alt+b", "ctrl+left"];
+        pub fn right_word => ["alt+f", "ctrl+right"];
+        pub fn start => ["ctrl+a", "home"];
+        pub fn end => ["ctrl+e", "end"];
+        pub fn up => ["up"];
+        pub fn down => ["down"];
+    }
+
+    pub mod editor_action {
+        pub fn backspace => ["ctrl+h", "backspace"];
+        pub fn delete => ["ctrl+d", "delete"];
+        pub fn clear => ["ctrl+l"];
+        pub fn external => ["ctrl+x", "alt+e"];
+    }
+
+    pub mod rooms_action {
+        pub fn connect => ["c"];
+        pub fn connect_all => ["C"];
+        pub fn disconnect => ["d"];
+        pub fn disconnect_all => ["D"];
+        pub fn connect_autojoin => ["a"];
+        pub fn disconnect_non_autojoin => ["A"];
+        pub fn new => ["n"];
+        pub fn delete => ["X"];
+        pub fn change_sort_order => ["s"];
+    }
+
+    pub mod room_action {
+        pub fn authenticate => ["a"];
+        pub fn nick => ["n"];
+        pub fn more_messages => ["m"];
+        pub fn account => ["A"];
+        pub fn present => ["ctrl+p"];
+    }
+
     pub mod tree_cursor {
         pub fn to_above_sibling => ["K", "ctrl+up"];
         pub fn to_below_sibling => ["J", "ctrl+down"];
         pub fn to_parent => ["p"];
         pub fn to_root => ["P"];
-        pub fn to_prev_message => ["h", "left"];
-        pub fn to_next_message => ["l", "right"];
-        pub fn to_prev_unseen_message => ["H", "ctrl+left"];
-        pub fn to_next_unseen_message => ["L", "ctrl+right"];
+        pub fn to_older_message => ["h", "left"];
+        pub fn to_newer_message => ["l", "right"];
+        pub fn to_older_unseen_message => ["H", "ctrl+left"];
+        pub fn to_newer_unseen_message => ["L", "ctrl+right"];
     }
 
     pub mod tree_action {
@@ -64,24 +103,8 @@ default_bindings! {
         pub fn toggle_seen => ["s"];
         pub fn mark_visible_seen => ["S"];
         pub fn mark_older_seen => ["ctrl+s"];
-    }
-
-    pub mod editor_cursor {
-        pub fn left => [];
-        pub fn right => [];
-        pub fn left_word => [];
-        pub fn right_word => [];
-        pub fn start => [];
-        pub fn end => [];
-        pub fn up => [];
-        pub fn down => [];
-    }
-
-    pub mod editor_action {
-        pub fn newline => [];
-        pub fn backspace => [];
-        pub fn delete => [];
-        pub fn clear => [];
+        pub fn info => ["i"];
+        pub fn links => ["I"];
     }
 
 }
@@ -97,6 +120,10 @@ pub struct General {
     /// Confirm.
     #[serde(default = "default::general::confirm")]
     pub confirm: KeyBinding,
+    /// Advance focus.
+    // TODO Mention examples where this is used
+    #[serde(default = "default::general::focus")]
+    pub focus: KeyBinding,
     /// Show this help.
     #[serde(default = "default::general::help")]
     pub help: KeyBinding,
@@ -111,6 +138,7 @@ impl Default for General {
             exit: default::general::exit(),
             abort: default::general::abort(),
             confirm: default::general::confirm(),
+            focus: default::general::focus(),
             help: default::general::help(),
             log: default::general::log(),
         }
@@ -228,9 +256,6 @@ impl Default for EditorCursor {
 
 #[derive(Debug, Deserialize, Document, KeyGroup)]
 pub struct EditorAction {
-    /// Insert newline.
-    #[serde(default = "default::editor_action::newline")]
-    pub newline: KeyBinding,
     /// Delete before cursor.
     #[serde(default = "default::editor_action::backspace")]
     pub backspace: KeyBinding,
@@ -240,15 +265,18 @@ pub struct EditorAction {
     /// Clear editor contents.
     #[serde(default = "default::editor_action::clear")]
     pub clear: KeyBinding,
+    /// Edit in external editor.
+    #[serde(default = "default::editor_action::external")]
+    pub external: KeyBinding,
 }
 
 impl Default for EditorAction {
     fn default() -> Self {
         Self {
-            newline: default::editor_action::newline(),
             backspace: default::editor_action::backspace(),
             delete: default::editor_action::delete(),
             clear: default::editor_action::clear(),
+            external: default::editor_action::external(),
         }
     }
 }
@@ -265,6 +293,98 @@ pub struct Editor {
 }
 
 #[derive(Debug, Deserialize, Document, KeyGroup)]
+pub struct RoomsAction {
+    /// Connect to selected room.
+    #[serde(default = "default::rooms_action::connect")]
+    pub connect: KeyBinding,
+    /// Connect to all rooms.
+    #[serde(default = "default::rooms_action::connect_all")]
+    pub connect_all: KeyBinding,
+    /// Disconnect from selected room.
+    #[serde(default = "default::rooms_action::disconnect")]
+    pub disconnect: KeyBinding,
+    /// Disconnect from all rooms.
+    #[serde(default = "default::rooms_action::disconnect_all")]
+    pub disconnect_all: KeyBinding,
+    /// Connect to all autojoin rooms.
+    #[serde(default = "default::rooms_action::connect_autojoin")]
+    pub connect_autojoin: KeyBinding,
+    /// Disconnect from all non-autojoin rooms.
+    #[serde(default = "default::rooms_action::disconnect_non_autojoin")]
+    pub disconnect_non_autojoin: KeyBinding,
+    /// Connect to new room.
+    #[serde(default = "default::rooms_action::new")]
+    pub new: KeyBinding,
+    /// Delete room.
+    #[serde(default = "default::rooms_action::delete")]
+    pub delete: KeyBinding,
+    /// Change sort order.
+    #[serde(default = "default::rooms_action::change_sort_order")]
+    pub change_sort_order: KeyBinding,
+}
+
+impl Default for RoomsAction {
+    fn default() -> Self {
+        Self {
+            connect: default::rooms_action::connect(),
+            connect_all: default::rooms_action::connect_all(),
+            disconnect: default::rooms_action::disconnect(),
+            disconnect_all: default::rooms_action::disconnect_all(),
+            connect_autojoin: default::rooms_action::connect_autojoin(),
+            disconnect_non_autojoin: default::rooms_action::disconnect_non_autojoin(),
+            new: default::rooms_action::new(),
+            delete: default::rooms_action::delete(),
+            change_sort_order: default::rooms_action::change_sort_order(),
+        }
+    }
+}
+
+#[derive(Debug, Default, Deserialize, Document)]
+pub struct Rooms {
+    #[serde(default)]
+    #[document(no_default)]
+    pub action: RoomsAction,
+}
+
+#[derive(Debug, Deserialize, Document, KeyGroup)]
+pub struct RoomAction {
+    /// Authenticate.
+    #[serde(default = "default::room_action::authenticate")]
+    pub authenticate: KeyBinding,
+    /// Change nick.
+    #[serde(default = "default::room_action::nick")]
+    pub nick: KeyBinding,
+    /// Download more messages.
+    #[serde(default = "default::room_action::more_messages")]
+    pub more_messages: KeyBinding,
+    /// Manage account.
+    #[serde(default = "default::room_action::account")]
+    pub account: KeyBinding,
+    /// Open room's plugh.de/present page.
+    #[serde(default = "default::room_action::present")]
+    pub present: KeyBinding,
+}
+
+impl Default for RoomAction {
+    fn default() -> Self {
+        Self {
+            authenticate: default::room_action::authenticate(),
+            account: default::room_action::account(),
+            nick: default::room_action::nick(),
+            more_messages: default::room_action::more_messages(),
+            present: default::room_action::present(),
+        }
+    }
+}
+
+#[derive(Debug, Default, Deserialize, Document)]
+pub struct Room {
+    #[serde(default)]
+    #[document(no_default)]
+    pub action: RoomAction,
+}
+
+#[derive(Debug, Deserialize, Document, KeyGroup)]
 pub struct TreeCursor {
     /// Move to above sibling.
     #[serde(default = "default::tree_cursor::to_above_sibling")]
@@ -278,18 +398,18 @@ pub struct TreeCursor {
     /// Move to root.
     #[serde(default = "default::tree_cursor::to_root")]
     pub to_root: KeyBinding,
-    /// Move to previous message.
-    #[serde(default = "default::tree_cursor::to_prev_message")]
-    pub to_prev_message: KeyBinding,
-    /// Move to next message.
-    #[serde(default = "default::tree_cursor::to_next_message")]
-    pub to_next_message: KeyBinding,
-    /// Move to previous unseen message.
-    #[serde(default = "default::tree_cursor::to_prev_unseen_message")]
-    pub to_prev_unseen_message: KeyBinding,
-    /// Move to next unseen message.
-    #[serde(default = "default::tree_cursor::to_next_unseen_message")]
-    pub to_next_unseen_message: KeyBinding,
+    /// Move to older message.
+    #[serde(default = "default::tree_cursor::to_older_message")]
+    pub to_older_message: KeyBinding,
+    /// Move to newer message.
+    #[serde(default = "default::tree_cursor::to_newer_message")]
+    pub to_newer_message: KeyBinding,
+    /// Move to older unseen message.
+    #[serde(default = "default::tree_cursor::to_older_unseen_message")]
+    pub to_older_unseen_message: KeyBinding,
+    /// Move to newer unseen message.
+    #[serde(default = "default::tree_cursor::to_newer_unseen_message")]
+    pub to_newer_unseen_message: KeyBinding,
     // TODO Bindings inspired by vim's ()/[]/{} bindings?
 }
 
@@ -300,14 +420,15 @@ impl Default for TreeCursor {
             to_below_sibling: default::tree_cursor::to_below_sibling(),
             to_parent: default::tree_cursor::to_parent(),
             to_root: default::tree_cursor::to_root(),
-            to_prev_message: default::tree_cursor::to_prev_message(),
-            to_next_message: default::tree_cursor::to_next_message(),
-            to_prev_unseen_message: default::tree_cursor::to_prev_unseen_message(),
-            to_next_unseen_message: default::tree_cursor::to_next_unseen_message(),
+            to_older_message: default::tree_cursor::to_older_message(),
+            to_newer_message: default::tree_cursor::to_newer_message(),
+            to_older_unseen_message: default::tree_cursor::to_older_unseen_message(),
+            to_newer_unseen_message: default::tree_cursor::to_newer_unseen_message(),
         }
     }
 }
 
+// TODO Split up in "message", "nicklist", "room"?
 #[derive(Debug, Deserialize, Document, KeyGroup)]
 pub struct TreeAction {
     /// Reply to message, inline if possible.
@@ -331,6 +452,12 @@ pub struct TreeAction {
     /// Mark all older messages as seen.
     #[serde(default = "default::tree_action::mark_older_seen")]
     pub mark_older_seen: KeyBinding,
+    /// Inspect selected element.
+    #[serde(default = "default::tree_action::info")]
+    pub inspect: KeyBinding,
+    /// List links found in message.
+    #[serde(default = "default::tree_action::links")]
+    pub links: KeyBinding,
 }
 
 impl Default for TreeAction {
@@ -343,6 +470,8 @@ impl Default for TreeAction {
             toggle_seen: default::tree_action::toggle_seen(),
             mark_visible_seen: default::tree_action::mark_visible_seen(),
             mark_older_seen: default::tree_action::mark_older_seen(),
+            inspect: default::tree_action::info(),
+            links: default::tree_action::links(),
         }
     }
 }
@@ -375,6 +504,14 @@ pub struct Keys {
     #[serde(default)]
     #[document(no_default)]
     pub editor: Editor,
+
+    #[serde(default)]
+    #[document(no_default)]
+    pub rooms: Rooms,
+
+    #[serde(default)]
+    #[document(no_default)]
+    pub room: Room,
 
     #[serde(default)]
     #[document(no_default)]
