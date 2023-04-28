@@ -2,14 +2,14 @@
 
 use std::convert::Infallible;
 
-use cove_config::Config;
-use cove_input::{KeyBinding, KeyGroup};
+use cove_config::{Config, Keys};
+use cove_input::{InputEvent, KeyBinding, KeyGroup};
 use crossterm::style::Stylize;
 use toss::widgets::{Either2, Join2, Padding, Text};
 use toss::{Style, Styled, Widget, WidgetExt};
 
 use super::widgets::{ListBuilder, ListState, Popup};
-use super::UiError;
+use super::{util, UiError};
 
 type Line = Either2<Text, Join2<Padding<Text>, Text>>;
 type Builder = ListBuilder<'static, Infallible, Line>;
@@ -19,7 +19,7 @@ fn render_empty(builder: &mut Builder) {
 }
 
 fn render_title(builder: &mut Builder, title: &str) {
-    let style = Style::new().bold();
+    let style = Style::new().bold().magenta();
     builder.add_unsel(Text::new(Styled::new(title, style)).first2());
 }
 
@@ -84,4 +84,27 @@ pub fn widget<'a>(
     render_group(&mut list_builder, &config.keys.tree.action);
 
     Popup::new(list_builder.build(list), "Key bindings")
+}
+
+pub fn handle_input_event(
+    list: &mut ListState<Infallible>,
+    event: &mut InputEvent<'_>,
+    keys: &Keys,
+) -> bool {
+    // To make scrolling with the mouse wheel work as expected
+    if event.matches(&keys.cursor.up) {
+        list.scroll_up(1);
+        return true;
+    }
+    if event.matches(&keys.cursor.down) {
+        list.scroll_down(1);
+        return true;
+    }
+
+    // List movement must come later, or it shadows the cursor movement keys
+    if util::handle_list_input_event(list, event, keys) {
+        return true;
+    }
+
+    false
 }

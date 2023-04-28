@@ -252,7 +252,7 @@ impl Ui {
                 self.key_bindings_visible = false;
                 return EventHandleResult::Redraw;
             }
-            if util::handle_list_input_event(&mut self.key_bindings_list, &event, keys) {
+            if key_bindings::handle_input_event(&mut self.key_bindings_list, &mut event, keys) {
                 return EventHandleResult::Redraw;
             }
             // ... and does not let anything below the popup receive events
