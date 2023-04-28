@@ -294,9 +294,11 @@ version = "0.6.1"
 dependencies = [
  "cove-macro",
  "crossterm",
+ "parking_lot",
  "serde",
  "serde_either",
  "thiserror",
+ "toss",
 ]
 
 [[package]]

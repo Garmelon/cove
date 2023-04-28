@@ -1,7 +1,11 @@
 mod keys;
 
+use std::sync::Arc;
+
 pub use cove_macro::KeyGroup;
-use crossterm::event::KeyEvent;
+use crossterm::event::{Event, KeyEvent};
+use parking_lot::FairMutex;
+use toss::Terminal;
 
 pub use crate::keys::*;
 
@@ -10,37 +14,40 @@ pub trait KeyGroup {
     fn bindings(&self) -> Vec<(&KeyBinding, &'static str)>;
 }
 
-#[derive(Debug, Clone)]
-pub enum InputEvent {
-    Key(KeyEvent),
-    Paste(String),
+pub struct InputEvent<'a> {
+    event: crossterm::event::Event,
+    terminal: &'a mut Terminal,
+    crossterm_lock: Arc<FairMutex<()>>,
 }
 
-impl InputEvent {
-    pub fn from_crossterm_event(event: crossterm::event::Event) -> Option<Self> {
-        use crossterm::event::Event::*;
-        match event {
-            Key(event) => Some(Self::Key(event)),
-            Paste(string) => Some(Self::Paste(string)),
-            _ => None,
+impl<'a> InputEvent<'a> {
+    pub fn new(
+        event: Event,
+        terminal: &'a mut Terminal,
+        crossterm_lock: Arc<FairMutex<()>>,
+    ) -> Self {
+        Self {
+            event,
+            terminal,
+            crossterm_lock,
         }
     }
 
     pub fn key_event(&self) -> Option<KeyEvent> {
-        match self {
-            Self::Key(event) => Some(*event),
+        match &self.event {
+            Event::Key(event) => Some(*event),
             _ => None,
         }
     }
 
     pub fn paste_event(&self) -> Option<&str> {
-        match self {
-            Self::Paste(string) => Some(string),
+        match &self.event {
+            Event::Paste(string) => Some(string),
             _ => None,
         }
     }
 
-    pub fn matches<S: ToString>(&self, binding: &KeyBinding) -> bool {
+    pub fn matches(&self, binding: &KeyBinding) -> bool {
         match self.key_event() {
             Some(event) => binding.matches(event),
             None => false,
