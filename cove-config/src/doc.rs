@@ -7,6 +7,45 @@ use cove_input::KeyBinding;
 pub use cove_macro::Document;
 use serde::Serialize;
 
+const MARKDOWN_INTRODUCTION: &str = r#"# Config file format
+
+Cove's config file uses the [TOML](https://toml.io/) format.
+
+## Key binding format
+
+Key bindings are specified as strings or lists of strings. Each string specifies
+a main key and zero or more modifier keys. The modifier keys (if any) are listed
+first, followed by the main key. They are separated by the `+` character and
+**no** whitespace.
+
+Examples of key bindings:
+- `"ctrl+c"`
+- `"X"` (not `"shift+x"`)
+- `" "` (space bar)
+- `["g", "home"]`
+- `["K", "ctrl+up"]`
+- `["f1", "?"]`
+- `"ctrl+alt+f3"`
+- `["enter", "any+enter"]` (matches `enter` regardless of modifiers)
+
+Available modifiers:
+- `ctrl`
+- `shift`
+- `alt`
+- `any` (matches as long as at least one modifier is pressed)
+
+Available main keys:
+- Any single character that can be typed
+- `enter`, `esc`
+- `tab`, `backtab`
+- `backspace`, `delete`, `insert`
+- `left`, `right`, `up`, `down`
+- `home`, `end`, `pageup`, `pagedown`
+- `f1`, `f2`, ...
+
+## Config options
+"#;
+
 pub fn toml_value_as_markdown<T: Serialize>(value: &T) -> String {
     let mut result = String::new();
     value
@@ -135,11 +174,10 @@ impl Doc {
 
         let mut result = String::new();
 
-        result.push_str("# Configuration options\n\n");
-        result.push_str("Cove's config file uses the [TOML](https://toml.io/) format.\n");
+        result.push_str(MARKDOWN_INTRODUCTION);
 
         for entry in entries {
-            result.push_str(&format!("\n## `{}`\n", entry.path));
+            result.push_str(&format!("\n### `{}`\n", entry.path));
 
             let value_info = entry.value_info.as_markdown();
             if !value_info.is_empty() {
