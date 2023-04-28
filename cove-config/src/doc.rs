@@ -28,12 +28,6 @@ Examples of key bindings:
 - `"ctrl+alt+f3"`
 - `["enter", "any+enter"]` (matches `enter` regardless of modifiers)
 
-Available modifiers:
-- `ctrl`
-- `shift`
-- `alt`
-- `any` (matches as long as at least one modifier is pressed)
-
 Available main keys:
 - Any single character that can be typed
 - `enter`, `esc`
@@ -42,6 +36,12 @@ Available main keys:
 - `left`, `right`, `up`, `down`
 - `home`, `end`, `pageup`, `pagedown`
 - `f1`, `f2`, ...
+
+Available modifiers:
+- `shift` (must not be used with single characters)
+- `ctrl`
+- `alt`
+- `any` (matches as long as at least one modifier is pressed)
 
 ## Config options
 "#;

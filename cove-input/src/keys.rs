@@ -85,10 +85,14 @@ impl KeyPress {
         }
     }
 
-    fn parse_modifier(&mut self, modifier: &str) -> Result<(), ParseKeysError> {
+    fn parse_modifier(
+        &mut self,
+        modifier: &str,
+        shift_allowed: bool,
+    ) -> Result<(), ParseKeysError> {
         match modifier {
             m if self.any => return Err(ParseKeysError::ConflictingModifier(m.to_string())),
-            "shift" if !self.shift => self.shift = true,
+            "shift" if shift_allowed && !self.shift => self.shift = true,
             "ctrl" if !self.ctrl => self.ctrl = true,
             "alt" if !self.alt => self.alt = true,
             "any" if !self.shift && !self.ctrl && !self.alt => self.any = true,
@@ -109,10 +113,14 @@ impl KeyPress {
             return true;
         }
 
-        let shift = event.modifiers.contains(KeyModifiers::SHIFT);
-        let ctrl = event.modifiers.contains(KeyModifiers::CONTROL);
-        let alt = event.modifiers.contains(KeyModifiers::ALT);
-        self.shift == shift && self.ctrl == ctrl && self.alt == alt
+        let ctrl = event.modifiers.contains(KeyModifiers::CONTROL) == self.ctrl;
+        let alt = event.modifiers.contains(KeyModifiers::ALT) == self.alt;
+        if matches!(self.code, KeyCode::Char(_)) {
+            ctrl && alt
+        } else {
+            let shift = event.modifiers.contains(KeyModifiers::SHIFT) == self.shift;
+            shift && ctrl && alt
+        }
     }
 }
 
@@ -124,8 +132,9 @@ impl FromStr for KeyPress {
         let code = parts.next_back().ok_or(ParseKeysError::NoKeyCode)?;
 
         let mut keys = KeyPress::parse_key_code(code)?;
+        let shift_allowed = !matches!(keys.code, KeyCode::Char(_));
         for modifier in parts {
-            keys.parse_modifier(modifier)?;
+            keys.parse_modifier(modifier, shift_allowed)?;
         }
 
         Ok(keys)
