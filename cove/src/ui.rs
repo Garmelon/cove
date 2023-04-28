@@ -248,7 +248,7 @@ impl Ui {
 
         // Key bindings list overrides any other bindings if visible
         if self.key_bindings_visible {
-            if event.matches(&keys.general.abort) {
+            if event.matches(&keys.general.abort) || event.matches(&keys.general.help) {
                 self.key_bindings_visible = false;
                 return EventHandleResult::Redraw;
             }
@@ -259,26 +259,28 @@ impl Ui {
             return EventHandleResult::Continue;
         }
 
-        // Other general bindings that override any other bindings
         if event.matches(&keys.general.help) {
             self.key_bindings_visible = true;
-            return EventHandleResult::Redraw;
-        }
-        if event.matches(&keys.general.log) {
-            self.mode = match self.mode {
-                Mode::Main => Mode::Log,
-                Mode::Log => Mode::Main,
-            };
             return EventHandleResult::Redraw;
         }
 
         match self.mode {
             Mode::Main => {
+                if event.matches(&keys.general.log) {
+                    self.mode = Mode::Log;
+                    return EventHandleResult::Redraw;
+                }
+
                 if self.rooms.handle_input_event(&mut event, keys).await {
                     return EventHandleResult::Redraw;
                 }
             }
             Mode::Log => {
+                if event.matches(&keys.general.abort) || event.matches(&keys.general.log) {
+                    self.mode = Mode::Main;
+                    return EventHandleResult::Redraw;
+                }
+
                 let reaction = self
                     .log_chat
                     .handle_input_event(&mut event, keys, false)
