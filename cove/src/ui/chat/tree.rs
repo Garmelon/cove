@@ -439,6 +439,7 @@ where
         let mut renderer = TreeRenderer::new(
             context,
             &self.state.store,
+            &self.state.folded,
             self.cursor,
             self.editor,
             frame.widthdb(),

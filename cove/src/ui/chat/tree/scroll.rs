@@ -33,7 +33,8 @@ where
         delta: i32,
     ) -> Result<(), S::Error> {
         let context = self.last_context();
-        let mut renderer = TreeRenderer::new(context, &self.store, cursor, editor, widthdb);
+        let mut renderer =
+            TreeRenderer::new(context, &self.store, &self.folded, cursor, editor, widthdb);
         renderer.prepare_blocks_for_drawing().await?;
 
         renderer.scroll_by(delta).await?;
@@ -53,7 +54,8 @@ where
         widthdb: &mut WidthDb,
     ) -> Result<(), S::Error> {
         let context = self.last_context();
-        let mut renderer = TreeRenderer::new(context, &self.store, cursor, editor, widthdb);
+        let mut renderer =
+            TreeRenderer::new(context, &self.store, &self.folded, cursor, editor, widthdb);
         renderer.prepare_blocks_for_drawing().await?;
 
         renderer.center_cursor();

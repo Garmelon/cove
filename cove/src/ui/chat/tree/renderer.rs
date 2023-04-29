@@ -1,5 +1,6 @@
 //! A [`Renderer`] for message trees.
 
+use std::collections::HashSet;
 use std::convert::Infallible;
 
 use async_trait::async_trait;
@@ -79,6 +80,7 @@ pub struct TreeRenderer<'a, M: Msg, S: MsgStore<M>> {
     context: TreeContext<M::Id>,
 
     store: &'a S,
+    folded: &'a HashSet<M::Id>,
     cursor: &'a mut Cursor<M::Id>,
     editor: &'a mut EditorState,
     widthdb: &'a mut WidthDb,
@@ -105,6 +107,7 @@ where
     pub fn new(
         context: TreeContext<M::Id>,
         store: &'a S,
+        folded: &'a HashSet<M::Id>,
         cursor: &'a mut Cursor<M::Id>,
         editor: &'a mut EditorState,
         widthdb: &'a mut WidthDb,
@@ -112,6 +115,7 @@ where
         Self {
             context,
             store,
+            folded,
             cursor,
             editor,
             widthdb,
@@ -169,28 +173,38 @@ where
         Block::new(id, widget, false)
     }
 
-    fn message_block(&mut self, indent: usize, msg: &M) -> TreeBlock<M::Id> {
+    fn message_block(
+        &mut self,
+        indent: usize,
+        msg: &M,
+        folded_info: Option<usize>,
+    ) -> TreeBlock<M::Id> {
         let msg_id = msg.id();
 
         let highlighted = match self.cursor {
             Cursor::Msg(id) => *id == msg_id,
             _ => false,
         };
+        let highlighted = highlighted && self.context.focused;
 
-        // TODO Amount of folded messages
-        let widget = widgets::msg(self.context.focused && highlighted, indent, msg, None);
+        let widget = widgets::msg(highlighted, indent, msg, folded_info);
         let widget = Self::predraw(widget, self.context.size, self.widthdb);
         Block::new(TreeBlockId::Msg(msg_id), widget, true)
     }
 
-    fn message_placeholder_block(&mut self, indent: usize, msg_id: &M::Id) -> TreeBlock<M::Id> {
+    fn message_placeholder_block(
+        &mut self,
+        indent: usize,
+        msg_id: &M::Id,
+        folded_info: Option<usize>,
+    ) -> TreeBlock<M::Id> {
         let highlighted = match self.cursor {
             Cursor::Msg(id) => id == msg_id,
             _ => false,
         };
+        let highlighted = highlighted && self.context.focused;
 
-        // TODO Amount of folded messages
-        let widget = widgets::msg_placeholder(self.context.focused && highlighted, indent, None);
+        let widget = widgets::msg_placeholder(highlighted, indent, folded_info);
         let widget = Self::predraw(widget, self.context.size, self.widthdb);
         Block::new(TreeBlockId::Msg(msg_id.clone()), widget, true)
     }
@@ -214,18 +228,27 @@ where
         msg_id: &M::Id,
         blocks: &mut TreeBlocks<M::Id>,
     ) {
+        let folded = self.folded.contains(msg_id);
+        let folded_info = if folded {
+            Some(tree.subtree_size(msg_id)).filter(|s| *s > 0)
+        } else {
+            None
+        };
+
         // Message itself
         let block = if let Some(msg) = tree.msg(msg_id) {
-            self.message_block(indent, msg)
+            self.message_block(indent, msg, folded_info)
         } else {
-            self.message_placeholder_block(indent, msg_id)
+            self.message_placeholder_block(indent, msg_id, folded_info)
         };
         blocks.push_bottom(block);
 
         // Children, recursively
-        if let Some(children) = tree.children(msg_id) {
-            for child in children {
-                self.layout_subtree(tree, indent + 1, child, blocks);
+        if !folded {
+            if let Some(children) = tree.children(msg_id) {
+                for child in children {
+                    self.layout_subtree(tree, indent + 1, child, blocks);
+                }
             }
         }
 
