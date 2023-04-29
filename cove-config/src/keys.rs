@@ -321,7 +321,6 @@ pub struct TreeCursor {
     // TODO Bindings inspired by vim's ()/[]/{} bindings?
 }
 
-// TODO Split up in "message", "nicklist", "room"?
 #[derive(Debug, Deserialize, Document, KeyGroup)]
 pub struct TreeAction {
     /// Reply to message, inline if possible.

@@ -24,7 +24,6 @@ pub fn derive_document(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
     }
 }
 
-// TODO Derive Default as well
 #[proc_macro_derive(KeyGroup)]
 pub fn derive_group(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);

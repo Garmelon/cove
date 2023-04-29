@@ -113,7 +113,6 @@ impl<Id> Blocks<Id> {
         }
     }
 
-    // TODO Remove index from search result
     pub fn find_block(&self, id: &Id) -> Option<(Range<i32>, &Block<Id>)>
     where
         Id: Eq,
