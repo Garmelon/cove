@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use cove_config::Keys;
+use cove_config::{Config, Keys};
 use cove_input::InputEvent;
 use crossterm::style::Stylize;
 use euphoxide::api::{Data, Message, MessageId, PacketType, SessionId};
@@ -43,8 +43,9 @@ enum State {
 type EuphChatState = ChatState<euph::SmallMessage, EuphRoomVault>;
 
 pub struct EuphRoom {
+    config: &'static Config,
     server_config: ServerConfig,
-    config: cove_config::EuphRoom,
+    room_config: cove_config::EuphRoom,
     ui_event_tx: mpsc::UnboundedSender<UiEvent>,
 
     room: Option<euph::Room>,
@@ -61,14 +62,16 @@ pub struct EuphRoom {
 
 impl EuphRoom {
     pub fn new(
+        config: &'static Config,
         server_config: ServerConfig,
-        config: cove_config::EuphRoom,
+        room_config: cove_config::EuphRoom,
         vault: EuphRoomVault,
         ui_event_tx: mpsc::UnboundedSender<UiEvent>,
     ) -> Self {
         Self {
-            server_config,
             config,
+            server_config,
+            room_config,
             ui_event_tx,
             room: None,
             focus: Focus::Chat,
@@ -97,9 +100,9 @@ impl EuphRoom {
                 .room(self.vault().room().to_string())
                 .name(format!("{room}-{}", next_instance_id))
                 .human(true)
-                .username(self.config.username.clone())
-                .force_username(self.config.force_username)
-                .password(self.config.password.clone());
+                .username(self.room_config.username.clone())
+                .force_username(self.room_config.force_username)
+                .password(self.room_config.password.clone());
             *next_instance_id = next_instance_id.wrapping_add(1);
 
             let tx = self.ui_event_tx.clone();
@@ -420,7 +423,7 @@ impl EuphRoom {
         if event.matches(&keys.tree.action.links) {
             if let Some(id) = self.chat.cursor() {
                 if let Some(msg) = logging_unwrap!(self.vault().msg(*id).await) {
-                    self.state = State::Links(LinksState::new(&msg.content));
+                    self.state = State::Links(LinksState::new(self.config, &msg.content));
                 }
             }
             return true;

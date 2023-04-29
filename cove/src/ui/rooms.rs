@@ -93,6 +93,7 @@ impl Rooms {
     fn get_or_insert_room(&mut self, name: String) -> &mut EuphRoom {
         self.euph_rooms.entry(name.clone()).or_insert_with(|| {
             EuphRoom::new(
+                self.config,
                 self.euph_server_config.clone(),
                 self.config.euph_room(&name),
                 self.vault.euph().room(name),
@@ -104,6 +105,7 @@ impl Rooms {
     fn connect_to_room(&mut self, name: String) {
         let room = self.euph_rooms.entry(name.clone()).or_insert_with(|| {
             EuphRoom::new(
+                self.config,
                 self.euph_server_config.clone(),
                 self.config.euph_room(&name),
                 self.vault.euph().room(name),

@@ -1,17 +1,18 @@
-use cove_config::Keys;
+use cove_config::{Config, Keys};
 use cove_input::InputEvent;
 use crossterm::event::KeyCode;
 use crossterm::style::Stylize;
 use linkify::{LinkFinder, LinkKind};
-use toss::widgets::Text;
-use toss::{Style, Styled, Widget};
+use toss::widgets::{Join2, Text};
+use toss::{Style, Styled, Widget, WidgetExt};
 
 use crate::ui::widgets::{ListBuilder, ListState, Popup};
-use crate::ui::{util, UiError};
+use crate::ui::{key_bindings, util, UiError};
 
 use super::popup::PopupResult;
 
 pub struct LinksState {
+    config: &'static Config,
     links: Vec<String>,
     list: ListState<usize>,
 }
@@ -19,7 +20,7 @@ pub struct LinksState {
 const NUMBER_KEYS: [char; 10] = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 
 impl LinksState {
-    pub fn new(content: &str) -> Self {
+    pub fn new(config: &'static Config, content: &str) -> Self {
         let links = LinkFinder::new()
             .url_must_have_scheme(false)
             .kinds(&[LinkKind::Url])
@@ -28,6 +29,7 @@ impl LinksState {
             .collect();
 
         Self {
+            config,
             links,
             list: ListState::new(),
         }
@@ -69,7 +71,24 @@ impl LinksState {
             }
         }
 
-        Popup::new(list_builder.build(&mut self.list), "Links")
+        let hint_style = Style::new().grey().italic();
+        let hint = Styled::new("Open links with ", hint_style)
+            .and_then(key_bindings::format_binding(
+                &self.config.keys.general.confirm,
+            ))
+            .then(" or the number keys.", hint_style);
+
+        Popup::new(
+            Join2::vertical(
+                list_builder.build(&mut self.list).segment(),
+                Text::new(hint)
+                    .padding()
+                    .with_top(1)
+                    .segment()
+                    .with_fixed(true),
+            ),
+            "Links",
+        )
     }
 
     fn open_link_by_id(&self, id: usize) -> PopupResult {
@@ -110,7 +129,6 @@ impl LinksState {
             return PopupResult::Handled;
         }
 
-        // TODO Mention that this is possible in the UI
         if let Some(key_event) = event.key_event() {
             if key_event.modifiers.is_empty() {
                 match key_event.code {
