@@ -21,7 +21,7 @@ first, followed by the main key. They are separated by the `+` character and
 Examples of key bindings:
 - `"ctrl+c"`
 - `"X"` (not `"shift+x"`)
-- `" "` (space bar)
+- `"space"` or `" "` (both space bar)
 - `["g", "home"]`
 - `["K", "ctrl+up"]`
 - `["f1", "?"]`
@@ -30,8 +30,7 @@ Examples of key bindings:
 
 Available main keys:
 - Any single character that can be typed
-- `enter`, `esc`
-- `tab`, `backtab`
+- `esc`, `enter`, `space`, `tab`, `backtab`
 - `backspace`, `delete`, `insert`
 - `left`, `right`, `up`, `down`
 - `home`, `end`, `pageup`, `pagedown`

@@ -21,6 +21,14 @@ pub enum ParseKeysError {
     ConflictingModifier(String),
 }
 
+fn conflicts_with_shift(code: KeyCode) -> bool {
+    match code {
+        KeyCode::Char(' ') => false,
+        KeyCode::Char(_) => true,
+        _ => false,
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct KeyPress {
     pub code: KeyCode,
@@ -33,23 +41,29 @@ pub struct KeyPress {
 impl KeyPress {
     fn parse_key_code(code: &str) -> Result<Self, ParseKeysError> {
         let code = match code {
-            "backspace" => KeyCode::Backspace,
+            "esc" => KeyCode::Esc,
             "enter" => KeyCode::Enter,
+            "space" => KeyCode::Char(' '),
+            "tab" => KeyCode::Tab,
+            "backtab" => KeyCode::BackTab,
+
+            "backspace" => KeyCode::Backspace,
+            "delete" => KeyCode::Delete,
+            "insert" => KeyCode::Insert,
+
             "left" => KeyCode::Left,
             "right" => KeyCode::Right,
             "up" => KeyCode::Up,
             "down" => KeyCode::Down,
+
             "home" => KeyCode::Home,
             "end" => KeyCode::End,
             "pageup" => KeyCode::PageUp,
             "pagedown" => KeyCode::PageDown,
-            "tab" => KeyCode::Tab,
-            "backtab" => KeyCode::BackTab,
-            "delete" => KeyCode::Delete,
-            "insert" => KeyCode::Insert,
-            "esc" => KeyCode::Esc,
+
             c if c.chars().count() == 1 => KeyCode::Char(c.chars().next().unwrap()),
             c if c.starts_with('f') => KeyCode::F(c.strip_prefix('f').unwrap().parse()?),
+
             "" => return Err(ParseKeysError::NoKeyCode),
             c => return Err(ParseKeysError::UnknownKeyCode(c.to_string())),
         };
@@ -64,23 +78,29 @@ impl KeyPress {
 
     fn display_key_code(code: KeyCode) -> String {
         match code {
-            KeyCode::Backspace => "backspace".to_string(),
+            KeyCode::Esc => "esc".to_string(),
             KeyCode::Enter => "enter".to_string(),
+            KeyCode::Char(' ') => "space".to_string(),
+            KeyCode::Tab => "tab".to_string(),
+            KeyCode::BackTab => "backtab".to_string(),
+
+            KeyCode::Backspace => "backspace".to_string(),
+            KeyCode::Delete => "delete".to_string(),
+            KeyCode::Insert => "insert".to_string(),
+
             KeyCode::Left => "left".to_string(),
             KeyCode::Right => "right".to_string(),
             KeyCode::Up => "up".to_string(),
             KeyCode::Down => "down".to_string(),
+
             KeyCode::Home => "home".to_string(),
             KeyCode::End => "end".to_string(),
             KeyCode::PageUp => "pageup".to_string(),
             KeyCode::PageDown => "pagedown".to_string(),
-            KeyCode::Tab => "tab".to_string(),
-            KeyCode::BackTab => "backtab".to_string(),
-            KeyCode::Delete => "delete".to_string(),
-            KeyCode::Insert => "insert".to_string(),
-            KeyCode::Esc => "esc".to_string(),
-            KeyCode::F(n) => format!("f{n}"),
+
             KeyCode::Char(c) => c.to_string(),
+            KeyCode::F(n) => format!("f{n}"),
+
             _ => "unknown".to_string(),
         }
     }
@@ -115,7 +135,7 @@ impl KeyPress {
 
         let ctrl = event.modifiers.contains(KeyModifiers::CONTROL) == self.ctrl;
         let alt = event.modifiers.contains(KeyModifiers::ALT) == self.alt;
-        if matches!(self.code, KeyCode::Char(_)) {
+        if conflicts_with_shift(self.code) {
             ctrl && alt
         } else {
             let shift = event.modifiers.contains(KeyModifiers::SHIFT) == self.shift;
@@ -132,7 +152,7 @@ impl FromStr for KeyPress {
         let code = parts.next_back().ok_or(ParseKeysError::NoKeyCode)?;
 
         let mut keys = KeyPress::parse_key_code(code)?;
-        let shift_allowed = !matches!(keys.code, KeyCode::Char(_));
+        let shift_allowed = !conflicts_with_shift(keys.code);
         for modifier in parts {
             keys.parse_modifier(modifier, shift_allowed)?;
         }
