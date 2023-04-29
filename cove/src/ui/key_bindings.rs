@@ -14,6 +14,24 @@ use super::{util, UiError};
 type Line = Either2<Text, Join2<Padding<Text>, Text>>;
 type Builder = ListBuilder<'static, Infallible, Line>;
 
+pub fn format_binding(binding: &KeyBinding) -> Styled {
+    let style = Style::new().cyan();
+    let mut keys = Styled::default();
+
+    for key in binding.keys() {
+        if !keys.text().is_empty() {
+            keys = keys.then_plain(", ");
+        }
+        keys = keys.then(key.to_string(), style);
+    }
+
+    if keys.text().is_empty() {
+        keys = keys.then("unbound", style);
+    }
+
+    keys
+}
+
 fn render_empty(builder: &mut Builder) {
     builder.add_unsel(Text::new("").first2());
 }
@@ -24,15 +42,6 @@ fn render_title(builder: &mut Builder, title: &str) {
 }
 
 fn render_binding(builder: &mut Builder, binding: &KeyBinding, description: &str) {
-    let style = Style::new().cyan();
-    let mut keys = Styled::default();
-    for key in binding.keys() {
-        if !keys.text().is_empty() {
-            keys = keys.then_plain(", ");
-        }
-        keys = keys.then(key.to_string(), style);
-    }
-
     builder.add_unsel(
         Join2::horizontal(
             Text::new(description)
@@ -41,7 +50,10 @@ fn render_binding(builder: &mut Builder, binding: &KeyBinding, description: &str
                 .with_right(2)
                 .with_stretch(true)
                 .segment(),
-            Text::new(keys).with_wrap(false).segment().with_fixed(true),
+            Text::new(format_binding(binding))
+                .with_wrap(false)
+                .segment()
+                .with_fixed(true),
         )
         .second2(),
     )
