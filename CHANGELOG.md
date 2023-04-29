@@ -16,11 +16,20 @@ Procedure when bumping the version number:
 ## Unreleased
 
 ### Added
-- `help-config` CLI command
+- Auto-generated config documentation
+  - in [CONFIG.md](CONFIG.md)
+  - via `help-config` CLI command
 - `keys.*` config options
 - `measure_widths` config option
 
 ### Changed
+- Overhauled widget system and extracted generic widgets to [toss](https://github.com/Garmelon/toss)
+- Overhauled config system to support auto-generating documentation
+- Overhauled key binding system to make key bindings configurable
+- Redesigned F1 popup. It can now be toggled with F1 like the F12 log
+- The F12 log can now be closed with escape
+- Some more small UI fixes and adjustments to the new key binding system
+- Split up project into sub-crates
 - Simplified flake dependencies
 
 ## v0.6.1 - 2023-04-10
