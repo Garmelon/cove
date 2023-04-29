@@ -20,7 +20,7 @@ use toss::widgets::BoxedAsync;
 use toss::{Terminal, WidgetExt};
 
 use crate::logger::{LogMsg, Logger};
-use crate::macros::{logging_unwrap, ok_or_return, some_or_return};
+use crate::macros::logging_unwrap;
 use crate::util::InfallibleExt;
 use crate::vault::Vault;
 
@@ -130,11 +130,13 @@ impl Ui {
         lock: Weak<FairMutex<()>>,
     ) -> crossterm::Result<()> {
         loop {
-            let lock = some_or_return!(lock.upgrade(), Ok(()));
+            let Some(lock) = lock.upgrade() else { return Ok(()); };
             let _guard = lock.lock();
             if crossterm::event::poll(Self::POLL_DURATION)? {
                 let event = crossterm::event::read()?;
-                ok_or_return!(tx.send(UiEvent::Term(event)), Ok(()));
+                if tx.send(UiEvent::Term(event)).is_err() {
+                    return Ok(());
+                }
             }
         }
     }
@@ -144,8 +146,12 @@ impl Ui {
         event_tx: &UnboundedSender<UiEvent>,
     ) {
         loop {
-            some_or_return!(logger_rx.recv().await);
-            ok_or_return!(event_tx.send(UiEvent::LogChanged));
+            if logger_rx.recv().await.is_none() {
+                return;
+            }
+            if event_tx.send(UiEvent::LogChanged).is_err() {
+                return;
+            }
         }
     }
 
@@ -166,7 +172,9 @@ impl Ui {
                 if terminal.measuring_required() {
                     let _guard = crossterm_lock.lock();
                     terminal.measure_widths()?;
-                    ok_or_return!(self.event_tx.send(UiEvent::GraphemeWidthsChanged), Ok(()));
+                    if self.event_tx.send(UiEvent::GraphemeWidthsChanged).is_err() {
+                        return Ok(());
+                    }
                 }
             }
 

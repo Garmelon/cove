@@ -14,7 +14,7 @@ use log::{debug, error, info, warn};
 use tokio::select;
 use tokio::sync::oneshot;
 
-use crate::macros::{logging_unwrap, ok_or_return};
+use crate::macros::logging_unwrap;
 use crate::vault::EuphRoomVault;
 
 const LOG_INTERVAL: Duration = Duration::from_secs(10);
@@ -209,7 +209,7 @@ impl Room {
 
     async fn on_packet(&mut self, packet: ParsedPacket) {
         let room_name = &self.instance.config().room;
-        let data = ok_or_return!(&packet.content);
+        let Ok(data) = &packet.content else { return; };
         match data {
             Data::BounceEvent(_) => {}
             Data::DisconnectEvent(_) => {}
