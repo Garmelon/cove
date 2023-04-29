@@ -18,7 +18,7 @@ use crate::vault::Vault;
 
 use super::euph::room::EuphRoom;
 use super::widgets::{ListBuilder, ListState, Popup};
-use super::{util, UiError, UiEvent};
+use super::{key_bindings, util, UiError, UiEvent};
 
 enum State {
     ShowList,
@@ -170,10 +170,12 @@ impl Rooms {
         }
 
         match &mut self.state {
-            State::ShowList => Self::rooms_widget(&mut self.list, &self.euph_rooms, self.order)
-                .await
-                .desync()
-                .boxed_async(),
+            State::ShowList => {
+                Self::rooms_widget(self.config, &mut self.list, self.order, &self.euph_rooms)
+                    .await
+                    .desync()
+                    .boxed_async()
+            }
 
             State::ShowRoom(name) => {
                 self.euph_rooms
@@ -184,7 +186,7 @@ impl Rooms {
             }
 
             State::Connect(editor) => {
-                Self::rooms_widget(&mut self.list, &self.euph_rooms, self.order)
+                Self::rooms_widget(self.config, &mut self.list, self.order, &self.euph_rooms)
                     .await
                     .below(Self::new_room_widget(editor))
                     .desync()
@@ -192,7 +194,7 @@ impl Rooms {
             }
 
             State::Delete(name, editor) => {
-                Self::rooms_widget(&mut self.list, &self.euph_rooms, self.order)
+                Self::rooms_widget(self.config, &mut self.list, self.order, &self.euph_rooms)
                     .await
                     .below(Self::delete_room_widget(name, editor))
                     .desync()
@@ -351,16 +353,18 @@ impl Rooms {
     }
 
     async fn render_rows(
+        config: &Config,
         list_builder: &mut ListBuilder<'_, String, Text>,
-        euph_rooms: &HashMap<String, EuphRoom>,
         order: Order,
+        euph_rooms: &HashMap<String, EuphRoom>,
     ) {
         if euph_rooms.is_empty() {
-            // TODO Use configured key binding
-            list_builder.add_unsel(Text::new((
-                "Press F1 for key bindings",
-                Style::new().grey().italic(),
-            )))
+            let style = Style::new().grey().italic();
+            list_builder.add_unsel(Text::new(
+                Styled::new("Press ", style)
+                    .and_then(key_bindings::format_binding(&config.keys.general.help))
+                    .then(" for key bindings", style),
+            ));
         }
 
         let mut rooms = vec![];
@@ -388,16 +392,17 @@ impl Rooms {
     }
 
     async fn rooms_widget<'a>(
+        config: &Config,
         list: &'a mut ListState<String>,
-        euph_rooms: &HashMap<String, EuphRoom>,
         order: Order,
+        euph_rooms: &HashMap<String, EuphRoom>,
     ) -> impl Widget<UiError> + 'a {
         let heading_style = Style::new().bold();
         let heading_text =
             Styled::new("Rooms", heading_style).then_plain(format!(" ({})", euph_rooms.len()));
 
         let mut list_builder = ListBuilder::new();
-        Self::render_rows(&mut list_builder, euph_rooms, order).await;
+        Self::render_rows(config, &mut list_builder, order, euph_rooms).await;
 
         Join2::vertical(
             Text::new(heading_text).segment().with_fixed(true),
