@@ -13,14 +13,23 @@ pub mod doc;
 mod euph;
 mod keys;
 
-use std::fs;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
+use std::{fs, io};
 
 use doc::Document;
 use serde::Deserialize;
 
 pub use crate::euph::*;
 pub use crate::keys::*;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("failed to read config file")]
+    Io(#[from] io::Error),
+    #[error("failed to parse config file")]
+    Toml(#[from] toml::de::Error),
+}
 
 #[derive(Debug, Default, Deserialize, Document)]
 pub struct Config {
@@ -90,15 +99,12 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn load(path: &Path) -> Self {
-        let Ok(content) = fs::read_to_string(path) else { return Self::default(); };
-        match toml::from_str(&content) {
-            Ok(config) => config,
-            Err(err) => {
-                eprintln!("Error loading config file: {err}");
-                Self::default()
-            }
-        }
+    pub fn load(path: &Path) -> Result<Self, Error> {
+        Ok(match fs::read_to_string(path) {
+            Ok(content) => toml::from_str(&content)?,
+            Err(err) if err.kind() == ErrorKind::NotFound => Self::default(),
+            Err(err) => Err(err)?,
+        })
     }
 
     pub fn euph_room(&self, name: &str) -> EuphRoom {

@@ -146,7 +146,7 @@ async fn main() -> anyhow::Result<()> {
     eprintln!("Config file: {}", config_path.to_string_lossy());
 
     // Load config
-    let mut config = Config::load(&config_path);
+    let mut config = Config::load(&config_path)?;
     update_config_with_args(&mut config, &args);
     let config = Box::leak(Box::new(config));
 

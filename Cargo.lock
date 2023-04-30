@@ -284,6 +284,7 @@ dependencies = [
  "cove-input",
  "cove-macro",
  "serde",
+ "thiserror",
  "toml",
 ]
 

@@ -8,5 +8,6 @@ cove-input = { path = "../cove-input" }
 cove-macro = { path = "../cove-macro" }
 
 serde = { workspace = true }
+thiserror = { workspace = true }
 
 toml = "0.7.3"
