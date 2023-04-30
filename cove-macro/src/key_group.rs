@@ -19,11 +19,16 @@ pub fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
         return util::bail(input.span(), "must be a struct");
     };
 
+    let docstring = util::docstring(&input.attrs)?;
+    let description = docstring.strip_suffix('.').unwrap_or(&docstring);
+
     let mut bindings = vec![];
     let mut defaults = vec![];
     for field in &data.fields {
         if let Some(field_ident) = &field.ident {
-            let docstring = util::docstring(field)?;
+            let field_name = field_ident.to_string();
+
+            let docstring = util::docstring(&field.attrs)?;
             let description = decapitalize(&docstring);
             let description = description.strip_suffix('.').unwrap_or(&description);
 
@@ -34,7 +39,11 @@ pub fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
             let default_value = default.value();
 
             bindings.push(quote! {
-                (&self.#field_ident, #description)
+                ::cove_input::KeyBindingInfo {
+                    name: #field_name,
+                    binding: &self.#field_ident,
+                    description: #description
+                }
             });
 
             defaults.push(quote! {
@@ -46,7 +55,9 @@ pub fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
     let ident = input.ident;
     Ok(quote! {
         impl ::cove_input::KeyGroup for #ident {
-            fn bindings(&self) -> Vec<(&::cove_input::KeyBinding, &'static str)> {
+            const DESCRIPTION: &'static str = #description;
+
+            fn bindings(&self) -> Vec<::cove_input::KeyBindingInfo<'_>> {
                 vec![
                     #( #bindings, )*
                 ]

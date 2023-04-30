@@ -16,12 +16,12 @@ struct FieldInfo {
 
 impl FieldInfo {
     fn initialize_from_field(&mut self, field: &Field) -> syn::Result<()> {
-        let docstring = util::docstring(field)?;
+        let docstring = util::docstring(&field.attrs)?;
         if !docstring.is_empty() {
             self.description = Some(docstring);
         }
 
-        for arg in util::attribute_arguments(field, "document")? {
+        for arg in util::attribute_arguments(&field.attrs, "document")? {
             if arg.path.is_ident("metavar") {
                 // Parse `#[document(metavar = "bla")]`
                 if let Some(metavar) = arg.value.and_then(util::into_litstr) {

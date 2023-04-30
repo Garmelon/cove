@@ -3,7 +3,7 @@
 use std::convert::Infallible;
 
 use cove_config::{Config, Keys};
-use cove_input::{InputEvent, KeyBinding, KeyGroup};
+use cove_input::{InputEvent, KeyBinding, KeyBindingInfo, KeyGroupInfo};
 use crossterm::style::Stylize;
 use toss::widgets::{Either2, Join2, Padding, Text};
 use toss::{Style, Styled, Widget, WidgetExt};
@@ -41,16 +41,16 @@ fn render_title(builder: &mut Builder, title: &str) {
     builder.add_unsel(Text::new(Styled::new(title, style)).first2());
 }
 
-fn render_binding(builder: &mut Builder, binding: &KeyBinding, description: &str) {
+fn render_binding_info(builder: &mut Builder, binding_info: KeyBindingInfo<'_>) {
     builder.add_unsel(
         Join2::horizontal(
-            Text::new(description)
+            Text::new(binding_info.description)
                 .with_wrap(false)
                 .padding()
                 .with_right(2)
                 .with_stretch(true)
                 .segment(),
-            Text::new(format_binding(binding))
+            Text::new(format_binding(binding_info.binding))
                 .with_wrap(false)
                 .segment()
                 .with_fixed(true),
@@ -59,9 +59,10 @@ fn render_binding(builder: &mut Builder, binding: &KeyBinding, description: &str
     )
 }
 
-fn render_group<G: KeyGroup>(builder: &mut Builder, group: &G) {
-    for (binding, description) in group.bindings() {
-        render_binding(builder, binding, description);
+fn render_group_info(builder: &mut Builder, group_info: KeyGroupInfo<'_>) {
+    render_title(builder, group_info.description);
+    for binding_info in group_info.bindings {
+        render_binding_info(builder, binding_info);
     }
 }
 
@@ -71,29 +72,12 @@ pub fn widget<'a>(
 ) -> impl Widget<UiError> + 'a {
     let mut list_builder = ListBuilder::new();
 
-    render_title(&mut list_builder, "General");
-    render_group(&mut list_builder, &config.keys.general);
-    render_empty(&mut list_builder);
-    render_title(&mut list_builder, "Scrolling");
-    render_group(&mut list_builder, &config.keys.scroll);
-    render_empty(&mut list_builder);
-    render_title(&mut list_builder, "Cursor movement");
-    render_group(&mut list_builder, &config.keys.cursor);
-    render_empty(&mut list_builder);
-    render_title(&mut list_builder, "Editor cursor movement");
-    render_group(&mut list_builder, &config.keys.editor.cursor);
-    render_empty(&mut list_builder);
-    render_title(&mut list_builder, "Editor actions");
-    render_group(&mut list_builder, &config.keys.editor.action);
-    render_empty(&mut list_builder);
-    render_title(&mut list_builder, "Room list actions");
-    render_group(&mut list_builder, &config.keys.rooms.action);
-    render_empty(&mut list_builder);
-    render_title(&mut list_builder, "Tree cursor movement");
-    render_group(&mut list_builder, &config.keys.tree.cursor);
-    render_empty(&mut list_builder);
-    render_title(&mut list_builder, "Tree actions");
-    render_group(&mut list_builder, &config.keys.tree.action);
+    for group_info in config.keys.groups() {
+        if !list_builder.is_empty() {
+            render_empty(&mut list_builder);
+        }
+        render_group_info(&mut list_builder, group_info);
+    }
 
     Popup::new(list_builder.build(list), "Key bindings")
 }

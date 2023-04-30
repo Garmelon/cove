@@ -1,4 +1,4 @@
-use cove_input::{KeyBinding, KeyGroup};
+use cove_input::{KeyBinding, KeyGroup, KeyGroupInfo};
 use serde::Deserialize;
 
 use crate::doc::Document;
@@ -110,6 +110,7 @@ default_bindings! {
 }
 
 #[derive(Debug, Deserialize, Document, KeyGroup)]
+/// General.
 pub struct General {
     /// Quit cove.
     #[serde(default = "default::general::exit")]
@@ -133,6 +134,7 @@ pub struct General {
 }
 
 #[derive(Debug, Deserialize, Document, KeyGroup)]
+/// Scrolling.
 pub struct Scroll {
     /// Scroll up one line.
     #[serde(default = "default::scroll::up_line")]
@@ -158,6 +160,7 @@ pub struct Scroll {
 }
 
 #[derive(Debug, Deserialize, Document, KeyGroup)]
+/// Cursor movement.
 pub struct Cursor {
     /// Move up.
     #[serde(default = "default::cursor::up")]
@@ -174,6 +177,7 @@ pub struct Cursor {
 }
 
 #[derive(Debug, Deserialize, Document, KeyGroup)]
+/// Editor cursor movement.
 pub struct EditorCursor {
     /// Move left.
     #[serde(default = "default::editor_cursor::left")]
@@ -202,6 +206,7 @@ pub struct EditorCursor {
 }
 
 #[derive(Debug, Deserialize, Document, KeyGroup)]
+/// Editor actions.
 pub struct EditorAction {
     /// Delete before cursor.
     #[serde(default = "default::editor_action::backspace")]
@@ -229,6 +234,7 @@ pub struct Editor {
 }
 
 #[derive(Debug, Deserialize, Document, KeyGroup)]
+/// Room list actions.
 pub struct RoomsAction {
     /// Connect to selected room.
     #[serde(default = "default::rooms_action::connect")]
@@ -267,6 +273,7 @@ pub struct Rooms {
 }
 
 #[derive(Debug, Deserialize, Document, KeyGroup)]
+/// Room actions.
 pub struct RoomAction {
     /// Authenticate.
     #[serde(default = "default::room_action::authenticate")]
@@ -293,6 +300,7 @@ pub struct Room {
 }
 
 #[derive(Debug, Deserialize, Document, KeyGroup)]
+/// Tree cursor movement.
 pub struct TreeCursor {
     /// Move to above sibling.
     #[serde(default = "default::tree_cursor::to_above_sibling")]
@@ -322,6 +330,7 @@ pub struct TreeCursor {
 }
 
 #[derive(Debug, Deserialize, Document, KeyGroup)]
+/// Tree actions.
 pub struct TreeAction {
     /// Reply to message, inline if possible.
     #[serde(default = "default::tree_action::reply")]
@@ -392,4 +401,20 @@ pub struct Keys {
     #[serde(default)]
     #[document(no_default)]
     pub tree: Tree,
+}
+
+impl Keys {
+    pub fn groups(&self) -> Vec<KeyGroupInfo<'_>> {
+        vec![
+            KeyGroupInfo::new("general", &self.general),
+            KeyGroupInfo::new("scroll", &self.scroll),
+            KeyGroupInfo::new("cursor", &self.cursor),
+            KeyGroupInfo::new("editor.cursor", &self.editor.cursor),
+            KeyGroupInfo::new("editor.action", &self.editor.action),
+            KeyGroupInfo::new("rooms.action", &self.rooms.action),
+            KeyGroupInfo::new("room.action", &self.room.action),
+            KeyGroupInfo::new("tree.cursor", &self.tree.cursor),
+            KeyGroupInfo::new("tree.action", &self.tree.action),
+        ]
+    }
 }

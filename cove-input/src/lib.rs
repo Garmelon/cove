@@ -10,9 +10,33 @@ use toss::{Frame, Terminal, WidthDb};
 
 pub use crate::keys::*;
 
+pub struct KeyBindingInfo<'a> {
+    pub name: &'static str,
+    pub binding: &'a KeyBinding,
+    pub description: &'static str,
+}
+
 /// A group of related key bindings.
 pub trait KeyGroup {
-    fn bindings(&self) -> Vec<(&KeyBinding, &'static str)>;
+    const DESCRIPTION: &'static str;
+
+    fn bindings(&self) -> Vec<KeyBindingInfo<'_>>;
+}
+
+pub struct KeyGroupInfo<'a> {
+    pub name: &'static str,
+    pub description: &'static str,
+    pub bindings: Vec<KeyBindingInfo<'a>>,
+}
+
+impl<'a> KeyGroupInfo<'a> {
+    pub fn new<G: KeyGroup>(name: &'static str, group: &'a G) -> Self {
+        Self {
+            name,
+            description: G::DESCRIPTION,
+            bindings: group.bindings(),
+        }
+    }
 }
 
 pub struct InputEvent<'a> {

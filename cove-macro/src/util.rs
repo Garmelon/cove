@@ -2,7 +2,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::parse::Parse;
 use syn::punctuated::Punctuated;
-use syn::{Expr, ExprLit, ExprPath, Field, Lit, LitStr, Path, Token, Type};
+use syn::{Attribute, Expr, ExprLit, ExprPath, Field, Lit, LitStr, Path, Token, Type};
 
 pub fn bail<T>(span: Span, message: &str) -> syn::Result<T> {
     Err(syn::Error::new(span, message))
@@ -28,14 +28,10 @@ pub fn into_litstr(expr: Expr) -> Option<LitStr> {
 
 /// Given a struct field, this finds all attributes like `#[doc = "bla"]`,
 /// unindents, concatenates and returns them.
-pub fn docstring(field: &Field) -> syn::Result<String> {
+pub fn docstring(attributes: &[Attribute]) -> syn::Result<String> {
     let mut lines = vec![];
 
-    for attr in field
-        .attrs
-        .iter()
-        .filter(|attr| attr.path().is_ident("doc"))
-    {
+    for attr in attributes.iter().filter(|attr| attr.path().is_ident("doc")) {
         if let Some(lit) = litstr(&attr.meta.require_name_value()?.value) {
             let value = lit.value();
             let value = value
@@ -70,16 +66,19 @@ impl Parse for AttributeArgument {
 /// Given a struct field, this finds all arguments of the form `#[path(key)]`
 /// and `#[path(key = value)]`. Multiple arguments may be specified in a single
 /// annotation, e.g. `#[foo(bar, baz = true)]`.
-pub fn attribute_arguments(field: &Field, path: &str) -> syn::Result<Vec<AttributeArgument>> {
-    let mut attrs = vec![];
+pub fn attribute_arguments(
+    attributes: &[Attribute],
+    path: &str,
+) -> syn::Result<Vec<AttributeArgument>> {
+    let mut attr_args = vec![];
 
-    for attr in field.attrs.iter().filter(|attr| attr.path().is_ident(path)) {
+    for attr in attributes.iter().filter(|attr| attr.path().is_ident(path)) {
         let args =
             attr.parse_args_with(Punctuated::<AttributeArgument, Token![,]>::parse_terminated)?;
-        attrs.extend(args);
+        attr_args.extend(args);
     }
 
-    Ok(attrs)
+    Ok(attr_args)
 }
 
 pub enum SerdeDefault {
@@ -102,7 +101,7 @@ impl SerdeDefault {
 
 /// Find `#[serde(default)]` or `#[serde(default = "bla")]`.
 pub fn serde_default(field: &Field) -> syn::Result<Option<SerdeDefault>> {
-    for arg in attribute_arguments(field, "serde")? {
+    for arg in attribute_arguments(&field.attrs, "serde")? {
         if arg.path.is_ident("default") {
             if let Some(value) = arg.value {
                 if let Some(path) = into_litstr(value) {
