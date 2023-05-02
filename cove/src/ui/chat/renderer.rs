@@ -178,7 +178,7 @@ where
 }
 
 /// Expand blocks such that the screen is full for any offset where the
-/// specified block is visible.
+/// specified block is visible. The block must exist.
 pub async fn expand_to_fill_screen_around_block<Id, R>(r: &mut R, id: &Id) -> Result<(), R::Error>
 where
     Id: Eq,
@@ -196,6 +196,8 @@ where
     Ok(())
 }
 
+/// Scroll so that the top of the block is at the specified value. Returns
+/// `true` if successful, or `false` if the block could not be found.
 pub fn scroll_to_set_block_top<Id, R>(r: &mut R, id: &Id, top: i32) -> bool
 where
     Id: Eq,

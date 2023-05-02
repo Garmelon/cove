@@ -80,7 +80,7 @@ pub struct TreeRenderer<'a, M: Msg, S: MsgStore<M>> {
     context: TreeContext<M::Id>,
 
     store: &'a S,
-    folded: &'a HashSet<M::Id>,
+    folded: &'a mut HashSet<M::Id>,
     cursor: &'a mut Cursor<M::Id>,
     editor: &'a mut EditorState,
     widthdb: &'a mut WidthDb,
@@ -107,7 +107,7 @@ where
     pub fn new(
         context: TreeContext<M::Id>,
         store: &'a S,
-        folded: &'a HashSet<M::Id>,
+        folded: &'a mut HashSet<M::Id>,
         cursor: &'a mut Cursor<M::Id>,
         editor: &'a mut EditorState,
         widthdb: &'a mut WidthDb,
@@ -279,12 +279,30 @@ where
         Ok(Some(path.into_first()))
     }
 
-    async fn prepare_initial_tree(&mut self, root_id: &Option<M::Id>) -> Result<(), S::Error> {
+    /// Render the tree containing the cursor to the blocks and set the top and
+    /// bottom root id accordingly. This function will always render a block
+    /// that has the cusor id.
+    async fn prepare_initial_tree(
+        &mut self,
+        cursor_id: &TreeBlockId<M::Id>,
+        root_id: &Option<M::Id>,
+    ) -> Result<(), S::Error> {
         self.top_root_id = root_id.clone();
         self.bottom_root_id = root_id.clone();
 
         let blocks = if let Some(root_id) = root_id {
             let tree = self.store.tree(root_id).await?;
+
+            // To ensure the cursor block will be rendered, all its parents must
+            // be unfolded.
+            if let TreeBlockId::Msg(id) | TreeBlockId::After(id) = cursor_id {
+                let mut id = id.clone();
+                while let Some(parent_id) = tree.parent(&id) {
+                    self.folded.remove(&parent_id);
+                    id = parent_id;
+                }
+            }
+
             self.layout_tree(tree)
         } else {
             self.layout_bottom()
@@ -318,9 +336,11 @@ where
         let cursor_id = TreeBlockId::from_cursor(self.cursor);
         let cursor_root_id = self.root_id(&cursor_id).await?;
 
-        // Render cursor and blocks around it until screen is filled as long as
-        // the cursor is visible, regardless of how the screen is scrolled.
-        self.prepare_initial_tree(&cursor_root_id).await?;
+        // Render cursor and blocks around it so that the screen will always be
+        // filled as long as the cursor is visible, regardless of how the screen
+        // is scrolled.
+        self.prepare_initial_tree(&cursor_id, &cursor_root_id)
+            .await?;
         renderer::expand_to_fill_screen_around_block(self, &cursor_id).await?;
 
         // Scroll based on last cursor position
