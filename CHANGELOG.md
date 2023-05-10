@@ -29,6 +29,7 @@ Procedure when bumping the version number:
 - Redesigned F1 popup. It can now be toggled with F1 like the F12 log
 - The F12 log can now be closed with escape
 - Some more small UI fixes and adjustments to the new key binding system
+- Reduced tearing when redrawing screen
 - Split up project into sub-crates
 - Simplified flake dependencies
 
