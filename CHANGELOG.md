@@ -15,6 +15,8 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+## v0.7.0 - 2023-05-14
+
 ### Added
 - Auto-generated config documentation
   - in [CONFIG.md](CONFIG.md)
