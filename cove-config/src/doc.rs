@@ -11,7 +11,40 @@ const MARKDOWN_INTRODUCTION: &str = r#"# Config file format
 
 Cove's config file uses the [TOML](https://toml.io/) format.
 
-## Key binding format
+Here is an example config that changes a few different options:
+
+```toml
+measure_widths = true
+rooms_sort_order = "importance"
+
+[euph.rooms.welcome]
+autojoin = true
+
+[euph.rooms.test]
+username = "badingle"
+force_username = true
+
+[euph.rooms.private]
+password = "foobar"
+
+[keys]
+general.abort = ["esc", "ctrl+c"]
+general.exit = "ctrl+q"
+tree.action.fold_tree = "f"
+```
+
+If you want to configure lots of rooms, TOML lets you write this in a more
+compact way:
+
+```toml
+[euph.rooms]
+foo = { autojoin = true }
+bar = { autojoin = true }
+baz = { autojoin = true }
+private = { autojoin = true, password = "foobar" }
+```
+
+## Key bindings
 
 Key bindings are specified as strings or lists of strings. Each string specifies
 a main key and zero or more modifier keys. The modifier keys (if any) are listed
@@ -42,7 +75,7 @@ Available modifiers:
 - `alt`
 - `any` (matches as long as at least one modifier is pressed)
 
-## Config options
+## Available options
 "#;
 
 pub fn toml_value_as_markdown<T: Serialize>(value: &T) -> String {
