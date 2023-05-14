@@ -8,7 +8,7 @@ use euphoxide::api::{
     Auth, AuthOption, Data, Log, Login, Logout, MessageId, Nick, Send, SendEvent, SendReply, Time,
     UserId,
 };
-use euphoxide::bot::instance::{Event, Instance, InstanceConfig, Snapshot};
+use euphoxide::bot::instance::{ConnSnapshot, Event, Instance, InstanceConfig};
 use euphoxide::conn::{self, ConnTx};
 use log::{debug, error, info, warn};
 use tokio::select;
@@ -106,7 +106,7 @@ impl Room {
                 self.last_msg_id = None;
                 self.log_request_canary = None;
             }
-            Event::Connected(_, Snapshot { conn_tx, state }) => {
+            Event::Connected(_, ConnSnapshot { conn_tx, state }) => {
                 if !self.ephemeral {
                     let (tx, rx) = oneshot::channel();
                     self.log_request_canary = Some(tx);
@@ -127,7 +127,7 @@ impl Room {
                 let cookies = cookies.lock().unwrap().clone();
                 logging_unwrap!(self.vault.vault().set_cookies(cookies).await);
             }
-            Event::Packet(_, packet, Snapshot { conn_tx, state }) => {
+            Event::Packet(_, packet, ConnSnapshot { conn_tx, state }) => {
                 self.state = State::Connected(conn_tx, state);
                 self.on_packet(packet).await;
             }
