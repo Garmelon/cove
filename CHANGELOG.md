@@ -15,6 +15,8 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+## v0.7.1 - 2023-08-31
+
 ### Changed
 - Updated dependencies
 
