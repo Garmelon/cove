@@ -15,6 +15,9 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Changed
+- Updated dependencies
+
 ## v0.7.0 - 2023-05-14
 
 ### Added

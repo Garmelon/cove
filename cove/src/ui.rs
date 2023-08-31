@@ -128,7 +128,7 @@ impl Ui {
     fn poll_crossterm_events(
         tx: UnboundedSender<UiEvent>,
         lock: Weak<FairMutex<()>>,
-    ) -> crossterm::Result<()> {
+    ) -> io::Result<()> {
         loop {
             let Some(lock) = lock.upgrade() else {
                 return Ok(());
