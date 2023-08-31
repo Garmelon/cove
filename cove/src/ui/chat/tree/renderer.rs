@@ -274,7 +274,9 @@ where
     }
 
     async fn root_id(&self, id: &TreeBlockId<M::Id>) -> Result<Option<M::Id>, S::Error> {
-        let Some(id) = id.any_id() else { return Ok(None); };
+        let Some(id) = id.any_id() else {
+            return Ok(None);
+        };
         let path = self.store.path(id).await?;
         Ok(Some(path.into_first()))
     }
@@ -480,7 +482,7 @@ where
     async fn expand_bottom(&mut self) -> Result<(), Self::Error> {
         let Some(bottom_root_id) = &self.bottom_root_id else {
             self.blocks.end_bottom();
-            return Ok(())
+            return Ok(());
         };
 
         let next_root_id = self.store.next_root_id(bottom_root_id).await?;

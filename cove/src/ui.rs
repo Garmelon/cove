@@ -130,7 +130,9 @@ impl Ui {
         lock: Weak<FairMutex<()>>,
     ) -> crossterm::Result<()> {
         loop {
-            let Some(lock) = lock.upgrade() else { return Ok(()); };
+            let Some(lock) = lock.upgrade() else {
+                return Ok(());
+            };
             let _guard = lock.lock();
             if crossterm::event::poll(Self::POLL_DURATION)? {
                 let event = crossterm::event::read()?;

@@ -209,7 +209,9 @@ impl Room {
 
     async fn on_packet(&mut self, packet: ParsedPacket) {
         let room_name = &self.instance.config().room;
-        let Ok(data) = &packet.content else { return; };
+        let Ok(data) = &packet.content else {
+            return;
+        };
         match data {
             Data::BounceEvent(_) => {}
             Data::DisconnectEvent(_) => {}

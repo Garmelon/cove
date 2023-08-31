@@ -554,7 +554,9 @@ impl Rooms {
 
     pub async fn handle_euph_event(&mut self, event: Event) -> bool {
         let room_name = event.config().room.clone();
-        let Some(room) = self.euph_rooms.get_mut(&room_name) else { return false; };
+        let Some(room) = self.euph_rooms.get_mut(&room_name) else {
+            return false;
+        };
 
         let handled = room.handle_event(event).await;
 
