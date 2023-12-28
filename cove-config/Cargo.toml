@@ -10,4 +10,4 @@ cove-macro = { path = "../cove-macro" }
 serde = { workspace = true }
 thiserror = { workspace = true }
 
-toml = "0.7.6"
+toml = "0.8.8"

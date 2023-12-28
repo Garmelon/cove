@@ -13,4 +13,4 @@ serde_either = { workspace = true }
 thiserror = { workspace = true }
 toss = { workspace = true }
 
-edit = "0.1.4"
+edit = "0.1.5"
