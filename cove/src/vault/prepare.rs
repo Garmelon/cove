@@ -1,28 +1,32 @@
 use rusqlite::Connection;
 
 pub fn prepare(conn: &mut Connection) -> rusqlite::Result<()> {
+    eprintln!("Preparing vault");
+
     // Cache ids of tree roots.
     conn.execute_batch(
         "
         CREATE TEMPORARY TABLE euph_trees (
+            domain TEXT NOT NULL,
             room TEXT NOT NULL,
             id INT NOT NULL,
 
-            PRIMARY KEY (room, id)
+            PRIMARY KEY (domain, room, id)
         ) STRICT;
 
-        INSERT INTO euph_trees (room, id)
-        SELECT room, id
+        INSERT INTO euph_trees (domain, room, id)
+        SELECT domain, room, id
         FROM euph_msgs
         WHERE parent IS NULL
         UNION
-        SELECT room, parent
+        SELECT domain, room, parent
         FROM euph_msgs
         WHERE parent IS NOT NULL
         AND NOT EXISTS(
             SELECT *
             FROM euph_msgs AS parents
-            WHERE parents.room = euph_msgs.room
+            WHERE parents.domain = euph_msgs.domain
+            AND parents.room = euph_msgs.room
             AND parents.id = euph_msgs.parent
         );
 
@@ -30,15 +34,16 @@ pub fn prepare(conn: &mut Connection) -> rusqlite::Result<()> {
         AFTER DELETE ON main.euph_rooms
         BEGIN
             DELETE FROM euph_trees
-            WHERE room = old.room;
+            WHERE domain = old.domain
+            AND room = old.room;
         END;
 
         CREATE TEMPORARY TRIGGER et_insert_msg_without_parent
         AFTER INSERT ON main.euph_msgs
         WHEN new.parent IS NULL
         BEGIN
-            INSERT OR IGNORE INTO euph_trees (room, id)
-            VALUES (new.room, new.id);
+            INSERT OR IGNORE INTO euph_trees (domain, room, id)
+            VALUES (new.domain, new.room, new.id);
         END;
 
         CREATE TEMPORARY TRIGGER et_insert_msg_with_parent
@@ -46,16 +51,18 @@ pub fn prepare(conn: &mut Connection) -> rusqlite::Result<()> {
         WHEN new.parent IS NOT NULL
         BEGIN
             DELETE FROM euph_trees
-            WHERE room = new.room
+            WHERE domain = new.domain
+            AND room = new.room
             AND id = new.id;
 
-            INSERT OR IGNORE INTO euph_trees (room, id)
+            INSERT OR IGNORE INTO euph_trees (domain, room, id)
             SELECT *
-            FROM (VALUES (new.room, new.parent))
+            FROM (VALUES (new.domain, new.room, new.parent))
             WHERE NOT EXISTS(
                 SELECT *
                 FROM euph_msgs
-                WHERE room = new.room
+                WHERE domain = new.domain
+                AND room = new.room
                 AND id = new.parent
                 AND parent IS NOT NULL
             );
@@ -67,35 +74,37 @@ pub fn prepare(conn: &mut Connection) -> rusqlite::Result<()> {
     conn.execute_batch(
         "
         CREATE TEMPORARY TABLE euph_unseen_counts (
+            domain TEXT    NOT NULL,
             room   TEXT    NOT NULL,
             amount INTEGER NOT NULL,
 
-            PRIMARY KEY (room)
+            PRIMARY KEY (domain, room)
         ) STRICT;
 
         -- There must be an entry for every existing room.
-        INSERT INTO euph_unseen_counts (room, amount)
-        SELECT room, 0
+        INSERT INTO euph_unseen_counts (domain, room, amount)
+        SELECT domain, room, 0
         FROM euph_rooms;
 
-        INSERT OR REPLACE INTO euph_unseen_counts (room, amount)
-        SELECT room, COUNT(*)
+        INSERT OR REPLACE INTO euph_unseen_counts (domain, room, amount)
+        SELECT domain, room, COUNT(*)
         FROM euph_msgs
         WHERE NOT seen
-        GROUP BY room;
+        GROUP BY domain, room;
 
         CREATE TEMPORARY TRIGGER euc_insert_room
         AFTER INSERT ON main.euph_rooms
         BEGIN
-            INSERT INTO euph_unseen_counts (room, amount)
-            VALUES (new.room, 0);
+            INSERT INTO euph_unseen_counts (domain, room, amount)
+            VALUES (new.domain, new.room, 0);
         END;
 
         CREATE TEMPORARY TRIGGER euc_delete_room
         AFTER DELETE ON main.euph_rooms
         BEGIN
             DELETE FROM euph_unseen_counts
-            WHERE room = old.room;
+            WHERE domain = old.domain
+            AND room = old.room;
         END;
 
         CREATE TEMPORARY TRIGGER euc_insert_msg
@@ -104,7 +113,8 @@ pub fn prepare(conn: &mut Connection) -> rusqlite::Result<()> {
         BEGIN
             UPDATE euph_unseen_counts
             SET amount = amount + 1
-            WHERE room = new.room;
+            WHERE domain = new.domain
+            AND room = new.room;
         END;
 
         CREATE TEMPORARY TRIGGER euc_update_msg
@@ -113,7 +123,8 @@ pub fn prepare(conn: &mut Connection) -> rusqlite::Result<()> {
         BEGIN
             UPDATE euph_unseen_counts
             SET amount = CASE WHEN new.seen THEN amount - 1 ELSE amount + 1 END
-            WHERE room = new.room;
+            WHERE domain = new.domain
+            AND room = new.room;
         END;
         ",
     )?;

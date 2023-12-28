@@ -50,8 +50,6 @@ fn launch_from_connection(conn: Connection, ephemeral: bool) -> rusqlite::Result
     conn.pragma_update(None, "foreign_keys", true)?;
     conn.pragma_update(None, "trusted_schema", false)?;
 
-    eprintln!("Opening vault");
-
     let tokio_vault = TokioVault::launch_and_prepare(conn, &migrate::MIGRATIONS, prepare::prepare)?;
     Ok(Vault {
         tokio_vault,
