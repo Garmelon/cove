@@ -9,7 +9,7 @@ use rusqlite::Connection;
 use vault::tokio::TokioVault;
 use vault::Action;
 
-pub use self::euph::{EuphRoomVault, EuphVault};
+pub use self::euph::{EuphRoomVault, EuphVault, RoomIdentifier};
 
 #[derive(Debug, Clone)]
 pub struct Vault {
