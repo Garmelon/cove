@@ -1,5 +1,5 @@
 {
-  description = "TUI client for euphoria.io, a threaded real-time chat platform";
+  description = "TUI client for euphoria.leet.nu, a threaded real-time chat platform";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs";

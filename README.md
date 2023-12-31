@@ -1,6 +1,6 @@
 # cove
 
-Cove is a TUI client for [euphoria.io](https://euphoria.io/), a threaded
+Cove is a TUI client for [euphoria.leet.nu](https://euphoria.leet.nu/), a threaded
 real-time chat platform.
 
 ![A very meta screenshot](screenshot.png)

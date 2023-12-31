@@ -15,6 +15,12 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Added
+- Support for multiple euph domains
+
+### Changed
+- Switch default euph domain to https://euphoria.leet.nu/
+
 ## v0.7.1 - 2023-08-31
 
 ### Changed
