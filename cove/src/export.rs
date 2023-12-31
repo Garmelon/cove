@@ -6,7 +6,7 @@ mod text;
 use std::fs::File;
 use std::io::{self, BufWriter, Write};
 
-use crate::vault::{EuphRoomVault, EuphVault};
+use crate::vault::{EuphRoomVault, EuphVault, RoomIdentifier};
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
 pub enum Format {
@@ -42,6 +42,10 @@ pub struct Args {
     /// Export all rooms.
     #[arg(long, short)]
     all: bool,
+
+    /// Domain to resolve the room names with.
+    #[arg(long, short, default_value = "euphoria.leet.nu")]
+    domain: String,
 
     /// Format of the output file.
     #[arg(long, short, value_enum, default_value_t = Format::Text)]
@@ -85,7 +89,12 @@ pub async fn export(vault: &EuphVault, mut args: Args) -> anyhow::Result<()> {
     }
 
     let rooms = if args.all {
-        let mut rooms = vault.rooms().await?;
+        let mut rooms = vault
+            .rooms()
+            .await?
+            .into_iter()
+            .map(|id| id.name)
+            .collect::<Vec<_>>();
         rooms.sort_unstable();
         rooms
     } else {
@@ -101,14 +110,14 @@ pub async fn export(vault: &EuphVault, mut args: Args) -> anyhow::Result<()> {
     for room in rooms {
         if args.out == "-" {
             eprintln!("Exporting &{room} as {} to stdout", args.format.name());
-            let vault = vault.room(room);
+            let vault = vault.room(RoomIdentifier::new(args.domain.clone(), room));
             let mut stdout = BufWriter::new(io::stdout());
             export_room(&vault, &mut stdout, args.format).await?;
             stdout.flush()?;
         } else {
             let out = format_out(&args.out, &room, args.format);
             eprintln!("Exporting &{room} as {} to {out}", args.format.name());
-            let vault = vault.room(room);
+            let vault = vault.room(RoomIdentifier::new(args.domain.clone(), room));
             let mut file = BufWriter::new(File::create(out)?);
             export_room(&vault, &mut file, args.format).await?;
             file.flush()?;
