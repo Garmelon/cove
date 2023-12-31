@@ -113,6 +113,7 @@ macro_rules! euph_vault_actions {
 euph_vault_actions! {
     GetCookies : cookies(domain: String) -> CookieJar;
     SetCookies : set_cookies(domain: String, cookies: CookieJar) -> ();
+    ClearCookies : clear_cookies(domain: Option<String>) -> ();
     GetRooms : rooms() -> Vec<RoomIdentifier>;
 }
 
@@ -166,11 +167,26 @@ impl Action for SetCookies {
             ",
         )?;
         for cookie in self.cookies.iter() {
-            insert_cookie.execute([self.domain, format!("{cookie}")])?;
+            insert_cookie.execute(params![self.domain, format!("{cookie}")])?;
         }
         drop(insert_cookie);
 
         tx.commit()?;
+        Ok(())
+    }
+}
+
+impl Action for ClearCookies {
+    type Output = ();
+    type Error = rusqlite::Error;
+
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
+        if let Some(domain) = self.domain {
+            conn.execute("DELETE FROM euph_cookies WHERE domain = ?", [domain])?;
+        } else {
+            conn.execute_batch("DELETE FROM euph_cookies")?;
+        }
+
         Ok(())
     }
 }

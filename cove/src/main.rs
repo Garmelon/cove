@@ -26,7 +26,6 @@ mod vault;
 use std::path::PathBuf;
 
 use clap::Parser;
-use cookie::CookieJar;
 use cove_config::doc::Document;
 use cove_config::Config;
 use directories::{BaseDirs, ProjectDirs};
@@ -47,7 +46,11 @@ enum Command {
     /// Compact and clean up vault.
     Gc,
     /// Clear euphoria session cookies.
-    ClearCookies,
+    ClearCookies {
+        /// Clear cookies for a specific domain only.
+        #[arg(long, short)]
+        domain: Option<String>,
+    },
     /// Print config documentation as markdown.
     HelpConfig,
 }
@@ -154,7 +157,7 @@ async fn main() -> anyhow::Result<()> {
         Command::Run => run(logger, logger_rx, config, &dirs).await?,
         Command::Export(args) => export(config, &dirs, args).await?,
         Command::Gc => gc(config, &dirs).await?,
-        Command::ClearCookies => clear_cookies(config, &dirs).await?,
+        Command::ClearCookies { domain } => clear_cookies(config, &dirs, domain).await?,
         Command::HelpConfig => help_config(),
     }
 
@@ -214,11 +217,15 @@ async fn gc(config: &'static Config, dirs: &ProjectDirs) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn clear_cookies(config: &'static Config, dirs: &ProjectDirs) -> anyhow::Result<()> {
+async fn clear_cookies(
+    config: &'static Config,
+    dirs: &ProjectDirs,
+    domain: Option<String>,
+) -> anyhow::Result<()> {
     let vault = open_vault(config, dirs)?;
 
     eprintln!("Clearing cookies");
-    vault.euph().set_cookies(CookieJar::new()).await?;
+    vault.euph().clear_cookies(domain).await?;
 
     vault.close().await;
     Ok(())
