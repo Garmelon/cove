@@ -1,4 +1,5 @@
 // TODO Stop if room does not exist (e.g. 404)
+// TODO Remove rl2dev-specific code
 
 use std::convert::Infallible;
 use std::time::Duration;
@@ -19,6 +20,7 @@ use crate::vault::EuphRoomVault;
 
 const LOG_INTERVAL: Duration = Duration::from_secs(10);
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub enum State {
     Disconnected,
@@ -69,7 +71,8 @@ impl Room {
         // a certain point results in errors. Cove should not keep retrying log
         // requests when hitting that limit, so &rl2dev is always opened in
         // ephemeral mode.
-        let ephemeral = vault.vault().vault().ephemeral() || vault.room() == "rl2dev";
+        let is_rl2dev = vault.room().domain == "euphoria.io" && vault.room().name == "rl2dev";
+        let ephemeral = vault.vault().vault().ephemeral() || is_rl2dev;
 
         Self {
             vault,
@@ -125,7 +128,8 @@ impl Room {
 
                 let cookies = &*self.instance.config().server.cookies;
                 let cookies = cookies.lock().unwrap().clone();
-                logging_unwrap!(self.vault.vault().set_cookies(cookies).await);
+                let domain = self.vault.room().domain.clone();
+                logging_unwrap!(self.vault.vault().set_cookies(domain, cookies).await);
             }
             Event::Packet(_, packet, ConnSnapshot { conn_tx, state }) => {
                 self.state = State::Connected(conn_tx, state);
@@ -189,7 +193,8 @@ impl Room {
         // a certain point results in errors. By reducing the amount of messages
         // in each log request, we can get closer to this point. Since &rl2dev
         // is fairly low in activity, this should be fine.
-        let n = if vault.room() == "rl2dev" { 50 } else { 1000 };
+        let is_rl2dev = vault.room().domain == "euphoria.io" && vault.room().name == "rl2dev";
+        let n = if is_rl2dev { 50 } else { 1000 };
 
         let _ = conn_tx.send(Log { n, before }).await;
         // The code handling incoming events and replies also handles
