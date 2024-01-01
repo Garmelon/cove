@@ -87,8 +87,12 @@ impl EuphRoom {
         self.chat.store()
     }
 
+    fn domain(&self) -> &str {
+        &self.vault().room().domain
+    }
+
     fn name(&self) -> &str {
-        self.vault().room()
+        &self.vault().room().name
     }
 
     pub fn connect(&mut self, next_instance_id: &mut usize) {
@@ -306,6 +310,8 @@ impl EuphRoom {
                 }
             }
         };
+
+        info = info.then(format!(" - {}", self.domain()), Style::new().grey());
 
         let unseen = self.unseen_msgs_count().await;
         if unseen > 0 {

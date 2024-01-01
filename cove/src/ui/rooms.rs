@@ -1,3 +1,4 @@
+use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::iter;
 use std::sync::{Arc, Mutex};
@@ -14,7 +15,7 @@ use toss::{Style, Styled, Widget, WidgetExt};
 
 use crate::euph;
 use crate::macros::logging_unwrap;
-use crate::vault::Vault;
+use crate::vault::{EuphVault, RoomIdentifier, Vault};
 
 use super::euph::room::EuphRoom;
 use super::widgets::{ListBuilder, ListState, Popup};
@@ -22,9 +23,9 @@ use super::{key_bindings, util, UiError, UiEvent};
 
 enum State {
     ShowList,
-    ShowRoom(String),
+    ShowRoom(RoomIdentifier),
     Connect(EditorState),
-    Delete(String, EditorState),
+    Delete(RoomIdentifier, EditorState),
 }
 
 #[derive(Clone, Copy)]
@@ -42,6 +43,24 @@ impl Order {
     }
 }
 
+struct EuphServer {
+    config: ServerConfig,
+    next_instance_id: usize,
+}
+
+impl EuphServer {
+    async fn new(vault: &EuphVault, domain: String) -> Self {
+        let cookies = logging_unwrap!(vault.cookies(domain.clone()).await);
+        let config = ServerConfig::default()
+            .domain(domain)
+            .cookies(Arc::new(Mutex::new(cookies)));
+        Self {
+            config,
+            next_instance_id: 0,
+        }
+    }
+}
+
 pub struct Rooms {
     config: &'static Config,
 
@@ -50,12 +69,11 @@ pub struct Rooms {
 
     state: State,
 
-    list: ListState<String>,
+    list: ListState<RoomIdentifier>,
     order: Order,
 
-    euph_server_config: ServerConfig,
-    euph_next_instance_id: usize,
-    euph_rooms: HashMap<String, EuphRoom>,
+    euph_servers: HashMap<String, EuphServer>,
+    euph_rooms: HashMap<RoomIdentifier, EuphRoom>,
 }
 
 impl Rooms {
@@ -64,9 +82,6 @@ impl Rooms {
         vault: Vault,
         ui_event_tx: mpsc::UnboundedSender<UiEvent>,
     ) -> Self {
-        let cookies = logging_unwrap!(vault.euph().cookies().await);
-        let euph_server_config = ServerConfig::default().cookies(Arc::new(Mutex::new(cookies)));
-
         let mut result = Self {
             config,
             vault,
@@ -74,15 +89,20 @@ impl Rooms {
             state: State::ShowList,
             list: ListState::new(),
             order: Order::from_rooms_sort_order(config.rooms_sort_order),
-            euph_server_config,
-            euph_next_instance_id: 0,
+            euph_servers: HashMap::new(),
             euph_rooms: HashMap::new(),
         };
 
         if !config.offline {
             for (name, config) in &config.euph.rooms {
                 if config.autojoin {
-                    result.connect_to_room(name.clone());
+                    result
+                        .connect_to_room(RoomIdentifier {
+                            // TODO Remove hardcoded domain
+                            domain: "euphoria.leet.nu".to_string(),
+                            name: name.clone(),
+                        })
+                        .await;
                 }
             }
         }
@@ -90,39 +110,66 @@ impl Rooms {
         result
     }
 
-    fn get_or_insert_room(&mut self, name: String) -> &mut EuphRoom {
-        self.euph_rooms.entry(name.clone()).or_insert_with(|| {
+    async fn get_or_insert_server<'a>(
+        vault: &Vault,
+        euph_servers: &'a mut HashMap<String, EuphServer>,
+        domain: String,
+    ) -> &'a mut EuphServer {
+        match euph_servers.entry(domain.clone()) {
+            Entry::Occupied(entry) => entry.into_mut(),
+            Entry::Vacant(entry) => {
+                let server = EuphServer::new(&vault.euph(), domain).await;
+                entry.insert(server)
+            }
+        }
+    }
+
+    async fn get_or_insert_room(&mut self, room: RoomIdentifier) -> &mut EuphRoom {
+        let server =
+            Self::get_or_insert_server(&self.vault, &mut self.euph_servers, room.domain.clone())
+                .await;
+
+        self.euph_rooms.entry(room.clone()).or_insert_with(|| {
             EuphRoom::new(
                 self.config,
-                self.euph_server_config.clone(),
-                self.config.euph_room(&name),
-                self.vault.euph().room(name),
+                server.config.clone(),
+                self.config.euph_room(&room.name),
+                self.vault.euph().room(room),
                 self.ui_event_tx.clone(),
             )
         })
     }
 
-    fn connect_to_room(&mut self, name: String) {
-        let room = self.euph_rooms.entry(name.clone()).or_insert_with(|| {
+    async fn connect_to_room(&mut self, room: RoomIdentifier) {
+        let server =
+            Self::get_or_insert_server(&self.vault, &mut self.euph_servers, room.domain.clone())
+                .await;
+
+        let room = self.euph_rooms.entry(room.clone()).or_insert_with(|| {
             EuphRoom::new(
                 self.config,
-                self.euph_server_config.clone(),
-                self.config.euph_room(&name),
-                self.vault.euph().room(name),
+                server.config.clone(),
+                self.config.euph_room(&room.name),
+                self.vault.euph().room(room),
                 self.ui_event_tx.clone(),
             )
         });
-        room.connect(&mut self.euph_next_instance_id);
+
+        room.connect(&mut server.next_instance_id);
     }
 
-    fn connect_to_all_rooms(&mut self) {
-        for room in self.euph_rooms.values_mut() {
-            room.connect(&mut self.euph_next_instance_id);
+    async fn connect_to_all_rooms(&mut self) {
+        for (id, room) in &mut self.euph_rooms {
+            let server =
+                Self::get_or_insert_server(&self.vault, &mut self.euph_servers, id.domain.clone())
+                    .await;
+
+            room.connect(&mut server.next_instance_id);
         }
     }
 
-    fn disconnect_from_room(&mut self, name: &str) {
-        if let Some(room) = self.euph_rooms.get_mut(name) {
+    fn disconnect_from_room(&mut self, room: &RoomIdentifier) {
+        if let Some(room) = self.euph_rooms.get_mut(room) {
             room.disconnect();
         }
     }
@@ -145,7 +192,11 @@ impl Rooms {
         let rooms = logging_unwrap!(self.vault.euph().rooms().await);
         let mut rooms_set = rooms
             .into_iter()
-            .chain(self.config.euph.rooms.keys().cloned())
+            .chain(self.config.euph.rooms.keys().map(|name| RoomIdentifier {
+                // TODO Remove hardcoded domain
+                domain: "euphoria.leet.nu".to_string(),
+                name: name.clone(),
+            }))
             .collect::<HashSet<_>>();
 
         // Prevent room that is currently being shown from being removed. This
@@ -161,7 +212,7 @@ impl Rooms {
             .retain(|n, r| !r.stopped() || rooms_set.contains(n));
 
         for room in rooms_set {
-            self.get_or_insert_room(room).retain();
+            self.get_or_insert_room(room).await.retain();
         }
     }
 
@@ -179,9 +230,9 @@ impl Rooms {
                     .boxed_async()
             }
 
-            State::ShowRoom(name) => {
+            State::ShowRoom(id) => {
                 self.euph_rooms
-                    .get_mut(name)
+                    .get_mut(id)
                     .expect("room exists after stabilization")
                     .widget()
                     .await
@@ -195,10 +246,11 @@ impl Rooms {
                     .boxed_async()
             }
 
-            State::Delete(name, editor) => {
+            State::Delete(id, editor) => {
                 Self::rooms_widget(self.config, &mut self.list, self.order, &self.euph_rooms)
                     .await
-                    .below(Self::delete_room_widget(name, editor))
+                    // TODO Respect domain
+                    .below(Self::delete_room_widget(&id.name, editor))
                     .desync()
                     .boxed_async()
             }
@@ -345,20 +397,20 @@ impl Rooms {
         }
     }
 
-    fn sort_rooms(rooms: &mut [(&String, Option<&euph::State>, usize)], order: Order) {
+    fn sort_rooms(rooms: &mut [(&RoomIdentifier, Option<&euph::State>, usize)], order: Order) {
         match order {
-            Order::Alphabet => rooms.sort_unstable_by_key(|(name, _, _)| *name),
-            Order::Importance => rooms.sort_unstable_by_key(|(name, state, unseen)| {
-                (state.is_none(), *unseen == 0, *name)
+            Order::Alphabet => rooms.sort_unstable_by_key(|(id, _, _)| (&id.name, &id.domain)),
+            Order::Importance => rooms.sort_unstable_by_key(|(id, state, unseen)| {
+                (state.is_none(), *unseen == 0, &id.name, &id.domain)
             }),
         }
     }
 
     async fn render_rows(
         config: &Config,
-        list_builder: &mut ListBuilder<'_, String, Text>,
+        list_builder: &mut ListBuilder<'_, RoomIdentifier, Text>,
         order: Order,
-        euph_rooms: &HashMap<String, EuphRoom>,
+        euph_rooms: &HashMap<RoomIdentifier, EuphRoom>,
     ) {
         if euph_rooms.is_empty() {
             let style = Style::new().grey().italic();
@@ -370,23 +422,25 @@ impl Rooms {
         }
 
         let mut rooms = vec![];
-        for (name, room) in euph_rooms {
+        for (id, room) in euph_rooms {
             let state = room.room_state();
             let unseen = room.unseen_msgs_count().await;
-            rooms.push((name, state, unseen));
+            rooms.push((id, state, unseen));
         }
         Self::sort_rooms(&mut rooms, order);
-        for (name, state, unseen) in rooms {
-            let name = name.clone();
+        for (id, state, unseen) in rooms {
+            let id = id.clone();
             let info = Self::format_room_info(state, unseen);
-            list_builder.add_sel(name.clone(), move |selected| {
+            list_builder.add_sel(id.clone(), move |selected| {
                 let style = if selected {
                     Style::new().bold().black().on_white()
                 } else {
                     Style::new().bold().blue()
                 };
 
-                let text = Styled::new(format!("&{name}"), style).and_then(info);
+                let text = Styled::new(format!("&{}", id.name), style)
+                    .and_then(info)
+                    .then(format!(" - {}", id.domain), Style::new().grey());
 
                 Text::new(text)
             });
@@ -395,9 +449,9 @@ impl Rooms {
 
     async fn rooms_widget<'a>(
         config: &Config,
-        list: &'a mut ListState<String>,
+        list: &'a mut ListState<RoomIdentifier>,
         order: Order,
-        euph_rooms: &HashMap<String, EuphRoom>,
+        euph_rooms: &HashMap<RoomIdentifier, EuphRoom>,
     ) -> impl Widget<UiError> + 'a {
         let heading_style = Style::new().bold();
         let heading_text =
@@ -416,7 +470,11 @@ impl Rooms {
         c.is_ascii_alphanumeric() || c == '_'
     }
 
-    fn handle_showlist_input_event(&mut self, event: &mut InputEvent<'_>, keys: &Keys) -> bool {
+    async fn handle_showlist_input_event(
+        &mut self,
+        event: &mut InputEvent<'_>,
+        keys: &Keys,
+    ) -> bool {
         // Open room
         if event.matches(&keys.general.confirm) {
             if let Some(name) = self.list.selected() {
@@ -433,17 +491,17 @@ impl Rooms {
         // Room actions
         if event.matches(&keys.rooms.action.connect) {
             if let Some(name) = self.list.selected() {
-                self.connect_to_room(name.clone());
+                self.connect_to_room(name.clone()).await;
             }
             return true;
         }
         if event.matches(&keys.rooms.action.connect_all) {
-            self.connect_to_all_rooms();
+            self.connect_to_all_rooms().await;
             return true;
         }
         if event.matches(&keys.rooms.action.disconnect) {
-            if let Some(name) = self.list.selected() {
-                self.disconnect_from_room(&name.clone());
+            if let Some(room) = self.list.selected() {
+                self.disconnect_from_room(&room.clone());
             }
             return true;
         }
@@ -454,18 +512,23 @@ impl Rooms {
         if event.matches(&keys.rooms.action.connect_autojoin) {
             for (name, options) in &self.config.euph.rooms {
                 if options.autojoin {
-                    self.connect_to_room(name.clone());
+                    let room = RoomIdentifier {
+                        // TODO Remove hardcoded domain
+                        domain: "euphoria.leet.nu".to_string(),
+                        name: name.clone(),
+                    };
+                    self.connect_to_room(room).await;
                 }
             }
             return true;
         }
         if event.matches(&keys.rooms.action.disconnect_non_autojoin) {
-            for (name, room) in &mut self.euph_rooms {
+            for (id, room) in &mut self.euph_rooms {
                 let autojoin = self
                     .config
                     .euph
                     .rooms
-                    .get(name)
+                    .get(&id.name) // TODO Respect domain
                     .map(|r| r.autojoin)
                     .unwrap_or(false);
                 if !autojoin {
@@ -479,8 +542,8 @@ impl Rooms {
             return true;
         }
         if event.matches(&keys.rooms.action.delete) {
-            if let Some(name) = self.list.selected() {
-                self.state = State::Delete(name.clone(), EditorState::new());
+            if let Some(room) = self.list.selected() {
+                self.state = State::Delete(room.clone(), EditorState::new());
             }
             return true;
         }
@@ -500,7 +563,7 @@ impl Rooms {
 
         match &mut self.state {
             State::ShowList => {
-                if self.handle_showlist_input_event(event, keys) {
+                if self.handle_showlist_input_event(event, keys).await {
                     return true;
                 }
             }
@@ -523,8 +586,13 @@ impl Rooms {
                 if event.matches(&keys.general.confirm) {
                     let name = editor.text().to_string();
                     if !name.is_empty() {
-                        self.connect_to_room(name.clone());
-                        self.state = State::ShowRoom(name);
+                        let room = RoomIdentifier {
+                            // TODO Remove hardcoded domain
+                            domain: "euphoria.leet.nu".to_string(),
+                            name,
+                        };
+                        self.connect_to_room(room.clone()).await;
+                        self.state = State::ShowRoom(room);
                     }
                     return true;
                 }
@@ -553,15 +621,16 @@ impl Rooms {
     }
 
     pub async fn handle_euph_event(&mut self, event: Event) -> bool {
-        let room_name = event.config().room.clone();
-        let Some(room) = self.euph_rooms.get_mut(&room_name) else {
+        let config = event.config();
+        let room_id = RoomIdentifier::new(config.server.domain.clone(), config.room.clone());
+        let Some(room) = self.euph_rooms.get_mut(&room_id) else {
             return false;
         };
 
         let handled = room.handle_event(event).await;
 
         let room_visible = match &self.state {
-            State::ShowRoom(name) => *name == room_name,
+            State::ShowRoom(id) => *id == room_id,
             _ => true,
         };
         handled && room_visible
