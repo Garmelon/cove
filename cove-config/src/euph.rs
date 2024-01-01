@@ -35,7 +35,13 @@ pub struct EuphRoom {
 }
 
 #[derive(Debug, Default, Deserialize, Document)]
-pub struct Euph {
+pub struct EuphServer {
     #[document(metavar = "room")]
     pub rooms: HashMap<String, EuphRoom>,
+}
+
+#[derive(Debug, Default, Deserialize, Document)]
+pub struct Euph {
+    #[document(metavar = "domain")]
+    pub servers: HashMap<String, EuphServer>,
 }

@@ -94,15 +94,12 @@ impl Rooms {
         };
 
         if !config.offline {
-            for (name, config) in &config.euph.rooms {
-                if config.autojoin {
-                    result
-                        .connect_to_room(RoomIdentifier {
-                            // TODO Remove hardcoded domain
-                            domain: "euphoria.leet.nu".to_string(),
-                            name: name.clone(),
-                        })
-                        .await;
+            for (domain, server) in &config.euph.servers {
+                for (name, room) in &server.rooms {
+                    if room.autojoin {
+                        let id = RoomIdentifier::new(domain.clone(), name.clone());
+                        result.connect_to_room(id).await;
+                    }
                 }
             }
         }
@@ -133,7 +130,7 @@ impl Rooms {
             EuphRoom::new(
                 self.config,
                 server.config.clone(),
-                self.config.euph_room(&room.name),
+                self.config.euph_room(&room.domain, &room.name),
                 self.vault.euph().room(room),
                 self.ui_event_tx.clone(),
             )
@@ -149,7 +146,7 @@ impl Rooms {
             EuphRoom::new(
                 self.config,
                 server.config.clone(),
-                self.config.euph_room(&room.name),
+                self.config.euph_room(&room.domain, &room.name),
                 self.vault.euph().room(room),
                 self.ui_event_tx.clone(),
             )
@@ -189,14 +186,21 @@ impl Rooms {
     /// - rooms that were deleted from the db.
     async fn stabilize_rooms(&mut self) {
         // Collect all rooms from the db and config file
-        let rooms = logging_unwrap!(self.vault.euph().rooms().await);
-        let mut rooms_set = rooms
+        let rooms_from_db = logging_unwrap!(self.vault.euph().rooms().await);
+        let rooms_from_config = self
+            .config
+            .euph
+            .servers
+            .iter()
+            .flat_map(|(domain, server)| {
+                server
+                    .rooms
+                    .keys()
+                    .map(|name| RoomIdentifier::new(domain.clone(), name.clone()))
+            });
+        let mut rooms_set = rooms_from_db
             .into_iter()
-            .chain(self.config.euph.rooms.keys().map(|name| RoomIdentifier {
-                // TODO Remove hardcoded domain
-                domain: "euphoria.leet.nu".to_string(),
-                name: name.clone(),
-            }))
+            .chain(rooms_from_config)
             .collect::<HashSet<_>>();
 
         // Prevent room that is currently being shown from being removed. This
@@ -510,27 +514,17 @@ impl Rooms {
             return true;
         }
         if event.matches(&keys.rooms.action.connect_autojoin) {
-            for (name, options) in &self.config.euph.rooms {
-                if options.autojoin {
-                    let room = RoomIdentifier {
-                        // TODO Remove hardcoded domain
-                        domain: "euphoria.leet.nu".to_string(),
-                        name: name.clone(),
-                    };
-                    self.connect_to_room(room).await;
+            for (domain, server) in &self.config.euph.servers {
+                for name in server.rooms.keys() {
+                    let id = RoomIdentifier::new(domain.clone(), name.clone());
+                    self.connect_to_room(id).await;
                 }
             }
             return true;
         }
         if event.matches(&keys.rooms.action.disconnect_non_autojoin) {
             for (id, room) in &mut self.euph_rooms {
-                let autojoin = self
-                    .config
-                    .euph
-                    .rooms
-                    .get(&id.name) // TODO Respect domain
-                    .map(|r| r.autojoin)
-                    .unwrap_or(false);
+                let autojoin = self.config.euph_room(&id.domain, &id.name).autojoin;
                 if !autojoin {
                     room.disconnect();
                 }
