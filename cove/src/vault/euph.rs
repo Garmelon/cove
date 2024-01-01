@@ -46,13 +46,13 @@ impl FromSql for WTime {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct RoomIdentifier {
     pub domain: String,
     pub name: String,
 }
 
-impl fmt::Display for RoomIdentifier {
+impl fmt::Debug for RoomIdentifier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "&{}@{}", self.name, self.domain)
     }

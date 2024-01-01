@@ -187,7 +187,7 @@ impl Room {
             None => None,
         };
 
-        debug!("{}: requesting logs", vault.room());
+        debug!("{:?}: requesting logs", vault.room());
 
         // &rl2dev's message history is broken and requesting old messages past
         // a certain point results in errors. By reducing the amount of messages
