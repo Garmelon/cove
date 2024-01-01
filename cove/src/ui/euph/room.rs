@@ -132,7 +132,12 @@ impl EuphRoom {
         }
     }
 
-    // TODO fn room_state_joined(&self) -> Option<&Joined> {}
+    pub fn room_state_joined(&self) -> Option<&Joined> {
+        match self.room_state() {
+            Some(euph::State::Connected(_, conn::State::Joined(ref joined))) => Some(joined),
+            _ => None,
+        }
+    }
 
     pub fn stopped(&self) -> bool {
         self.room.as_ref().map(|r| r.stopped()).unwrap_or(true)
@@ -167,9 +172,8 @@ impl EuphRoom {
     }
 
     fn stabilize_focus(&mut self) {
-        match self.room_state() {
-            Some(euph::State::Connected(_, conn::State::Joined(_))) => {}
-            _ => self.focus = Focus::Chat, // There is no nick list to focus on
+        if self.room_state_joined().is_none() {
+            self.focus = Focus::Chat; // There is no nick list to focus on
         }
     }
 
@@ -325,10 +329,7 @@ impl EuphRoom {
     }
 
     async fn handle_chat_input_event(&mut self, event: &mut InputEvent<'_>, keys: &Keys) -> bool {
-        let can_compose = matches!(
-            self.room_state(),
-            Some(euph::State::Connected(_, conn::State::Joined(_)))
-        );
+        let can_compose = self.room_state_joined().is_some();
 
         let reaction = self.chat.handle_input_event(event, keys, can_compose).await;
         let reaction = logging_unwrap!(reaction);
@@ -448,8 +449,7 @@ impl EuphRoom {
         }
 
         if event.matches(&keys.tree.action.inspect) {
-            if let Some(euph::State::Connected(_, conn::State::Joined(joined))) = self.room_state()
-            {
+            if let Some(joined) = self.room_state_joined() {
                 if let Some(id) = self.nick_list.selected() {
                     if *id == joined.session.session_id {
                         self.state =
@@ -472,11 +472,9 @@ impl EuphRoom {
                     return true;
                 }
 
-                if let Some(euph::State::Connected(_, conn::State::Joined(_))) = self.room_state() {
-                    if event.matches(&keys.general.focus) {
-                        self.focus = Focus::NickList;
-                        return true;
-                    }
+                if self.room_state_joined().is_some() && event.matches(&keys.general.focus) {
+                    self.focus = Focus::NickList;
+                    return true;
                 }
             }
             Focus::NickList => {
