@@ -153,7 +153,7 @@ fn m3(tx: &mut Transaction<'_>, nr: usize, total: usize) -> rusqlite::Result<()>
             start  INT,
             end    INT,
 
-            UNIQUE (room, domain, start, end),
+            UNIQUE (domain, room, start, end),
             FOREIGN KEY (domain, room) REFERENCES euph_rooms (domain, room)
                 ON DELETE CASCADE,
             CHECK (start IS NULL OR end IS NOT NULL)

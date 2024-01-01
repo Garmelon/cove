@@ -198,7 +198,7 @@ impl Action for GetRooms {
     fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
         conn.prepare(
             "
-                SELECT room, domain
+                SELECT domain, room
                 FROM euph_rooms
                 ",
         )?
