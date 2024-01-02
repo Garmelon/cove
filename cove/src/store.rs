@@ -27,10 +27,6 @@ impl<I> Path<I> {
         self.0.iter().take(self.0.len() - 1)
     }
 
-    pub fn push(&mut self, segment: I) {
-        self.0.push(segment)
-    }
-
     pub fn first(&self) -> &I {
         self.0.first().expect("path is empty")
     }

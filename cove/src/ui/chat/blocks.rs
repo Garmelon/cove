@@ -161,14 +161,6 @@ impl<Id> Blocks<Id> {
     pub fn shift(&mut self, delta: i32) {
         self.range = self.range.shifted(delta);
     }
-
-    pub fn set_top(&mut self, top: i32) {
-        self.shift(top - self.range.top);
-    }
-
-    pub fn set_bottom(&mut self, bottom: i32) {
-        self.shift(bottom - self.range.bottom);
-    }
 }
 
 pub struct Iter<'a, Id> {

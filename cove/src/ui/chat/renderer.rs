@@ -275,27 +275,6 @@ where
     }
 }
 
-pub fn clamp_scroll_biased_upwards<Id, R>(r: &mut R)
-where
-    R: Renderer<Id>,
-{
-    let area = visible_area(r);
-    let blocks = r.blocks().range();
-
-    // Delta that moves blocks.top to the top of the screen. If this is
-    // negative, we need to move the blocks because they're too low.
-    let move_to_top = blocks.top - area.top;
-
-    // Delta that moves blocks.bottom to the bottom of the screen. If this is
-    // positive, we need to move the blocks because they're too high.
-    let move_to_bottom = blocks.bottom - area.bottom;
-
-    // If the screen is higher, the blocks should rather be moved to the top
-    // than the bottom because of the upwards bias.
-    let delta = 0.max(move_to_bottom).min(move_to_top);
-    r.blocks_mut().shift(delta);
-}
-
 pub fn clamp_scroll_biased_downwards<Id, R>(r: &mut R)
 where
     R: Renderer<Id>,
