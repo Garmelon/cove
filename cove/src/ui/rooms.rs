@@ -254,7 +254,7 @@ impl Rooms {
                 Self::rooms_widget(self.config, &mut self.list, self.order, &self.euph_rooms)
                     .await
                     // TODO Respect domain
-                    .below(Self::delete_room_widget(&id.name, editor))
+                    .below(Self::delete_room_widget(id, editor))
                     .desync()
                     .boxed_async()
             }
@@ -276,15 +276,17 @@ impl Rooms {
     }
 
     fn delete_room_widget<'a>(
-        name: &str,
+        id: &RoomIdentifier,
         editor: &'a mut EditorState,
     ) -> impl Widget<UiError> + 'a {
         let warn_style = Style::new().bold().red();
         let room_style = Style::new().bold().blue();
         let text = Styled::new_plain("Are you sure you want to delete ")
             .then("&", room_style)
-            .then(name, room_style)
-            .then_plain("?\n\n")
+            .then(&id.name, room_style)
+            .then_plain(" on the ")
+            .then(&id.domain, Style::new().grey())
+            .then_plain(" server?\n\n")
             .then_plain("This will delete the entire room history from your vault. ")
             .then_plain("To shrink your vault afterwards, run ")
             .then("cove gc", Style::new().italic().grey())
