@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Procedure when bumping the version number:
-1. Update dependencies in a separate commit
+1. Update dependencies and flake in a separate commit
 2. Set version number in `Cargo.toml`
 3. Add new section in this changelog
 4. Run `cargo run help-config > CONFIG.md`
@@ -17,9 +17,13 @@ Procedure when bumping the version number:
 
 ### Added
 - Support for multiple euph domains
+  - Room domain names are now visible in the UI
+- `--domain` option to `cove export` command
 
 ### Changed
-- Switch default euph domain to https://euphoria.leet.nu/
+- The default euph domain is now https://euphoria.leet.nu/
+- The config file format was changed to support multiple euph servers with different domains.
+  Options previously located at `euph.rooms.*` should be reviewed and moved to `euph.servers."euphoria.leet.nu".rooms.*`.
 
 ## v0.7.1 - 2023-08-31
 
