@@ -98,6 +98,7 @@ impl EuphRoom {
     pub fn connect(&mut self, next_instance_id: &mut usize) {
         if self.room.is_none() {
             let room = self.vault().room();
+            // TODO Decrease ping timeout
             let instance_config = self
                 .server_config
                 .clone()
