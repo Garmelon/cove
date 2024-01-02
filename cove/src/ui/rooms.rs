@@ -13,12 +13,13 @@ use euphoxide::api::SessionType;
 use euphoxide::bot::instance::{Event, ServerConfig};
 use euphoxide::conn::{self, Joined};
 use tokio::sync::mpsc;
-use toss::widgets::{BoxedAsync, Join2, Text};
+use toss::widgets::{BoxedAsync, Empty, Join2, Text};
 use toss::{Style, Styled, Widget, WidgetExt};
 
 use crate::euph;
 use crate::macros::logging_unwrap;
 use crate::vault::{EuphVault, RoomIdentifier, Vault};
+use crate::version::{NAME, VERSION};
 
 use self::connect::{ConnectResult, ConnectState};
 use self::delete::{DeleteResult, DeleteState};
@@ -360,20 +361,10 @@ impl Rooms {
     }
 
     async fn render_rows(
-        config: &Config,
         list_builder: &mut ListBuilder<'_, RoomIdentifier, Text>,
         order: Order,
         euph_rooms: &HashMap<RoomIdentifier, EuphRoom>,
     ) {
-        if euph_rooms.is_empty() {
-            let style = Style::new().grey().italic();
-            list_builder.add_unsel(Text::new(
-                Styled::new("Press ", style)
-                    .and_then(key_bindings::format_binding(&config.keys.general.help))
-                    .then(" for key bindings", style),
-            ));
-        }
-
         let mut rooms = vec![];
         for (id, room) in euph_rooms {
             let state = room.room_state();
@@ -406,16 +397,35 @@ impl Rooms {
         order: Order,
         euph_rooms: &HashMap<RoomIdentifier, EuphRoom>,
     ) -> impl Widget<UiError> + 'a {
-        let heading_style = Style::new().bold();
-        let heading_text =
-            Styled::new("Rooms", heading_style).then_plain(format!(" ({})", euph_rooms.len()));
+        let version_info = Styled::new_plain("Welcome to ")
+            .then(format!("{NAME} {VERSION}"), Style::new().yellow().bold())
+            .then_plain("!");
+        let help_info = Styled::new("Press ", Style::new().grey())
+            .and_then(key_bindings::format_binding(&config.keys.general.help))
+            .then(" for key bindings.", Style::new().grey());
+        let info = Join2::vertical(
+            Text::new(version_info).float().with_center_h().segment(),
+            Text::new(help_info).segment(),
+        )
+        .padding()
+        .with_horizontal(1)
+        .border();
+
+        let heading = Styled::new("Rooms", Style::new().bold())
+            .then_plain(format!(" ({})", euph_rooms.len()));
 
         let mut list_builder = ListBuilder::new();
-        Self::render_rows(config, &mut list_builder, order, euph_rooms).await;
+        Self::render_rows(&mut list_builder, order, euph_rooms).await;
 
-        Join2::vertical(
-            Text::new(heading_text).segment().with_fixed(true),
-            list_builder.build(list).segment(),
+        Join2::horizontal(
+            Join2::vertical(
+                Text::new(heading).segment().with_fixed(true),
+                list_builder.build(list).segment(),
+            )
+            .segment(),
+            Join2::vertical(info.segment().with_growing(false), Empty::new().segment())
+                .segment()
+                .with_growing(false),
         )
     }
 

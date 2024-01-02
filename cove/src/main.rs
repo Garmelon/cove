@@ -22,6 +22,7 @@ mod store;
 mod ui;
 mod util;
 mod vault;
+mod version;
 
 use std::path::PathBuf;
 
@@ -36,6 +37,7 @@ use toss::Terminal;
 use crate::logger::Logger;
 use crate::ui::Ui;
 use crate::vault::Vault;
+use crate::version::{NAME, VERSION};
 
 #[derive(Debug, clap::Parser)]
 enum Command {
@@ -176,11 +178,7 @@ async fn run(
     config: &'static Config,
     dirs: &ProjectDirs,
 ) -> anyhow::Result<()> {
-    info!(
-        "Welcome to {} {}",
-        env!("CARGO_PKG_NAME"),
-        env!("CARGO_PKG_VERSION")
-    );
+    info!("Welcome to {NAME} {VERSION}",);
 
     let vault = open_vault(config, dirs)?;
 
