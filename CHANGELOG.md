@@ -16,12 +16,13 @@ Procedure when bumping the version number:
 ## Unreleased
 
 ### Added
-- Support for multiple euph domains
-  - Room domain names are now visible in the UI
+- Support for multiple euph server domains
+- Room domains are visible in the UI
+- Domain field to "connect to new room" popup
 - `--domain` option to `cove export` command
 
 ### Changed
-- The default euph domain is now https://euphoria.leet.nu/
+- The default euph domain is now https://euphoria.leet.nu/ everywhere
 - The config file format was changed to support multiple euph servers with different domains.
   Options previously located at `euph.rooms.*` should be reviewed and moved to `euph.servers."euphoria.leet.nu".rooms.*`.
 
