@@ -532,10 +532,7 @@ impl EuphRoom {
     }
 
     pub async fn handle_event(&mut self, event: Event) -> bool {
-        let room = match &self.room {
-            None => return false,
-            Some(room) => room,
-        };
+        let Some(room) = &self.room else { return false };
 
         if event.config().name != room.instance().config().name {
             // If we allowed names other than the current one, old instances

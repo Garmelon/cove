@@ -181,9 +181,8 @@ impl Ui {
             }
 
             // Handle events (in batches)
-            let mut event = match event_rx.recv().await {
-                Some(event) => event,
-                None => return Ok(()),
+            let Some(mut event) = event_rx.recv().await else {
+                return Ok(());
             };
             let end_time = Instant::now() + EVENT_PROCESSING_TIME;
             loop {
