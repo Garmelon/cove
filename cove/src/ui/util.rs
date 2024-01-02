@@ -5,6 +5,11 @@ use toss::widgets::EditorState;
 
 use super::widgets::ListState;
 
+/// Test if a character is allowed to be typed in a room name.
+pub fn is_room_char(c: char) -> bool {
+    c.is_ascii_alphanumeric() || c == '_'
+}
+
 //////////
 // List //
 //////////

@@ -1,3 +1,5 @@
+mod connect;
+
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::iter;
@@ -17,6 +19,8 @@ use crate::euph;
 use crate::macros::logging_unwrap;
 use crate::vault::{EuphVault, RoomIdentifier, Vault};
 
+use self::connect::{ConnectResult, ConnectState};
+
 use super::euph::room::EuphRoom;
 use super::widgets::{ListBuilder, ListState, Popup};
 use super::{key_bindings, util, UiError, UiEvent};
@@ -24,7 +28,7 @@ use super::{key_bindings, util, UiError, UiEvent};
 enum State {
     ShowList,
     ShowRoom(RoomIdentifier),
-    Connect(EditorState),
+    Connect(ConnectState),
     Delete(RoomIdentifier, EditorState),
 }
 
@@ -242,10 +246,10 @@ impl Rooms {
                     .await
             }
 
-            State::Connect(editor) => {
+            State::Connect(connect) => {
                 Self::rooms_widget(self.config, &mut self.list, self.order, &self.euph_rooms)
                     .await
-                    .below(Self::new_room_widget(editor))
+                    .below(connect.widget())
                     .desync()
                     .boxed_async()
             }
@@ -259,20 +263,6 @@ impl Rooms {
                     .boxed_async()
             }
         }
-    }
-
-    fn new_room_widget(editor: &mut EditorState) -> impl Widget<UiError> + '_ {
-        let room_style = Style::new().bold().blue();
-
-        let inner = Join2::horizontal(
-            Text::new(("&", room_style)).segment().with_fixed(true),
-            editor
-                .widget()
-                .with_highlight(|s| Styled::new(s, room_style))
-                .segment(),
-        );
-
-        Popup::new(inner, "Connect to")
     }
 
     fn delete_room_widget<'a>(
@@ -472,10 +462,6 @@ impl Rooms {
         )
     }
 
-    fn room_char(c: char) -> bool {
-        c.is_ascii_alphanumeric() || c == '_'
-    }
-
     async fn handle_showlist_input_event(
         &mut self,
         event: &mut InputEvent<'_>,
@@ -534,7 +520,7 @@ impl Rooms {
             return true;
         }
         if event.matches(&keys.rooms.action.new) {
-            self.state = State::Connect(EditorState::new());
+            self.state = State::Connect(ConnectState::new());
             return true;
         }
         if event.matches(&keys.rooms.action.delete) {
@@ -574,28 +560,21 @@ impl Rooms {
                     }
                 }
             }
-            State::Connect(editor) => {
-                if event.matches(&keys.general.abort) {
+            State::Connect(connect) => match connect.handle_input_event(event, keys) {
+                ConnectResult::Close => {
                     self.state = State::ShowList;
                     return true;
                 }
-                if event.matches(&keys.general.confirm) {
-                    let name = editor.text().to_string();
-                    if !name.is_empty() {
-                        let room = RoomIdentifier {
-                            // TODO Remove hardcoded domain
-                            domain: "euphoria.leet.nu".to_string(),
-                            name,
-                        };
-                        self.connect_to_room(room.clone()).await;
-                        self.state = State::ShowRoom(room);
-                    }
+                ConnectResult::Connect(room) => {
+                    self.connect_to_room(room.clone()).await;
+                    self.state = State::ShowRoom(room);
                     return true;
                 }
-                if util::handle_editor_input_event(editor, event, keys, Self::room_char) {
+                ConnectResult::Handled => {
                     return true;
                 }
-            }
+                ConnectResult::Unhandled => {}
+            },
             State::Delete(id, editor) => {
                 if event.matches(&keys.general.abort) {
                     self.state = State::ShowList;
@@ -607,7 +586,7 @@ impl Rooms {
                     self.state = State::ShowList;
                     return true;
                 }
-                if util::handle_editor_input_event(editor, event, keys, Self::room_char) {
+                if util::handle_editor_input_event(editor, event, keys, util::is_room_char) {
                     return true;
                 }
             }
