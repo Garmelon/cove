@@ -26,6 +26,7 @@ Procedure when bumping the version number:
 - The config file format was changed to support multiple euph servers with different domains.
   Options previously located at `euph.rooms.*` should be reviewed and moved to `euph.servers."euphoria.leet.nu".rooms.*`.
 - Tweaked F1 popup
+- Tweaked chat message editor when nick list is foused
 
 ### Fixed
 - Room deletion popup accepting any room name

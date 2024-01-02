@@ -148,8 +148,12 @@ where
             None => TreeBlockId::Bottom,
         };
 
-        // TODO Unhighlighted version when focusing on nick list
-        let widget = widgets::editor::<M>(indent, &self.context.nick, self.editor);
+        let widget = widgets::editor::<M>(
+            indent,
+            &self.context.nick,
+            self.context.focused,
+            self.editor,
+        );
         let widget = Self::predraw(widget, self.context.size, self.widthdb);
         let mut block = Block::new(id, widget, false);
 
@@ -167,7 +171,6 @@ where
             None => TreeBlockId::Bottom,
         };
 
-        // TODO Unhighlighted version when focusing on nick list
         let widget = widgets::pseudo::<M>(indent, &self.context.nick, self.editor);
         let widget = Self::predraw(widget, self.context.size, self.widthdb);
         Block::new(id, widget, false)

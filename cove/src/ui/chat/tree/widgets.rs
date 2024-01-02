@@ -116,10 +116,14 @@ pub fn msg_placeholder(
 pub fn editor<'a, M: ChatMsg>(
     indent: usize,
     nick: &str,
+    focus: bool,
     editor: &'a mut EditorState,
 ) -> Boxed<'a, Infallible> {
     let (nick, content) = M::edit(nick, editor.text());
-    let editor = editor.widget().with_highlight(|_| content);
+    let editor = editor
+        .widget()
+        .with_highlight(|_| content)
+        .with_focus(focus);
 
     Join5::horizontal(
         Seen::new(true).segment().with_fixed(true),
