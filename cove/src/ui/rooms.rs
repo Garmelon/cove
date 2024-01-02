@@ -1,4 +1,5 @@
 mod connect;
+mod delete;
 
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
@@ -12,7 +13,7 @@ use euphoxide::api::SessionType;
 use euphoxide::bot::instance::{Event, ServerConfig};
 use euphoxide::conn::{self, Joined};
 use tokio::sync::mpsc;
-use toss::widgets::{BoxedAsync, EditorState, Empty, Join2, Text};
+use toss::widgets::{BoxedAsync, Join2, Text};
 use toss::{Style, Styled, Widget, WidgetExt};
 
 use crate::euph;
@@ -20,16 +21,17 @@ use crate::macros::logging_unwrap;
 use crate::vault::{EuphVault, RoomIdentifier, Vault};
 
 use self::connect::{ConnectResult, ConnectState};
+use self::delete::{DeleteResult, DeleteState};
 
 use super::euph::room::EuphRoom;
-use super::widgets::{ListBuilder, ListState, Popup};
+use super::widgets::{ListBuilder, ListState};
 use super::{key_bindings, util, UiError, UiEvent};
 
 enum State {
     ShowList,
     ShowRoom(RoomIdentifier),
     Connect(ConnectState),
-    Delete(RoomIdentifier, EditorState),
+    Delete(DeleteState),
 }
 
 #[derive(Clone, Copy)]
@@ -254,59 +256,14 @@ impl Rooms {
                     .boxed_async()
             }
 
-            State::Delete(id, editor) => {
+            State::Delete(delete) => {
                 Self::rooms_widget(self.config, &mut self.list, self.order, &self.euph_rooms)
                     .await
-                    // TODO Respect domain
-                    .below(Self::delete_room_widget(id, editor))
+                    .below(delete.widget())
                     .desync()
                     .boxed_async()
             }
         }
-    }
-
-    fn delete_room_widget<'a>(
-        id: &RoomIdentifier,
-        editor: &'a mut EditorState,
-    ) -> impl Widget<UiError> + 'a {
-        let warn_style = Style::new().bold().red();
-        let room_style = Style::new().bold().blue();
-        let text = Styled::new_plain("Are you sure you want to delete ")
-            .then("&", room_style)
-            .then(&id.name, room_style)
-            .then_plain(" on the ")
-            .then(&id.domain, Style::new().grey())
-            .then_plain(" server?\n\n")
-            .then_plain("This will delete the entire room history from your vault. ")
-            .then_plain("To shrink your vault afterwards, run ")
-            .then("cove gc", Style::new().italic().grey())
-            .then_plain(".\n\n")
-            .then_plain("To confirm the deletion, ")
-            .then_plain("enter the full name of the room and press enter:");
-
-        let inner = Join2::vertical(
-            // The Join prevents the text from filling up the entire available
-            // space if the editor is wider than the text.
-            Join2::horizontal(
-                Text::new(text)
-                    .resize()
-                    .with_max_width(54)
-                    .segment()
-                    .with_growing(false),
-                Empty::new().segment(),
-            )
-            .segment(),
-            Join2::horizontal(
-                Text::new(("&", room_style)).segment().with_fixed(true),
-                editor
-                    .widget()
-                    .with_highlight(|s| Styled::new(s, room_style))
-                    .segment(),
-            )
-            .segment(),
-        );
-
-        Popup::new(inner, "Delete room").with_border_style(warn_style)
     }
 
     fn format_pbln(joined: &Joined) -> String {
@@ -525,7 +482,7 @@ impl Rooms {
         }
         if event.matches(&keys.rooms.action.delete) {
             if let Some(room) = self.list.selected() {
-                self.state = State::Delete(room.clone(), EditorState::new());
+                self.state = State::Delete(DeleteState::new(room.clone()));
             }
             return true;
         }
@@ -575,21 +532,22 @@ impl Rooms {
                 }
                 ConnectResult::Unhandled => {}
             },
-            State::Delete(id, editor) => {
-                if event.matches(&keys.general.abort) {
+            State::Delete(delete) => match delete.handle_input_event(event, keys) {
+                DeleteResult::Close => {
                     self.state = State::ShowList;
                     return true;
                 }
-                if event.matches(&keys.general.confirm) && editor.text() == id.name {
-                    self.euph_rooms.remove(id);
-                    logging_unwrap!(self.vault.euph().room(id.clone()).delete().await);
+                DeleteResult::Delete(room) => {
+                    self.euph_rooms.remove(&room);
+                    logging_unwrap!(self.vault.euph().room(room).delete().await);
                     self.state = State::ShowList;
                     return true;
                 }
-                if util::handle_editor_input_event(editor, event, keys, util::is_room_char) {
+                DeleteResult::Handled => {
                     return true;
                 }
-            }
+                DeleteResult::Unhandled => {}
+            },
         }
 
         false
