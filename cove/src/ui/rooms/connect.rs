@@ -70,7 +70,7 @@ impl ConnectState {
                 util::handle_editor_input_event(&mut self.name, event, keys, util::is_room_char)
             }
             Focus::Domain => {
-                util::handle_editor_input_event(&mut self.domain, event, keys, util::is_room_char)
+                util::handle_editor_input_event(&mut self.domain, event, keys, |c| c != '\n')
             }
         };
 
