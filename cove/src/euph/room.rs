@@ -9,7 +9,7 @@ use euphoxide::api::{
     UserId,
 };
 use euphoxide::bot::instance::{ConnSnapshot, Event, Instance, InstanceConfig};
-use euphoxide::conn::{self, ConnTx};
+use euphoxide::conn::{self, ConnTx, Joined};
 use log::{debug, error, info, warn};
 use tokio::select;
 use tokio::sync::oneshot;
@@ -34,6 +34,13 @@ impl State {
             Some(conn_tx)
         } else {
             None
+        }
+    }
+
+    pub fn joined(&self) -> Option<&Joined> {
+        match self {
+            Self::Connected(_, conn::State::Joined(joined)) => Some(joined),
+            _ => None,
         }
     }
 }

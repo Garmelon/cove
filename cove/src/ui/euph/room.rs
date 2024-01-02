@@ -134,10 +134,7 @@ impl EuphRoom {
     }
 
     pub fn room_state_joined(&self) -> Option<&Joined> {
-        match self.room_state() {
-            Some(euph::State::Connected(_, conn::State::Joined(ref joined))) => Some(joined),
-            _ => None,
-        }
+        self.room_state().and_then(|s| s.joined())
     }
 
     pub fn stopped(&self) -> bool {
@@ -216,17 +213,15 @@ impl EuphRoom {
 
         let room_state = self.room.as_ref().map(|room| room.state());
         let status_widget = self.status_widget(room_state).await;
-        let chat = if let Some(euph::State::Connected(_, conn::State::Joined(joined))) = room_state
-        {
-            Self::widget_with_nick_list(
+        let chat = match room_state.and_then(|s| s.joined()) {
+            Some(joined) => Self::widget_with_nick_list(
                 &mut self.chat,
                 status_widget,
                 &mut self.nick_list,
                 joined,
                 self.focus,
-            )
-        } else {
-            Self::widget_without_nick_list(&mut self.chat, status_widget)
+            ),
+            None => Self::widget_without_nick_list(&mut self.chat, status_widget),
         };
 
         let mut layers = vec![chat];
