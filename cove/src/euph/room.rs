@@ -1,4 +1,3 @@
-// TODO Stop if room does not exist (e.g. 404)
 // TODO Remove rl2dev-specific code
 
 use std::convert::Infallible;
@@ -141,7 +140,6 @@ impl Room {
                 self.log_request_canary = None;
             }
             Event::Stopped(_) => {
-                // TODO Remove room somewhere if this happens? If it doesn't already happen during stabilization
                 self.state = State::Stopped;
             }
         }

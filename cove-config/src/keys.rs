@@ -122,7 +122,6 @@ pub struct General {
     #[serde(default = "default::general::confirm")]
     pub confirm: KeyBinding,
     /// Advance focus.
-    // TODO Mention examples where this is used
     #[serde(default = "default::general::focus")]
     pub focus: KeyBinding,
     /// Show this help.

@@ -1,4 +1,3 @@
-// TODO Get rid of this macro as much as possible
 macro_rules! logging_unwrap {
     ($e:expr) => {
         match $e {
