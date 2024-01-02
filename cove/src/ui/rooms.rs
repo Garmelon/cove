@@ -596,14 +596,14 @@ impl Rooms {
                     return true;
                 }
             }
-            State::Delete(name, editor) => {
+            State::Delete(id, editor) => {
                 if event.matches(&keys.general.abort) {
                     self.state = State::ShowList;
                     return true;
                 }
-                if event.matches(&keys.general.confirm) {
-                    self.euph_rooms.remove(name);
-                    logging_unwrap!(self.vault.euph().room(name.clone()).delete().await);
+                if event.matches(&keys.general.confirm) && editor.text() == id.name {
+                    self.euph_rooms.remove(id);
+                    logging_unwrap!(self.vault.euph().room(id.clone()).delete().await);
                     self.state = State::ShowList;
                     return true;
                 }

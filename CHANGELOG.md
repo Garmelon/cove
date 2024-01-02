@@ -25,6 +25,9 @@ Procedure when bumping the version number:
 - The config file format was changed to support multiple euph servers with different domains.
   Options previously located at `euph.rooms.*` should be reviewed and moved to `euph.servers."euphoria.leet.nu".rooms.*`.
 
+### Fixed
+- Room deletion popup accepting any room name
+
 ## v0.7.1 - 2023-08-31
 
 ### Changed
