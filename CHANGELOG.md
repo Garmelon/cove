@@ -25,6 +25,7 @@ Procedure when bumping the version number:
 - The default euph domain is now https://euphoria.leet.nu/ everywhere
 - The config file format was changed to support multiple euph servers with different domains.
   Options previously located at `euph.rooms.*` should be reviewed and moved to `euph.servers."euphoria.leet.nu".rooms.*`.
+- Tweaked F1 popup
 
 ### Fixed
 - Room deletion popup accepting any room name

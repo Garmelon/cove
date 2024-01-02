@@ -79,7 +79,23 @@ pub fn widget<'a>(
         render_group_info(&mut list_builder, group_info);
     }
 
-    Popup::new(list_builder.build(list), "Key bindings")
+    let scroll_info_style = Style::new().grey().italic();
+    let scroll_info = Styled::new("(Scroll with ", scroll_info_style)
+        .and_then(format_binding(&config.keys.cursor.down))
+        .then(" and ", scroll_info_style)
+        .and_then(format_binding(&config.keys.cursor.up))
+        .then(")", scroll_info_style);
+
+    let inner = Join2::vertical(
+        list_builder.build(list).segment(),
+        Text::new(scroll_info)
+            .float()
+            .with_center_h()
+            .segment()
+            .with_growing(false),
+    );
+
+    Popup::new(inner, "Key bindings")
 }
 
 pub fn handle_input_event(
