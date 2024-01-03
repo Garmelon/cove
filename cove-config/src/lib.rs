@@ -89,12 +89,12 @@ pub struct Config {
     ///
     /// This option is interpreted as a POSIX TZ string. It is described here in
     /// further detail:
-    /// https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap08.html
+    /// <https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap08.html>
     ///
     /// On a normal system, the string `"localtime"` as well as any value from
     /// the "TZ identifier" column of the following wikipedia article should be
     /// valid TZ strings:
-    /// https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+    /// <https://en.wikipedia.org/wiki/List_of_tz_database_time_zones>
     ///
     /// If the `TZ` environment variable exists, it overrides this option. If
     /// neither exist, cove uses the system's local time zone.
