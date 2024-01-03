@@ -18,7 +18,7 @@ use self::tree::TreeViewState;
 use super::UiError;
 
 pub trait ChatMsg {
-    fn time(&self) -> OffsetDateTime;
+    fn time(&self) -> Option<OffsetDateTime>;
     fn styled(&self) -> (Styled, Styled);
     fn edit(nick: &str, content: &str) -> (Styled, Styled);
     fn pseudo(nick: &str, content: &str) -> (Styled, Styled);

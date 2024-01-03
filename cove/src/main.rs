@@ -131,6 +131,7 @@ fn update_config_with_args(config: &mut Config, args: &Args) {
 
 fn open_vault(config: &Config, dirs: &ProjectDirs) -> anyhow::Result<Vault> {
     let time_zone = util::load_time_zone(config.time_zone_ref())?;
+    let time_zone = Box::leak(Box::new(time_zone));
 
     let vault = if config.ephemeral {
         vault::launch_in_memory(time_zone)?

@@ -1,6 +1,7 @@
 use std::convert::Infallible;
 use std::env;
 
+use time::{OffsetDateTime, UtcOffset};
 use tz::{TimeZone, TzError};
 
 pub trait InfallibleExt {
@@ -34,4 +35,15 @@ pub fn load_time_zone(tz_string: Option<&str>) -> Result<TimeZone, TzError> {
         Some("localtime") | None => TimeZone::local(),
         Some(tz_string) => TimeZone::from_posix_tz(tz_string),
     }
+}
+
+pub fn convert_to_time_zone(tz: &TimeZone, time: OffsetDateTime) -> Option<OffsetDateTime> {
+    let utc_offset_in_seconds = tz
+        .find_local_time_type(time.unix_timestamp())
+        .ok()?
+        .ut_offset();
+
+    let utc_offset = UtcOffset::from_whole_seconds(utc_offset_in_seconds).ok()?;
+
+    Some(time.to_offset(utc_offset))
 }

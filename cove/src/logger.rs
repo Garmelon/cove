@@ -42,8 +42,8 @@ impl Msg for LogMsg {
 }
 
 impl ChatMsg for LogMsg {
-    fn time(&self) -> OffsetDateTime {
-        self.time
+    fn time(&self) -> Option<OffsetDateTime> {
+        Some(self.time)
     }
 
     fn styled(&self) -> (Styled, Styled) {

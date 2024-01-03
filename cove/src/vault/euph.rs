@@ -239,6 +239,8 @@ macro_rules! euph_room_vault_actions {
         $(
             struct $struct {
                 room: RoomIdentifier,
+                #[allow(unused)]
+                time_zone: &'static tz::TimeZone,
                 $( $arg: $arg_ty, )*
             }
         )*
@@ -248,6 +250,7 @@ macro_rules! euph_room_vault_actions {
                 pub async fn $fn(&self, $( $arg: $arg_ty, )* ) -> Result<$res, vault::tokio::Error<rusqlite::Error>> {
                     self.vault.vault.tokio_vault.execute($struct {
                         room: self.room.clone(),
+                        time_zone: self.vault.vault.time_zone,
                         $( $arg, )*
                     }).await
                 }
@@ -607,6 +610,7 @@ impl Action for GetMsg {
                         id: MessageId(row.get::<_, WSnowflake>(0)?.0),
                         parent: row.get::<_, Option<WSnowflake>>(1)?.map(|s| MessageId(s.0)),
                         time: row.get::<_, WTime>(2)?.0,
+                        time_zone: self.time_zone,
                         nick: row.get(3)?,
                         content: row.get(4)?,
                         seen: row.get(5)?,
@@ -700,6 +704,7 @@ impl Action for GetTree {
                         id: MessageId(row.get::<_, WSnowflake>(0)?.0),
                         parent: row.get::<_, Option<WSnowflake>>(1)?.map(|s| MessageId(s.0)),
                         time: row.get::<_, WTime>(2)?.0,
+                        time_zone: self.time_zone,
                         nick: row.get(3)?,
                         content: row.get(4)?,
                         seen: row.get(5)?,

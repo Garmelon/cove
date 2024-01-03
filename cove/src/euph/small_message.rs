@@ -4,6 +4,7 @@ use crossterm::style::Stylize;
 use euphoxide::api::{MessageId, Snowflake, Time};
 use time::OffsetDateTime;
 use toss::{Style, Styled};
+use tz::TimeZone;
 
 use crate::store::Msg;
 use crate::ui::ChatMsg;
@@ -207,6 +208,7 @@ pub struct SmallMessage {
     pub id: MessageId,
     pub parent: Option<MessageId>,
     pub time: Time,
+    pub time_zone: &'static TimeZone,
     pub nick: String,
     pub content: String,
     pub seen: bool,
@@ -270,8 +272,8 @@ impl Msg for SmallMessage {
 }
 
 impl ChatMsg for SmallMessage {
-    fn time(&self) -> OffsetDateTime {
-        self.time.0
+    fn time(&self) -> Option<OffsetDateTime> {
+        crate::util::convert_to_time_zone(self.time_zone, self.time.0)
     }
 
     fn styled(&self) -> (Styled, Styled) {

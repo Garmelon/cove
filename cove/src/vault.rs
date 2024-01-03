@@ -15,7 +15,7 @@ pub use self::euph::{EuphRoomVault, EuphVault, RoomIdentifier};
 #[derive(Debug, Clone)]
 pub struct Vault {
     tokio_vault: TokioVault,
-    time_zone: TimeZone,
+    time_zone: &'static TimeZone,
     ephemeral: bool,
 }
 
@@ -50,7 +50,7 @@ impl Vault {
 
 fn launch_from_connection(
     conn: Connection,
-    time_zone: TimeZone,
+    time_zone: &'static TimeZone,
     ephemeral: bool,
 ) -> rusqlite::Result<Vault> {
     conn.pragma_update(None, "foreign_keys", true)?;
@@ -64,7 +64,7 @@ fn launch_from_connection(
     })
 }
 
-pub fn launch(path: &Path, time_zone: TimeZone) -> rusqlite::Result<Vault> {
+pub fn launch(path: &Path, time_zone: &'static TimeZone) -> rusqlite::Result<Vault> {
     // If this fails, rusqlite will complain about not being able to open the db
     // file, which saves me from adding a separate vault error type.
     let _ = fs::create_dir_all(path.parent().expect("path to file"));
@@ -82,7 +82,7 @@ pub fn launch(path: &Path, time_zone: TimeZone) -> rusqlite::Result<Vault> {
     launch_from_connection(conn, time_zone, false)
 }
 
-pub fn launch_in_memory(time_zone: TimeZone) -> rusqlite::Result<Vault> {
+pub fn launch_in_memory(time_zone: &'static TimeZone) -> rusqlite::Result<Vault> {
     let conn = Connection::open_in_memory()?;
     launch_from_connection(conn, time_zone, true)
 }

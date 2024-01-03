@@ -58,7 +58,7 @@ pub fn msg<M: Msg + ChatMsg>(
 
     Join5::horizontal(
         Seen::new(msg.seen()).segment().with_fixed(true),
-        Time::new(Some(msg.time()), style_time(highlighted))
+        Time::new(msg.time(), style_time(highlighted))
             .padding()
             .with_right(1)
             .with_stretch(true)
