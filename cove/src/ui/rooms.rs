@@ -5,6 +5,7 @@ use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::iter;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use cove_config::{Config, Keys, RoomsSortOrder};
 use cove_input::InputEvent;
@@ -60,7 +61,9 @@ impl EuphServer {
         let cookies = logging_unwrap!(vault.cookies(domain.clone()).await);
         let config = ServerConfig::default()
             .domain(domain)
-            .cookies(Arc::new(Mutex::new(cookies)));
+            .cookies(Arc::new(Mutex::new(cookies)))
+            .timeout(Duration::from_secs(10));
+
         Self {
             config,
             next_instance_id: 0,

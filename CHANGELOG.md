@@ -29,6 +29,7 @@ Procedure when bumping the version number:
   Options previously located at `euph.rooms.*` should be reviewed and moved to `euph.servers."euphoria.leet.nu".rooms.*`.
 - Tweaked F1 popup
 - Tweaked chat message editor when nick list is foused
+- Reduced connection timeout from 30 seconds to 10 seconds
 
 ### Fixed
 - Room deletion popup accepting any room name
