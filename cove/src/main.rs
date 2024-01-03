@@ -129,14 +129,18 @@ fn update_config_with_args(config: &mut Config, args: &Args) {
     config.offline |= args.offline;
 }
 
-fn open_vault(config: &Config, dirs: &ProjectDirs) -> rusqlite::Result<Vault> {
-    if config.ephemeral {
-        vault::launch_in_memory()
+fn open_vault(config: &Config, dirs: &ProjectDirs) -> anyhow::Result<Vault> {
+    let time_zone = util::load_time_zone(config.time_zone_ref())?;
+
+    let vault = if config.ephemeral {
+        vault::launch_in_memory(time_zone)?
     } else {
         let data_dir = data_dir(config, dirs);
         eprintln!("Data dir:    {}", data_dir.to_string_lossy());
-        vault::launch(&data_dir.join("vault.db"))
-    }
+        vault::launch(&data_dir.join("vault.db"), time_zone)?
+    };
+
+    Ok(vault)
 }
 
 #[tokio::main]
