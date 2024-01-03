@@ -4,7 +4,7 @@ use std::io;
 use std::sync::Arc;
 
 pub use cove_macro::KeyGroup;
-use crossterm::event::{Event, KeyEvent};
+use crossterm::event::{Event, KeyEvent, KeyEventKind};
 use parking_lot::FairMutex;
 use toss::{Frame, Terminal, WidthDb};
 
@@ -58,11 +58,15 @@ impl<'a> InputEvent<'a> {
         }
     }
 
+    /// If the current event represents a key press, returns the [`KeyEvent`]
+    /// associated with that key press.
     pub fn key_event(&self) -> Option<KeyEvent> {
-        match &self.event {
-            Event::Key(event) => Some(*event),
-            _ => None,
+        if let Event::Key(event) = &self.event {
+            if matches!(event.kind, KeyEventKind::Press | KeyEventKind::Repeat) {
+                return Some(*event);
+            }
         }
+        None
     }
 
     pub fn paste_event(&self) -> Option<&str> {

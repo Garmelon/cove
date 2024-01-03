@@ -33,6 +33,7 @@ Procedure when bumping the version number:
 
 ### Fixed
 - Room deletion popup accepting any room name
+- Duplicated key presses on Windows
 
 ## v0.7.1 - 2023-08-31
 
