@@ -17,31 +17,16 @@ Here is an example config that changes a few different options:
 measure_widths = true
 rooms_sort_order = "importance"
 
-[euph.rooms.welcome]
-autojoin = true
-
-[euph.rooms.test]
-username = "badingle"
-force_username = true
-
-[euph.rooms.private]
-password = "foobar"
+[euph.servers."euphoria.leet.nu".rooms]
+welcome.autojoin = true
+test.username = "badingle"
+test.force_username = true
+private.password = "foobar"
 
 [keys]
 general.abort = ["esc", "ctrl+c"]
 general.exit = "ctrl+q"
 tree.action.fold_tree = "f"
-```
-
-If you want to configure lots of rooms, TOML lets you write this in a more
-compact way:
-
-```toml
-[euph.rooms]
-foo = { autojoin = true }
-bar = { autojoin = true }
-baz = { autojoin = true }
-private = { autojoin = true, password = "foobar" }
 ```
 
 ## Key bindings

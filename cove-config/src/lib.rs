@@ -49,7 +49,6 @@ pub struct Config {
     ///
     /// See also the `--ephemeral` command line option.
     #[serde(default)]
-    #[document(default = "`false`")]
     pub ephemeral: bool,
 
     /// Whether to measure the width of characters as displayed by the terminal
@@ -61,7 +60,6 @@ pub struct Config {
     ///
     /// See also the `--measure-graphemes` command line option.
     #[serde(default)]
-    #[document(default = "`false`")]
     pub measure_widths: bool,
 
     /// Whether to start in offline mode.
@@ -72,7 +70,6 @@ pub struct Config {
     ///
     /// See also the `--offline` command line option.
     #[serde(default)]
-    #[document(default = "`false`")]
     pub offline: bool,
 
     /// Initial sort order of rooms list.
@@ -86,7 +83,6 @@ pub struct Config {
     /// 2. rooms with unread messages before rooms without
     /// 3. alphabetic order
     #[serde(default)]
-    #[document(default = "`\"alphabet\"`")]
     pub rooms_sort_order: RoomsSortOrder,
 
     /// Time zone that chat timestamps should be displayed in.
@@ -108,7 +104,7 @@ pub struct Config {
     /// instead. However, you can still specify a path to a tz data file or a
     /// custom time zone string.
     #[serde(default)]
-    #[document(default = "$TZ or local time zone")]
+    #[document(default = "`$TZ` or local system time zone")]
     pub time_zone: Option<String>,
 
     #[serde(default)]
