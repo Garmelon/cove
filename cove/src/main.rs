@@ -26,6 +26,7 @@ mod version;
 
 use std::path::PathBuf;
 
+use anyhow::Context;
 use clap::Parser;
 use cove_config::doc::Document;
 use cove_config::Config;
@@ -130,7 +131,8 @@ fn update_config_with_args(config: &mut Config, args: &Args) {
 }
 
 fn open_vault(config: &Config, dirs: &ProjectDirs) -> anyhow::Result<Vault> {
-    let time_zone = util::load_time_zone(config.time_zone_ref())?;
+    let time_zone =
+        util::load_time_zone(config.time_zone_ref()).context("failed to load time zone")?;
     let time_zone = Box::leak(Box::new(time_zone));
 
     let vault = if config.ephemeral {
