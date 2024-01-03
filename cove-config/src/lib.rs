@@ -77,17 +77,39 @@ pub struct Config {
 
     /// Initial sort order of rooms list.
     ///
-    /// `alphabet` sorts rooms in alphabetic order.
+    /// `"alphabet"` sorts rooms in alphabetic order.
     ///
-    /// `importance` sorts rooms by the following criteria (in descending order
-    /// of priority):
+    /// `"importance"` sorts rooms by the following criteria (in descending
+    /// order of priority):
     ///
     /// 1. connected rooms before unconnected rooms
     /// 2. rooms with unread messages before rooms without
     /// 3. alphabetic order
     #[serde(default)]
-    #[document(default = "`alphabet`")]
+    #[document(default = "`\"alphabet\"`")]
     pub rooms_sort_order: RoomsSortOrder,
+
+    /// Time zone that chat timestamps should be displayed in.
+    ///
+    /// This option is interpreted as a POSIX TZ string. It is described here in
+    /// further detail:
+    /// https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap08.html
+    ///
+    /// On a normal system, the string `"localtime"` as well as any value from
+    /// the "TZ identifier" column of the following wikipedia article should be
+    /// valid TZ strings:
+    /// https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+    ///
+    /// If the option is not specified, cove uses the contents of the `TZ`
+    /// environment variable instead. If the `TZ` environment variable does not
+    /// exist, cove uses the system's local time zone.
+    ///
+    /// **Warning:** On Windows, cove can't get the local time zone and uses UTC
+    /// instead. However, you can still specify a path to a tz data file or a
+    /// custom time zone string.
+    #[serde(default)]
+    #[document(default = "$TZ or local time zone")]
+    pub time_zone: Option<String>,
 
     #[serde(default)]
     #[document(no_default)]
@@ -114,5 +136,9 @@ impl Config {
             }
         }
         EuphRoom::default()
+    }
+
+    pub fn time_zone_ref(&self) -> Option<&str> {
+        self.time_zone.as_ref().map(|s| s as &str)
     }
 }

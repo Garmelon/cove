@@ -17,6 +17,7 @@ Procedure when bumping the version number:
 
 ### Added
 - Support for multiple euph server domains
+- `time_zone` config option
 - `--domain` option to `cove export` command
 - `--domain` option to `cove clear-cookies` command
 - Domain field to "connect to new room" popup
