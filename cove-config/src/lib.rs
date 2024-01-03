@@ -96,9 +96,8 @@ pub struct Config {
     /// valid TZ strings:
     /// https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
     ///
-    /// If the option is not specified, cove uses the contents of the `TZ`
-    /// environment variable instead. If the `TZ` environment variable does not
-    /// exist, cove uses the system's local time zone.
+    /// If the `TZ` environment variable exists, it overrides this option. If
+    /// neither exist, cove uses the system's local time zone.
     ///
     /// **Warning:** On Windows, cove can't get the local time zone and uses UTC
     /// instead. However, you can still specify a path to a tz data file or a
