@@ -287,7 +287,8 @@ impl EuphRoom {
 
     async fn status_widget(&self, state: Option<&euph::State>) -> impl Widget<UiError> {
         let room_style = Style::new().bold().blue();
-        let mut info = Styled::new(format!("&{}", self.name()), room_style);
+        let mut info = Styled::new(format!("{} ", self.domain()), Style::new().grey())
+            .then(format!("&{}", self.name()), room_style);
 
         info = match state {
             None | Some(euph::State::Stopped) => info.then_plain(", archive"),
@@ -309,8 +310,6 @@ impl EuphRoom {
                 }
             }
         };
-
-        info = info.then(format!(" - {}", self.domain()), Style::new().grey());
 
         let unseen = self.unseen_msgs_count().await;
         if unseen > 0 {

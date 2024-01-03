@@ -356,10 +356,9 @@ impl Rooms {
 
     fn sort_rooms(rooms: &mut [(&RoomIdentifier, Option<&euph::State>, usize)], order: Order) {
         match order {
-            Order::Alphabet => rooms.sort_unstable_by_key(|(id, _, _)| (&id.name, &id.domain)),
-            Order::Importance => rooms.sort_unstable_by_key(|(id, state, unseen)| {
-                (state.is_none(), *unseen == 0, &id.name, &id.domain)
-            }),
+            Order::Alphabet => rooms.sort_unstable_by_key(|(id, _, _)| *id),
+            Order::Importance => rooms
+                .sort_unstable_by_key(|(id, state, unseen)| (state.is_none(), *unseen == 0, *id)),
         }
     }
 
@@ -379,15 +378,21 @@ impl Rooms {
             let id = id.clone();
             let info = Self::format_room_info(state, unseen);
             list_builder.add_sel(id.clone(), move |selected| {
-                let style = if selected {
+                let domain_style = if selected {
+                    Style::new().black().on_white()
+                } else {
+                    Style::new().grey()
+                };
+
+                let room_style = if selected {
                     Style::new().bold().black().on_white()
                 } else {
                     Style::new().bold().blue()
                 };
 
-                let text = Styled::new(format!("&{}", id.name), style)
-                    .and_then(info)
-                    .then(format!(" - {}", id.domain), Style::new().grey());
+                let text = Styled::new(format!("{} ", id.domain), domain_style)
+                    .then(format!("&{}", id.name), room_style)
+                    .and_then(info);
 
                 Text::new(text)
             });
