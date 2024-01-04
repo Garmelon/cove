@@ -15,8 +15,11 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+## v0.8.0 - 2024-01-04
+
 ### Added
 - Support for multiple euph server domains
+- Support for `TZ` environment variable
 - `time_zone` config option
 - `--domain` option to `cove export` command
 - `--domain` option to `cove clear-cookies` command

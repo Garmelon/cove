@@ -8,31 +8,16 @@ Here is an example config that changes a few different options:
 measure_widths = true
 rooms_sort_order = "importance"
 
-[euph.rooms.welcome]
-autojoin = true
-
-[euph.rooms.test]
-username = "badingle"
-force_username = true
-
-[euph.rooms.private]
-password = "foobar"
+[euph.servers."euphoria.leet.nu".rooms]
+welcome.autojoin = true
+test.username = "badingle"
+test.force_username = true
+private.password = "foobar"
 
 [keys]
 general.abort = ["esc", "ctrl+c"]
 general.exit = "ctrl+q"
 tree.action.fold_tree = "f"
-```
-
-If you want to configure lots of rooms, TOML lets you write this in a more
-compact way:
-
-```toml
-[euph.rooms]
-foo = { autojoin = true }
-bar = { autojoin = true }
-baz = { autojoin = true }
-private = { autojoin = true, password = "foobar" }
 ```
 
 ## Key bindings
@@ -94,7 +79,7 @@ any options related to the data dir.
 
 See also the `--ephemeral` command line option.
 
-### `euph.rooms.<room>.autojoin`
+### `euph.servers.<domain>.rooms.<room>.autojoin`
 
 **Required:** yes  
 **Type:** boolean  
@@ -102,7 +87,7 @@ See also the `--ephemeral` command line option.
 
 Whether to automatically join this room on startup.
 
-### `euph.rooms.<room>.force_username`
+### `euph.servers.<domain>.rooms.<room>.force_username`
 
 **Required:** yes  
 **Type:** boolean  
@@ -112,7 +97,7 @@ If `euph.rooms.<room>.username` is set, this will force cove to set the
 username even if there is already a different username associated with
 the current session.
 
-### `euph.rooms.<room>.password`
+### `euph.servers.<domain>.rooms.<room>.password`
 
 **Required:** no  
 **Type:** string
@@ -120,7 +105,7 @@ the current session.
 If set, cove will try once to use this password to authenticate, should
 the room be password-protected.
 
-### `euph.rooms.<room>.username`
+### `euph.servers.<domain>.rooms.<room>.username`
 
 **Required:** no  
 **Type:** string
@@ -642,15 +627,39 @@ See also the `--offline` command line option.
 **Required:** yes  
 **Type:** string  
 **Values:** `"alphabet"`, `"importance"`  
-**Default:** `alphabet`
+**Default:** `"alphabet"`
 
 Initial sort order of rooms list.
 
-`alphabet` sorts rooms in alphabetic order.
+`"alphabet"` sorts rooms in alphabetic order.
 
-`importance` sorts rooms by the following criteria (in descending order
-of priority):
+`"importance"` sorts rooms by the following criteria (in descending
+order of priority):
 
 1. connected rooms before unconnected rooms
 2. rooms with unread messages before rooms without
 3. alphabetic order
+
+### `time_zone`
+
+**Required:** no  
+**Type:** string  
+**Default:** `$TZ` or local system time zone
+
+Time zone that chat timestamps should be displayed in.
+
+This option is interpreted as a POSIX TZ string. It is described here in
+further detail:
+<https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap08.html>
+
+On a normal system, the string `"localtime"` as well as any value from
+the "TZ identifier" column of the following wikipedia article should be
+valid TZ strings:
+<https://en.wikipedia.org/wiki/List_of_tz_database_time_zones>
+
+If the `TZ` environment variable exists, it overrides this option. If
+neither exist, cove uses the system's local time zone.
+
+**Warning:** On Windows, cove can't get the local time zone and uses UTC
+instead. However, you can still specify a path to a tz data file or a
+custom time zone string.
