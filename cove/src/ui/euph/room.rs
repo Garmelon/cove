@@ -382,18 +382,6 @@ impl EuphRoom {
             _ => {}
         }
 
-        // Always applicable
-        if event.matches(&keys.room.action.present) {
-            let link = format!("https://plugh.de/present/{}/", self.name());
-            if let Err(error) = open::that(&link) {
-                self.popups.push_front(RoomPopup::Error {
-                    description: format!("Failed to open link: {link}"),
-                    reason: format!("{error}"),
-                });
-            }
-            return true;
-        }
-
         false
     }
 

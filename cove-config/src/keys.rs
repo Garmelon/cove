@@ -81,7 +81,6 @@ default_bindings! {
         pub fn nick => ["n"];
         pub fn more_messages => ["m"];
         pub fn account => ["A"];
-        pub fn present => ["ctrl+p"];
     }
 
     pub mod tree_cursor {
@@ -286,9 +285,6 @@ pub struct RoomAction {
     /// Manage account.
     #[serde(default = "default::room_action::account")]
     pub account: KeyBinding,
-    /// Open room's plugh.de/present page.
-    #[serde(default = "default::room_action::present")]
-    pub present: KeyBinding,
 }
 
 #[derive(Debug, Default, Deserialize, Document)]

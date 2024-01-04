@@ -15,6 +15,9 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Removed
+- Key binding to open present page
+
 ## v0.8.0 - 2024-01-04
 
 ### Added
