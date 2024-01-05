@@ -17,7 +17,7 @@ thiserror = "1.0.56"
 
 [workspace.dependencies.toss]
 git = "https://github.com/Garmelon/toss.git"
-tag = "v0.2.0"
+tag = "v0.2.1"
 
 [profile.dev.package."*"]
 opt-level = 3

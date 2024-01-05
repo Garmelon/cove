@@ -319,7 +319,17 @@ impl EuphRoom {
                 .then_plain(")");
         }
 
-        Text::new(info).padding().with_horizontal(1).border()
+        let title = if unseen > 0 {
+            format!("&{} ({unseen})", self.name())
+        } else {
+            format!("&{}", self.name())
+        };
+
+        Text::new(info)
+            .padding()
+            .with_horizontal(1)
+            .border()
+            .title(title)
     }
 
     async fn handle_chat_input_event(&mut self, event: &mut InputEvent<'_>, keys: &Keys) -> bool {

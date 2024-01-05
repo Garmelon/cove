@@ -15,6 +15,10 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Added
+- Support for setting window title
+- More information to room list heading
+
 ### Removed
 - Key binding to open present page
 

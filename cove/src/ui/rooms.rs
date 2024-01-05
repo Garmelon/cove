@@ -237,12 +237,16 @@ impl Rooms {
         }
 
         match &mut self.state {
-            State::ShowList => {
-                Self::rooms_widget(self.config, &mut self.list, self.order, &self.euph_rooms)
-                    .await
-                    .desync()
-                    .boxed_async()
-            }
+            State::ShowList => Self::rooms_widget(
+                &self.vault,
+                self.config,
+                &mut self.list,
+                self.order,
+                &self.euph_rooms,
+            )
+            .await
+            .desync()
+            .boxed_async(),
 
             State::ShowRoom(id) => {
                 self.euph_rooms
@@ -252,21 +256,29 @@ impl Rooms {
                     .await
             }
 
-            State::Connect(connect) => {
-                Self::rooms_widget(self.config, &mut self.list, self.order, &self.euph_rooms)
-                    .await
-                    .below(connect.widget())
-                    .desync()
-                    .boxed_async()
-            }
+            State::Connect(connect) => Self::rooms_widget(
+                &self.vault,
+                self.config,
+                &mut self.list,
+                self.order,
+                &self.euph_rooms,
+            )
+            .await
+            .below(connect.widget())
+            .desync()
+            .boxed_async(),
 
-            State::Delete(delete) => {
-                Self::rooms_widget(self.config, &mut self.list, self.order, &self.euph_rooms)
-                    .await
-                    .below(delete.widget())
-                    .desync()
-                    .boxed_async()
-            }
+            State::Delete(delete) => Self::rooms_widget(
+                &self.vault,
+                self.config,
+                &mut self.list,
+                self.order,
+                &self.euph_rooms,
+            )
+            .await
+            .below(delete.widget())
+            .desync()
+            .boxed_async(),
         }
     }
 
@@ -400,6 +412,7 @@ impl Rooms {
     }
 
     async fn rooms_widget<'a>(
+        vault: &Vault,
         config: &Config,
         list: &'a mut ListState<RoomIdentifier>,
         order: Order,
@@ -419,8 +432,24 @@ impl Rooms {
         .with_horizontal(1)
         .border();
 
-        let heading = Styled::new("Rooms", Style::new().bold())
-            .then_plain(format!(" ({})", euph_rooms.len()));
+        let mut heading = Styled::new("Rooms", Style::new().bold());
+        let mut title = "Rooms".to_string();
+
+        let total_rooms = euph_rooms.len();
+        let connected_rooms = euph_rooms
+            .iter()
+            .filter(|r| r.1.room_state().is_some())
+            .count();
+        let total_unseen = logging_unwrap!(vault.euph().total_unseen_msgs_count().await);
+        if total_unseen > 0 {
+            heading = heading
+                .then_plain(format!(" ({connected_rooms}/{total_rooms}, "))
+                .then(format!("{total_unseen}"), Style::new().bold().green())
+                .then_plain(")");
+            title.push_str(&format!(" ({total_unseen})"));
+        } else {
+            heading = heading.then_plain(format!(" ({connected_rooms}/{total_rooms})"))
+        }
 
         let mut list_builder = ListBuilder::new();
         Self::render_rows(&mut list_builder, order, euph_rooms).await;
@@ -435,6 +464,7 @@ impl Rooms {
                 .segment()
                 .with_growing(false),
         )
+        .title(title)
     }
 
     async fn handle_showlist_input_event(

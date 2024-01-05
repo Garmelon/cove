@@ -115,6 +115,7 @@ euph_vault_actions! {
     SetCookies : set_cookies(domain: String, cookies: CookieJar) -> ();
     ClearCookies : clear_cookies(domain: Option<String>) -> ();
     GetRooms : rooms() -> Vec<RoomIdentifier>;
+    GetTotalUnseenMsgsCount : total_unseen_msgs_count() -> usize;
 }
 
 impl Action for GetCookies {
@@ -209,6 +210,21 @@ impl Action for GetRooms {
             })
         })?
         .collect::<rusqlite::Result<_>>()
+    }
+}
+
+impl Action for GetTotalUnseenMsgsCount {
+    type Output = usize;
+    type Error = rusqlite::Error;
+
+    fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
+        conn.prepare(
+            "
+                SELECT COALESCE(SUM(amount), 0)
+                FROM euph_unseen_counts
+                ",
+        )?
+        .query_row([], |row| row.get(0))
     }
 }
 
