@@ -72,6 +72,7 @@ pub struct TreeContext<Id> {
     pub size: Size,
     pub nick: String,
     pub focused: bool,
+    pub caesar: i8,
     pub last_cursor: Cursor<Id>,
     pub last_cursor_top: i32,
 }
@@ -190,7 +191,7 @@ where
         };
         let highlighted = highlighted && self.context.focused;
 
-        let widget = widgets::msg(highlighted, indent, msg, folded_info);
+        let widget = widgets::msg(highlighted, indent, msg, self.context.caesar, folded_info);
         let widget = Self::predraw(widget, self.context.size, self.widthdb);
         Block::new(TreeBlockId::Msg(msg_id), widget, true)
     }

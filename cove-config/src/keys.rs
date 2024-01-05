@@ -104,6 +104,8 @@ default_bindings! {
         pub fn mark_older_seen => ["ctrl+s"];
         pub fn info => ["i"];
         pub fn links => ["I"];
+        pub fn increase_caesar => ["c"];
+        pub fn decrease_caesar => ["C"];
     }
 
 }
@@ -354,6 +356,12 @@ pub struct TreeAction {
     /// List links found in message.
     #[serde(default = "default::tree_action::links")]
     pub links: KeyBinding,
+    /// Increase caesar cipher rotation.
+    #[serde(default = "default::tree_action::increase_caesar")]
+    pub increase_caesar: KeyBinding,
+    /// Decrease caesar cipher rotation.
+    #[serde(default = "default::tree_action::decrease_caesar")]
+    pub decrease_caesar: KeyBinding,
 }
 
 #[derive(Debug, Default, Deserialize, Document)]

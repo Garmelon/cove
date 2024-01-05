@@ -7,6 +7,7 @@ use toss::{Style, Styled, WidgetExt};
 use crate::store::Msg;
 use crate::ui::chat::widgets::{Indent, Seen, Time};
 use crate::ui::ChatMsg;
+use crate::util;
 
 pub const PLACEHOLDER: &str = "[...]";
 
@@ -30,6 +31,10 @@ fn style_indent(highlighted: bool) -> Style {
     }
 }
 
+fn style_caesar() -> Style {
+    Style::new().green()
+}
+
 fn style_info() -> Style {
     Style::new().italic().dark_grey()
 }
@@ -46,9 +51,18 @@ pub fn msg<M: Msg + ChatMsg>(
     highlighted: bool,
     indent: usize,
     msg: &M,
+    caesar: i8,
     folded_info: Option<usize>,
 ) -> Boxed<'static, Infallible> {
     let (nick, mut content) = msg.styled();
+
+    if caesar != 0 {
+        // Apply caesar in inverse because we're decoding
+        let rotated = util::caesar(content.text(), -caesar);
+        content = content
+            .then_plain("\n")
+            .then(format!("{rotated} [rot{caesar}]"), style_caesar());
+    }
 
     if let Some(amount) = folded_info {
         content = content

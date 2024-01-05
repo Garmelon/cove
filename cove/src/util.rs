@@ -48,3 +48,22 @@ pub fn convert_to_time_zone(tz: &TimeZone, time: OffsetDateTime) -> Option<Offse
 
     Some(time.to_offset(utc_offset))
 }
+
+pub fn caesar(text: &str, by: i8) -> String {
+    let by = by.rem_euclid(26) as u8;
+    text.chars()
+        .map(|c| {
+            if c.is_ascii_lowercase() {
+                let c = c as u8 - b'a';
+                let c = (c + by) % 26;
+                (c + b'a') as char
+            } else if c.is_ascii_uppercase() {
+                let c = c as u8 - b'A';
+                let c = (c + by) % 26;
+                (c + b'A') as char
+            } else {
+                c
+            }
+        })
+        .collect()
+}

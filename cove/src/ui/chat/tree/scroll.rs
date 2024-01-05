@@ -20,6 +20,7 @@ where
             size: self.last_size,
             nick: self.last_nick.clone(),
             focused: true,
+            caesar: 0,
             last_cursor: self.last_cursor.clone(),
             last_cursor_top: self.last_cursor_top,
         }

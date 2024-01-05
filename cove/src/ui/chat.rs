@@ -11,6 +11,7 @@ use toss::widgets::{BoxedAsync, EditorState};
 use toss::{Styled, WidgetExt};
 
 use crate::store::{Msg, MsgStore};
+use crate::util;
 
 use self::cursor::Cursor;
 use self::tree::TreeViewState;
@@ -33,6 +34,7 @@ pub struct ChatState<M: Msg, S: MsgStore<M>> {
 
     cursor: Cursor<M::Id>,
     editor: EditorState,
+    caesar: i8,
 
     mode: Mode,
     tree: TreeViewState<M, S>,
@@ -43,6 +45,7 @@ impl<M: Msg, S: MsgStore<M> + Clone> ChatState<M, S> {
         Self {
             cursor: Cursor::Bottom,
             editor: EditorState::new(),
+            caesar: 0,
 
             mode: Mode::Tree,
             tree: TreeViewState::new(store.clone()),
@@ -68,7 +71,13 @@ impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
         match self.mode {
             Mode::Tree => self
                 .tree
-                .widget(&mut self.cursor, &mut self.editor, nick, focused)
+                .widget(
+                    &mut self.cursor,
+                    &mut self.editor,
+                    nick,
+                    focused,
+                    self.caesar,
+                )
                 .boxed_async(),
         }
     }
@@ -85,7 +94,7 @@ impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
         S: Send + Sync,
         S::Error: Send,
     {
-        match self.mode {
+        let reaction = match self.mode {
             Mode::Tree => {
                 self.tree
                     .handle_input_event(
@@ -95,9 +104,28 @@ impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
                         &mut self.editor,
                         can_compose,
                     )
-                    .await
+                    .await?
             }
-        }
+        };
+
+        Ok(match reaction {
+            Reaction::Composed { parent, content } if self.caesar != 0 => {
+                let content = util::caesar(&content, self.caesar);
+                Reaction::Composed { parent, content }
+            }
+
+            Reaction::NotHandled if event.matches(&keys.tree.action.increase_caesar) => {
+                self.caesar = (self.caesar + 1).rem_euclid(26);
+                Reaction::Handled
+            }
+
+            Reaction::NotHandled if event.matches(&keys.tree.action.decrease_caesar) => {
+                self.caesar = (self.caesar - 1).rem_euclid(26);
+                Reaction::Handled
+            }
+
+            reaction => reaction,
+        })
     }
 
     pub fn cursor(&self) -> Option<&M::Id> {

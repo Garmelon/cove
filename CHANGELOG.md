@@ -18,6 +18,7 @@ Procedure when bumping the version number:
 ### Added
 - Support for setting window title
 - More information to room list heading
+- Key bindings for live caesar cipher de- and encoding
 
 ### Removed
 - Key binding to open present page
