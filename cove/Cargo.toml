@@ -14,7 +14,7 @@ toss = { workspace = true }
 
 anyhow = "1.0.79"
 async-trait = "0.1.77"
-clap = { version = "4.4.12", features = ["derive", "deprecated"] }
+clap = { version = "4.4.14", features = ["derive", "deprecated"] }
 cookie = "0.18.0"
 directories = "5.0.1"
 linkify = "0.10.0"
