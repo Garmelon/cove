@@ -321,14 +321,6 @@ Download more messages.
 
 Change nick.
 
-### `keys.room.action.present`
-
-**Required:** yes  
-**Type:** key binding  
-**Default:** `"ctrl+p"`
-
-Open room's plugh.de/present page.
-
 ### `keys.rooms.action.change_sort_order`
 
 **Required:** yes  
@@ -457,6 +449,14 @@ Scroll up half a screen.
 
 Scroll up one line.
 
+### `keys.tree.action.decrease_caesar`
+
+**Required:** yes  
+**Type:** key binding  
+**Default:** `"C"`
+
+Decrease caesar cipher rotation.
+
 ### `keys.tree.action.fold_tree`
 
 **Required:** yes  
@@ -464,6 +464,14 @@ Scroll up one line.
 **Default:** `"space"`
 
 Fold current message's subtree.
+
+### `keys.tree.action.increase_caesar`
+
+**Required:** yes  
+**Type:** key binding  
+**Default:** `"c"`
+
+Increase caesar cipher rotation.
 
 ### `keys.tree.action.inspect`
 

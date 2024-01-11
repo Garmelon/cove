@@ -15,6 +15,8 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+## v0.8.1 - 2024-01-11
+
 ### Added
 - Support for setting window title
 - More information to room list heading
