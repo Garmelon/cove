@@ -194,7 +194,7 @@ fn m3(tx: &mut Transaction<'_>, nr: usize, total: usize) -> rusqlite::Result<()>
         ",
     )?;
 
-    eprintln!("  Recreating indices...");
+    eprintln!("  Recreating indexes...");
     tx.execute_batch(
         "
         CREATE INDEX euph_idx_msgs_domain_room_id_parent
