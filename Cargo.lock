@@ -1477,8 +1477,8 @@ dependencies = [
 
 [[package]]
 name = "toss"
-version = "0.2.1"
-source = "git+https://github.com/Garmelon/toss.git?tag=v0.2.1#b01ee297d5bdbb3b28cafe2b5b130c2767667974"
+version = "0.2.2"
+source = "git+https://github.com/Garmelon/toss.git?tag=v0.2.2#761e8baeba09b923e2a409ea7df7bb363fc77fd5"
 dependencies = [
  "async-trait",
  "crossterm",

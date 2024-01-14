@@ -25,6 +25,9 @@ Procedure when bumping the version number:
 ### Removed
 - Key binding to open present page
 
+### Fixed
+- Crash when window is too small while empty message editor is visible
+
 ## v0.8.0 - 2024-01-04
 
 ### Added
