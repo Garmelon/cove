@@ -58,7 +58,7 @@ pub struct Config {
     /// might also flash when encountering new characters (or, more accurately,
     /// graphemes).
     ///
-    /// See also the `--measure-graphemes` command line option.
+    /// See also the `--measure-widths` command line option.
     #[serde(default)]
     pub measure_widths: bool,
 

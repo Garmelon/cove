@@ -15,6 +15,10 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Fixed
+- Crash when window is too small while empty message editor is visible
+- Mistakes in output and docs
+
 ## v0.8.1 - 2024-01-11
 
 ### Added
@@ -24,9 +28,6 @@ Procedure when bumping the version number:
 
 ### Removed
 - Key binding to open present page
-
-### Fixed
-- Crash when window is too small while empty message editor is visible
 
 ## v0.8.0 - 2024-01-04
 
