@@ -14,8 +14,9 @@ pub enum Format {
     Text,
     /// Array of message objects in the same format as the euphoria API uses.
     Json,
-    /// Message objects in the same format as the euphoria API uses, one per line.
-    JsonStream,
+    /// Message objects in the same format as the euphoria API uses, one per
+    /// line (https://jsonlines.org/).
+    JsonLines,
 }
 
 impl Format {
@@ -23,14 +24,15 @@ impl Format {
         match self {
             Self::Text => "text",
             Self::Json => "json",
-            Self::JsonStream => "json stream",
+            Self::JsonLines => "json lines",
         }
     }
 
     fn extension(&self) -> &'static str {
         match self {
             Self::Text => "txt",
-            Self::Json | Self::JsonStream => "json",
+            Self::Json => "json",
+            Self::JsonLines => "jsonl",
         }
     }
 }
@@ -78,7 +80,7 @@ async fn export_room<W: Write>(
     match format {
         Format::Text => text::export(vault, out).await?,
         Format::Json => json::export(vault, out).await?,
-        Format::JsonStream => json::export_stream(vault, out).await?,
+        Format::JsonLines => json::export_lines(vault, out).await?,
     }
     Ok(())
 }

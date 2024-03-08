@@ -37,7 +37,7 @@ pub async fn export<W: Write>(vault: &EuphRoomVault, file: &mut W) -> anyhow::Re
     Ok(())
 }
 
-pub async fn export_stream<W: Write>(vault: &EuphRoomVault, file: &mut W) -> anyhow::Result<()> {
+pub async fn export_lines<W: Write>(vault: &EuphRoomVault, file: &mut W) -> anyhow::Result<()> {
     let mut total = 0;
     let mut last_msg_id = None;
     loop {

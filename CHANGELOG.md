@@ -15,6 +15,10 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Changed
+- Renamed `json-stream` export format to `json-lines` (see <https://jsonlines.org/>)
+- Changed `json-lines` file extension from `.json` to `.jsonl`
+
 ### Fixed
 - Crash when window is too small while empty message editor is visible
 - Mistakes in output and docs
