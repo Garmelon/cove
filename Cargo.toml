@@ -9,13 +9,13 @@ edition = "2021"
 [workspace.dependencies]
 crossterm = "0.27.0"
 parking_lot = "0.12.1"
-serde = { version = "1.0.195", features = ["derive"] }
+serde = { version = "1.0.198", features = ["derive"] }
 serde_either = "0.2.1"
-thiserror = "1.0.56"
+thiserror = "1.0.59"
 
 [workspace.dependencies.toss]
 git = "https://github.com/Garmelon/toss.git"
-tag = "v0.2.2"
+tag = "v0.2.3"
 
 [workspace.lints]
 rust.unsafe_code = "forbid"

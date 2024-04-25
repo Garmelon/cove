@@ -22,6 +22,7 @@ Procedure when bumping the version number:
 ### Fixed
 - Crash when window is too small while empty message editor is visible
 - Mistakes in output and docs
+- Cove not cleaning up terminal state properly
 
 ## v0.8.1 - 2024-01-11
 
