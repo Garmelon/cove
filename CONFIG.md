@@ -614,7 +614,7 @@ Enabling this makes rendering a bit slower but more accurate. The screen
 might also flash when encountering new characters (or, more accurately,
 graphemes).
 
-See also the `--measure-graphemes` command line option.
+See also the `--measure-widths` command line option.
 
 ### `offline`
 

@@ -3,7 +3,7 @@ resolver = "2"
 members = ["cove", "cove-*"]
 
 [workspace.package]
-version = "0.8.1"
+version = "0.8.2"
 edition = "2021"
 
 [workspace.dependencies]

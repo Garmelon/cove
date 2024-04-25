@@ -15,6 +15,8 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+## v0.8.2 - 2024-04-25
+
 ### Changed
 - Renamed `json-stream` export format to `json-lines` (see <https://jsonlines.org/>)
 - Changed `json-lines` file extension from `.json` to `.jsonl`
