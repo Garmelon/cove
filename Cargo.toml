@@ -19,5 +19,14 @@ thiserror = "1.0.56"
 git = "https://github.com/Garmelon/toss.git"
 tag = "v0.2.2"
 
+[workspace.lints]
+rust.unsafe_code = "forbid"
+rust.future_incompatible = "warn"
+rust.rust_2018_idioms = "warn"
+rust.unused = "warn"
+rust.noop_method_call = "warn"
+rust.single_use_lifetimes = "warn"
+clippy.use_self = "warn"
+
 [profile.dev.package."*"]
 opt-level = 3

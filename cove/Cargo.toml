@@ -45,3 +45,6 @@ features = ["bot"]
 git = "https://github.com/Garmelon/vault.git"
 tag = "v0.3.0"
 features = ["tokio"]
+
+[lints]
+workspace = true
