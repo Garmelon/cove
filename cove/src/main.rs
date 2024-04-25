@@ -1,6 +1,4 @@
-// TODO Enable warn(unreachable_pub)?
 // TODO Remove unnecessary Debug impls and compare compile times
-// TODO Time zones other than UTC
 // TODO Invoke external notification command?
 
 mod euph;

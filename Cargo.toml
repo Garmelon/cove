@@ -1,5 +1,3 @@
-# TODO Configure lints in here
-
 [workspace]
 resolver = "2"
 members = ["cove", "cove-*"]
