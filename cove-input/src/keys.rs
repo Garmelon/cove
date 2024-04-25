@@ -151,7 +151,7 @@ impl FromStr for KeyPress {
         let mut parts = s.split('+');
         let code = parts.next_back().ok_or(ParseKeysError::NoKeyCode)?;
 
-        let mut keys = KeyPress::parse_key_code(code)?;
+        let mut keys = Self::parse_key_code(code)?;
         let shift_allowed = !conflicts_with_shift(keys.code);
         for modifier in parts {
             keys.parse_modifier(modifier, shift_allowed)?;
