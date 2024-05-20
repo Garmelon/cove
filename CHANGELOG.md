@@ -15,6 +15,11 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+## v0.8.3 - 2024-05-20
+
+### Changed
+- Updated list of emoji names
+
 ## v0.8.2 - 2024-04-25
 
 ### Changed
