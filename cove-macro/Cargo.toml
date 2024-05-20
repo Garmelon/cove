@@ -5,9 +5,9 @@ edition = { workspace = true }
 
 [dependencies]
 case = "1.0.0"
-proc-macro2 = "1.0.81"
+proc-macro2 = "1.0.83"
 quote = "1.0.36"
-syn = "2.0.60"
+syn = "2.0.65"
 
 [lib]
 proc-macro = true

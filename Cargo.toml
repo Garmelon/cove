@@ -8,10 +8,10 @@ edition = "2021"
 
 [workspace.dependencies]
 crossterm = "0.27.0"
-parking_lot = "0.12.1"
-serde = { version = "1.0.198", features = ["derive"] }
+parking_lot = "0.12.2"
+serde = { version = "1.0.202", features = ["derive"] }
 serde_either = "0.2.1"
-thiserror = "1.0.59"
+thiserror = "1.0.61"
 
 [workspace.dependencies.toss]
 git = "https://github.com/Garmelon/toss.git"
