@@ -460,10 +460,6 @@ where
         &mut self.blocks
     }
 
-    fn into_blocks(self) -> TreeBlocks<M::Id> {
-        self.blocks
-    }
-
     async fn expand_top(&mut self) -> Result<(), Self::Error> {
         let prev_root_id = if let Some(top_root_id) = &self.top_root_id {
             self.store.prev_root_id(top_root_id).await?

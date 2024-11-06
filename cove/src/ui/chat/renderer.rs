@@ -14,7 +14,6 @@ pub trait Renderer<Id> {
 
     fn blocks(&self) -> &Blocks<Id>;
     fn blocks_mut(&mut self) -> &mut Blocks<Id>;
-    fn into_blocks(self) -> Blocks<Id>;
 
     async fn expand_top(&mut self) -> Result<(), Self::Error>;
     async fn expand_bottom(&mut self) -> Result<(), Self::Error>;
