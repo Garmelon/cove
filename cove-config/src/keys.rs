@@ -27,6 +27,7 @@ default_bindings! {
         pub fn focus => ["tab"];
         pub fn help => ["f1"];
         pub fn log => ["f12"];
+        pub fn redraw => ["ctrl+l"];
     }
 
     pub mod scroll {
@@ -131,6 +132,9 @@ pub struct General {
     /// Show log.
     #[serde(default = "default::general::log")]
     pub log: KeyBinding,
+    /// Redraw entire screen.
+    #[serde(default = "default::general::redraw")]
+    pub redraw: KeyBinding,
 }
 
 #[derive(Debug, Deserialize, Document, KeyGroup)]

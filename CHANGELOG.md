@@ -15,6 +15,9 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Added
+- Key binding to fully redraw the entire screen
+
 ## v0.8.3 - 2024-05-20
 
 ### Changed

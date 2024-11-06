@@ -56,6 +56,7 @@ pub enum UiEvent {
 
 enum EventHandleResult {
     Redraw,
+    RedrawFull,
     Continue,
     Stop,
 }
@@ -188,6 +189,10 @@ impl Ui {
             loop {
                 match self.handle_event(terminal, &crossterm_lock, event).await {
                     EventHandleResult::Redraw => redraw = true,
+                    EventHandleResult::RedrawFull => {
+                        redraw = true;
+                        terminal.mark_dirty();
+                    }
                     EventHandleResult::Continue => {}
                     EventHandleResult::Stop => return Ok(()),
                 }
@@ -253,6 +258,10 @@ impl Ui {
 
         if event.matches(&keys.general.exit) {
             return EventHandleResult::Stop;
+        }
+
+        if event.matches(&keys.general.redraw) {
+            return EventHandleResult::RedrawFull;
         }
 
         // Key bindings list overrides any other bindings if visible

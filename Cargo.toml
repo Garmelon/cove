@@ -7,7 +7,7 @@ version = "0.8.3"
 edition = "2021"
 
 [workspace.dependencies]
-crossterm = "0.27.0"
+crossterm = "0.28.1"
 parking_lot = "0.12.2"
 serde = { version = "1.0.202", features = ["derive"] }
 serde_either = "0.2.1"
@@ -15,7 +15,7 @@ thiserror = "1.0.61"
 
 [workspace.dependencies.toss]
 git = "https://github.com/Garmelon/toss.git"
-tag = "v0.2.3"
+tag = "v0.3.0"
 
 [workspace.lints]
 rust.unsafe_code = { level = "forbid", priority = 1 }
