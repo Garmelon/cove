@@ -18,7 +18,7 @@ git = "https://github.com/Garmelon/toss.git"
 tag = "v0.2.3"
 
 [workspace.lints]
-rust.unsafe_code = "forbid"
+rust.unsafe_code = { level = "forbid", priority = 1 }
 rust.future_incompatible = "warn"
 rust.rust_2018_idioms = "warn"
 rust.unused = "warn"
