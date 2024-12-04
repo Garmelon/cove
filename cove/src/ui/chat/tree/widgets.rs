@@ -1,6 +1,7 @@
 use std::convert::Infallible;
 
 use crossterm::style::Stylize;
+use jiff::tz::TimeZone;
 use toss::widgets::{Boxed, EditorState, Join2, Join4, Join5, Text};
 use toss::{Style, Styled, WidgetExt};
 
@@ -49,6 +50,7 @@ fn style_pseudo_highlight() -> Style {
 
 pub fn msg<M: Msg + ChatMsg>(
     highlighted: bool,
+    tz: TimeZone,
     indent: usize,
     msg: &M,
     caesar: i8,
@@ -72,7 +74,7 @@ pub fn msg<M: Msg + ChatMsg>(
 
     Join5::horizontal(
         Seen::new(msg.seen()).segment().with_fixed(true),
-        Time::new(msg.time(), style_time(highlighted))
+        Time::new(msg.time().map(|t| t.to_zoned(tz)), style_time(highlighted))
             .padding()
             .with_right(1)
             .with_stretch(true)

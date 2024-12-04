@@ -12,6 +12,7 @@ use std::time::{Duration, Instant};
 
 use cove_config::Config;
 use cove_input::InputEvent;
+use jiff::tz::TimeZone;
 use parking_lot::FairMutex;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -84,6 +85,7 @@ impl Ui {
 
     pub async fn run(
         config: &'static Config,
+        tz: TimeZone,
         terminal: &mut Terminal,
         vault: Vault,
         logger: Logger,
@@ -112,8 +114,8 @@ impl Ui {
             config,
             event_tx: event_tx.clone(),
             mode: Mode::Main,
-            rooms: Rooms::new(config, vault, event_tx.clone()).await,
-            log_chat: ChatState::new(logger),
+            rooms: Rooms::new(config, tz.clone(), vault, event_tx.clone()).await,
+            log_chat: ChatState::new(logger, tz),
             key_bindings_visible: false,
             key_bindings_list: ListState::new(),
         };

@@ -4,6 +4,7 @@ use std::collections::HashSet;
 use std::convert::Infallible;
 
 use async_trait::async_trait;
+use jiff::tz::TimeZone;
 use toss::widgets::{EditorState, Empty, Predrawn, Resize};
 use toss::{Size, Widget, WidthDb};
 
@@ -81,6 +82,7 @@ pub struct TreeRenderer<'a, M: Msg, S: MsgStore<M>> {
     context: TreeContext<M::Id>,
 
     store: &'a S,
+    tz: &'a TimeZone,
     folded: &'a mut HashSet<M::Id>,
     cursor: &'a mut Cursor<M::Id>,
     editor: &'a mut EditorState,
@@ -108,6 +110,7 @@ where
     pub fn new(
         context: TreeContext<M::Id>,
         store: &'a S,
+        tz: &'a TimeZone,
         folded: &'a mut HashSet<M::Id>,
         cursor: &'a mut Cursor<M::Id>,
         editor: &'a mut EditorState,
@@ -116,6 +119,7 @@ where
         Self {
             context,
             store,
+            tz,
             folded,
             cursor,
             editor,
@@ -191,7 +195,14 @@ where
         };
         let highlighted = highlighted && self.context.focused;
 
-        let widget = widgets::msg(highlighted, indent, msg, self.context.caesar, folded_info);
+        let widget = widgets::msg(
+            highlighted,
+            self.tz.clone(),
+            indent,
+            msg,
+            self.context.caesar,
+            folded_info,
+        );
         let widget = Self::predraw(widget, self.context.size, self.widthdb);
         Block::new(TreeBlockId::Msg(msg_id), widget, true)
     }

@@ -11,6 +11,7 @@ use std::collections::HashSet;
 use async_trait::async_trait;
 use cove_config::Keys;
 use cove_input::InputEvent;
+use jiff::tz::TimeZone;
 use toss::widgets::EditorState;
 use toss::{AsyncWidget, Frame, Pos, Size, WidgetExt, WidthDb};
 
@@ -25,6 +26,7 @@ use super::Reaction;
 
 pub struct TreeViewState<M: Msg, S: MsgStore<M>> {
     store: S,
+    tz: TimeZone,
 
     last_size: Size,
     last_nick: String,
@@ -36,9 +38,10 @@ pub struct TreeViewState<M: Msg, S: MsgStore<M>> {
 }
 
 impl<M: Msg, S: MsgStore<M>> TreeViewState<M, S> {
-    pub fn new(store: S) -> Self {
+    pub fn new(store: S, tz: TimeZone) -> Self {
         Self {
             store,
+            tz,
             last_size: Size::ZERO,
             last_nick: String::new(),
             last_cursor: Cursor::Bottom,
@@ -443,6 +446,7 @@ where
         let mut renderer = TreeRenderer::new(
             context,
             &self.state.store,
+            &self.state.tz,
             &mut self.state.folded,
             self.cursor,
             self.editor,

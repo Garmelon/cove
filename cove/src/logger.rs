@@ -4,9 +4,9 @@ use std::vec;
 
 use async_trait::async_trait;
 use crossterm::style::Stylize;
+use jiff::Timestamp;
 use log::{Level, LevelFilter, Log};
 use parking_lot::Mutex;
-use time::OffsetDateTime;
 use tokio::sync::mpsc;
 use toss::{Style, Styled};
 
@@ -16,7 +16,7 @@ use crate::ui::ChatMsg;
 #[derive(Debug, Clone)]
 pub struct LogMsg {
     id: usize,
-    time: OffsetDateTime,
+    time: Timestamp,
     level: Level,
     content: String,
 }
@@ -42,7 +42,7 @@ impl Msg for LogMsg {
 }
 
 impl ChatMsg for LogMsg {
-    fn time(&self) -> Option<OffsetDateTime> {
+    fn time(&self) -> Option<Timestamp> {
         Some(self.time)
     }
 
@@ -209,7 +209,7 @@ impl Log for Logger {
         let mut guard = self.messages.lock();
         let msg = LogMsg {
             id: guard.len(),
-            time: OffsetDateTime::now_utc(),
+            time: Timestamp::now(),
             level: record.level(),
             content: format!("<{}> {}", record.target(), record.args()),
         };

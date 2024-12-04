@@ -13,6 +13,7 @@ use crossterm::style::Stylize;
 use euphoxide::api::SessionType;
 use euphoxide::bot::instance::{Event, ServerConfig};
 use euphoxide::conn::{self, Joined};
+use jiff::tz::TimeZone;
 use tokio::sync::mpsc;
 use toss::widgets::{BoxedAsync, Empty, Join2, Text};
 use toss::{Style, Styled, Widget, WidgetExt};
@@ -73,6 +74,7 @@ impl EuphServer {
 
 pub struct Rooms {
     config: &'static Config,
+    tz: TimeZone,
 
     vault: Vault,
     ui_event_tx: mpsc::UnboundedSender<UiEvent>,
@@ -89,11 +91,13 @@ pub struct Rooms {
 impl Rooms {
     pub async fn new(
         config: &'static Config,
+        tz: TimeZone,
         vault: Vault,
         ui_event_tx: mpsc::UnboundedSender<UiEvent>,
     ) -> Self {
         let mut result = Self {
             config,
+            tz,
             vault,
             ui_event_tx,
             state: State::ShowList,
@@ -142,6 +146,7 @@ impl Rooms {
                 server.config.clone(),
                 self.config.euph_room(&room.domain, &room.name),
                 self.vault.euph().room(room),
+                self.tz.clone(),
                 self.ui_event_tx.clone(),
             )
         })
@@ -158,6 +163,7 @@ impl Rooms {
                 server.config.clone(),
                 self.config.euph_room(&room.domain, &room.name),
                 self.vault.euph().room(room),
+                self.tz.clone(),
                 self.ui_event_tx.clone(),
             )
         });

@@ -6,6 +6,7 @@ use crossterm::style::Stylize;
 use euphoxide::api::{Data, Message, MessageId, PacketType, SessionId};
 use euphoxide::bot::instance::{Event, ServerConfig};
 use euphoxide::conn::{self, Joined, Joining, SessionInfo};
+use jiff::tz::TimeZone;
 use tokio::sync::oneshot::error::TryRecvError;
 use tokio::sync::{mpsc, oneshot};
 use toss::widgets::{BoxedAsync, EditorState, Join2, Layer, Text};
@@ -66,6 +67,7 @@ impl EuphRoom {
         server_config: ServerConfig,
         room_config: cove_config::EuphRoom,
         vault: EuphRoomVault,
+        tz: TimeZone,
         ui_event_tx: mpsc::UnboundedSender<UiEvent>,
     ) -> Self {
         Self {
@@ -77,7 +79,7 @@ impl EuphRoom {
             focus: Focus::Chat,
             state: State::Normal,
             popups: VecDeque::new(),
-            chat: ChatState::new(vault),
+            chat: ChatState::new(vault, tz),
             last_msg_sent: None,
             nick_list: ListState::new(),
         }

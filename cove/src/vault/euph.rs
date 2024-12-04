@@ -6,7 +6,6 @@ use cookie::{Cookie, CookieJar};
 use euphoxide::api::{Message, MessageId, SessionId, SessionView, Snowflake, Time, UserId};
 use rusqlite::types::{FromSql, FromSqlError, ToSqlOutput, Value, ValueRef};
 use rusqlite::{named_params, params, Connection, OptionalExtension, Row, ToSql, Transaction};
-use time::OffsetDateTime;
 use vault::Action;
 
 use crate::euph::SmallMessage;
@@ -32,7 +31,7 @@ struct WTime(Time);
 
 impl ToSql for WTime {
     fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-        let timestamp = self.0 .0.unix_timestamp();
+        let timestamp = self.0 .0;
         Ok(ToSqlOutput::Owned(Value::Integer(timestamp)))
     }
 }
@@ -40,9 +39,7 @@ impl ToSql for WTime {
 impl FromSql for WTime {
     fn column_result(value: ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
         let timestamp = i64::column_result(value)?;
-        Ok(Self(Time(
-            OffsetDateTime::from_unix_timestamp(timestamp).expect("timestamp in range"),
-        )))
+        Ok(Self(Time(timestamp)))
     }
 }
 
@@ -255,8 +252,6 @@ macro_rules! euph_room_vault_actions {
         $(
             struct $struct {
                 room: RoomIdentifier,
-                #[allow(unused)]
-                time_zone: &'static tz::TimeZone,
                 $( $arg: $arg_ty, )*
             }
         )*
@@ -266,7 +261,6 @@ macro_rules! euph_room_vault_actions {
                 pub async fn $fn(&self, $( $arg: $arg_ty, )* ) -> Result<$res, vault::tokio::Error<rusqlite::Error>> {
                     self.vault.vault.tokio_vault.execute($struct {
                         room: self.room.clone(),
-                        time_zone: self.vault.vault.time_zone,
                         $( $arg, )*
                     }).await
                 }
@@ -626,7 +620,6 @@ impl Action for GetMsg {
                         id: MessageId(row.get::<_, WSnowflake>(0)?.0),
                         parent: row.get::<_, Option<WSnowflake>>(1)?.map(|s| MessageId(s.0)),
                         time: row.get::<_, WTime>(2)?.0,
-                        time_zone: self.time_zone,
                         nick: row.get(3)?,
                         content: row.get(4)?,
                         seen: row.get(5)?,
@@ -720,7 +713,6 @@ impl Action for GetTree {
                         id: MessageId(row.get::<_, WSnowflake>(0)?.0),
                         parent: row.get::<_, Option<WSnowflake>>(1)?.map(|s| MessageId(s.0)),
                         time: row.get::<_, WTime>(2)?.0,
-                        time_zone: self.time_zone,
                         nick: row.get(3)?,
                         content: row.get(4)?,
                         seen: row.get(5)?,

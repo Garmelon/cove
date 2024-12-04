@@ -6,7 +6,8 @@ mod widgets;
 
 use cove_config::Keys;
 use cove_input::InputEvent;
-use time::OffsetDateTime;
+use jiff::tz::TimeZone;
+use jiff::Timestamp;
 use toss::widgets::{BoxedAsync, EditorState};
 use toss::{Styled, WidgetExt};
 
@@ -19,7 +20,7 @@ use self::tree::TreeViewState;
 use super::UiError;
 
 pub trait ChatMsg {
-    fn time(&self) -> Option<OffsetDateTime>;
+    fn time(&self) -> Option<Timestamp>;
     fn styled(&self) -> (Styled, Styled);
     fn edit(nick: &str, content: &str) -> (Styled, Styled);
     fn pseudo(nick: &str, content: &str) -> (Styled, Styled);
@@ -41,14 +42,14 @@ pub struct ChatState<M: Msg, S: MsgStore<M>> {
 }
 
 impl<M: Msg, S: MsgStore<M> + Clone> ChatState<M, S> {
-    pub fn new(store: S) -> Self {
+    pub fn new(store: S, tz: TimeZone) -> Self {
         Self {
             cursor: Cursor::Bottom,
             editor: EditorState::new(),
             caesar: 0,
 
             mode: Mode::Tree,
-            tree: TreeViewState::new(store.clone()),
+            tree: TreeViewState::new(store.clone(), tz),
 
             store,
         }

@@ -1,16 +1,13 @@
 use std::io::Write;
 
 use euphoxide::api::MessageId;
-use time::format_description::FormatItem;
-use time::macros::format_description;
 use unicode_width::UnicodeWidthStr;
 
 use crate::euph::SmallMessage;
 use crate::store::Tree;
 use crate::vault::EuphRoomVault;
 
-const TIME_FORMAT: &[FormatItem<'_>] =
-    format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
+const TIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 const TIME_EMPTY: &str = "                   ";
 
 pub async fn export<W: Write>(vault: &EuphRoomVault, out: &mut W) -> anyhow::Result<()> {
@@ -67,11 +64,7 @@ fn write_msg<W: Write>(
 
     for (i, line) in msg.content.lines().enumerate() {
         if i == 0 {
-            let time = msg
-                .time
-                .0
-                .format(TIME_FORMAT)
-                .expect("time can be formatted");
+            let time = msg.time.as_timestamp().strftime(TIME_FORMAT);
             writeln!(file, "{time} {indent_string}[{nick}] {line}")?;
         } else {
             writeln!(file, "{TIME_EMPTY} {indent_string}| {nick_empty} {line}")?;

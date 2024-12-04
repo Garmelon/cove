@@ -37,6 +37,7 @@ where
         let mut renderer = TreeRenderer::new(
             context,
             &self.store,
+            &self.tz,
             &mut self.folded,
             cursor,
             editor,
@@ -64,6 +65,7 @@ where
         let mut renderer = TreeRenderer::new(
             context,
             &self.store,
+            &self.tz,
             &mut self.folded,
             cursor,
             editor,

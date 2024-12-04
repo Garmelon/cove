@@ -118,16 +118,12 @@ fn update_config_with_args(config: &mut Config, args: &Args) {
 }
 
 fn open_vault(config: &Config, dirs: &ProjectDirs) -> anyhow::Result<Vault> {
-    let time_zone =
-        util::load_time_zone(config.time_zone_ref()).context("failed to load time zone")?;
-    let time_zone = Box::leak(Box::new(time_zone));
-
     let vault = if config.ephemeral {
-        vault::launch_in_memory(time_zone)?
+        vault::launch_in_memory()?
     } else {
         let data_dir = data_dir(config, dirs);
         eprintln!("Data dir:    {}", data_dir.to_string_lossy());
-        vault::launch(&data_dir.join("vault.db"), time_zone)?
+        vault::launch(&data_dir.join("vault.db"))?
     };
 
     Ok(vault)
@@ -174,11 +170,13 @@ async fn run(
 ) -> anyhow::Result<()> {
     info!("Welcome to {NAME} {VERSION}",);
 
+    let tz = util::load_time_zone(config.time_zone_ref()).context("failed to load time zone")?;
+
     let vault = open_vault(config, dirs)?;
 
     let mut terminal = Terminal::new()?;
     terminal.set_measuring(config.measure_widths);
-    Ui::run(config, &mut terminal, vault.clone(), logger, logger_rx).await?;
+    Ui::run(config, tz, &mut terminal, vault.clone(), logger, logger_rx).await?;
     drop(terminal);
 
     vault.close().await;

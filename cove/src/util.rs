@@ -1,8 +1,7 @@
 use std::convert::Infallible;
 use std::env;
 
-use time::{OffsetDateTime, UtcOffset};
-use tz::{TimeZone, TzError};
+use jiff::tz::TimeZone;
 
 pub trait InfallibleExt {
     type Inner;
@@ -26,27 +25,30 @@ impl<T> InfallibleExt for Result<T, Infallible> {
 ///
 /// If no `TZ` environment variable could be found and no string is provided,
 /// the system local time (or UTC on Windows) is used.
-pub fn load_time_zone(tz_string: Option<&str>) -> Result<TimeZone, TzError> {
+pub fn load_time_zone(tz_string: Option<&str>) -> Result<TimeZone, jiff::Error> {
     let env_string = env::var("TZ").ok();
     let tz_string = env_string.as_ref().map(|s| s as &str).or(tz_string);
 
-    match &tz_string {
-        // At the moment, TimeZone::from_posix_tz does not support "localtime"
-        // on Windows, so we handle that case manually.
-        Some("localtime") | None => TimeZone::local(),
-        Some(tz_string) => TimeZone::from_posix_tz(tz_string),
+    let Some(tz_string) = tz_string else {
+        return Ok(TimeZone::system());
+    };
+
+    if tz_string == "localtime" {
+        return Ok(TimeZone::system());
     }
-}
 
-pub fn convert_to_time_zone(tz: &TimeZone, time: OffsetDateTime) -> Option<OffsetDateTime> {
-    let utc_offset_in_seconds = tz
-        .find_local_time_type(time.unix_timestamp())
-        .ok()?
-        .ut_offset();
+    if let Some(tz_string) = tz_string.strip_prefix(':') {
+        return TimeZone::get(tz_string);
+    }
 
-    let utc_offset = UtcOffset::from_whole_seconds(utc_offset_in_seconds).ok()?;
+    // The time zone is either a manually specified string or a file in the tz
+    // database. We'll try to parse it as a manually specified string first
+    // because that doesn't require a fs lookup.
+    if let Ok(tz) = TimeZone::posix(tz_string) {
+        return Ok(tz);
+    }
 
-    Some(time.to_offset(utc_offset))
+    TimeZone::get(tz_string)
 }
 
 pub fn caesar(text: &str, by: i8) -> String {

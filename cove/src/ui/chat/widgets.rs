@@ -1,9 +1,7 @@
 use std::convert::Infallible;
 
 use crossterm::style::Stylize;
-use time::format_description::FormatItem;
-use time::macros::format_description;
-use time::OffsetDateTime;
+use jiff::Zoned;
 use toss::widgets::{Boxed, Empty, Text};
 use toss::{Frame, Pos, Size, Style, Widget, WidgetExt, WidthDb};
 
@@ -46,15 +44,15 @@ impl<E> Widget<E> for Indent {
     }
 }
 
-const TIME_FORMAT: &[FormatItem<'_>] = format_description!("[year]-[month]-[day] [hour]:[minute]");
+const TIME_FORMAT: &str = "%Y-%m-%d %H:%M";
 const TIME_WIDTH: u16 = 16;
 
 pub struct Time(Boxed<'static, Infallible>);
 
 impl Time {
-    pub fn new(time: Option<OffsetDateTime>, style: Style) -> Self {
+    pub fn new(time: Option<Zoned>, style: Style) -> Self {
         let widget = if let Some(time) = time {
-            let text = time.format(TIME_FORMAT).expect("could not format time");
+            let text = time.strftime(TIME_FORMAT).to_string();
             Text::new((text, style))
                 .background()
                 .with_style(style)
