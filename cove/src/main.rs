@@ -136,6 +136,11 @@ async fn main() -> anyhow::Result<()> {
     let (logger, logger_guard, logger_rx) = Logger::init(args.verbose);
     let dirs = ProjectDirs::from("de", "plugh", "cove").expect("failed to find config directory");
 
+    // https://github.com/snapview/tokio-tungstenite/issues/353#issuecomment-2455247837
+    rustls::crypto::aws_lc_rs::default_provider()
+        .install_default()
+        .unwrap();
+
     // Locate config
     let config_path = config_path(&args, &dirs);
     eprintln!("Config file: {}", config_path.to_string_lossy());

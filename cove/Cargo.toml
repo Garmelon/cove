@@ -27,6 +27,7 @@ tokio.workspace = true
 toss.workspace = true
 unicode-width.workspace = true
 vault.workspace = true
+rustls.workspace = true
 
 [lints]
 workspace = true
