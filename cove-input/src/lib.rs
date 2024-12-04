@@ -40,7 +40,7 @@ impl<'a> KeyGroupInfo<'a> {
 }
 
 pub struct InputEvent<'a> {
-    event: crossterm::event::Event,
+    event: Event,
     terminal: &'a mut Terminal,
     crossterm_lock: Arc<FairMutex<()>>,
 }

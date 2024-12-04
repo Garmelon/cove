@@ -3,7 +3,7 @@ use quote::quote;
 use syn::spanned::Spanned;
 use syn::{Data, DeriveInput};
 
-use crate::util::{self, bail};
+use crate::util;
 
 fn decapitalize(s: &str) -> String {
     let mut chars = s.chars();
@@ -34,7 +34,7 @@ pub fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
 
             let default = util::serde_default(field)?;
             let Some(default) = default else {
-                return bail(field_ident.span(), "must have serde default");
+                return util::bail(field_ident.span(), "must have serde default");
             };
             let default_value = default.value();
 
