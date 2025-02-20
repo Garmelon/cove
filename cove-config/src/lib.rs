@@ -76,21 +76,21 @@ pub struct Config {
 
     /// Time zone that chat timestamps should be displayed in.
     ///
-    /// This option is interpreted as a POSIX TZ string. It is described here in
-    /// further detail:
-    /// <https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap08.html>
+    /// This option can either be the string `"localtime"`, a [POSIX TZ string],
+    /// or a [tz identifier] from the [tz database].
     ///
-    /// On a normal system, the string `"localtime"` as well as any value from
-    /// the "TZ identifier" column of the following wikipedia article should be
-    /// valid TZ strings:
-    /// <https://en.wikipedia.org/wiki/List_of_tz_database_time_zones>
+    /// When not set or when set to `"localtime"`, cove attempts to use your
+    /// system's configured time zone, falling back to UTC.
     ///
-    /// If the `TZ` environment variable exists, it overrides this option. If
-    /// neither exist, cove uses the system's local time zone.
+    /// When the string begins with a colon or doesn't match the a POSIX TZ
+    /// string format, it is interpreted as a tz identifier and looked up in
+    /// your system's tz database (or a bundled tz database on Windows).
     ///
-    /// **Warning:** On Windows, cove can't get the local time zone and uses UTC
-    /// instead. However, you can still specify a path to a tz data file or a
-    /// custom time zone string.
+    /// If the `TZ` environment variable exists, it overrides this option.
+    ///
+    /// [POSIX TZ string]: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap08.html#tag_08_03
+    /// [tz identifier]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+    /// [tz database]: https://en.wikipedia.org/wiki/Tz_database
     #[serde(default)]
     #[document(default = "`$TZ` or local system time zone")]
     pub time_zone: Option<String>,

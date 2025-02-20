@@ -15,6 +15,9 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Updated
+- Documentation for `time_zone` config option
+
 ## v0.8.3 - 2024-05-20
 
 ### Changed
