@@ -7,39 +7,40 @@ version = "0.8.3"
 edition = "2021"
 
 [workspace.dependencies]
-anyhow = "1.0.86"
-async-trait = "0.1.80"
-clap = { version = "4.5.4", features = ["derive", "deprecated"] }
+anyhow = "1.0.96"
+async-trait = "0.1.86"
+clap = { version = "4.5.30", features = ["derive", "deprecated"] }
 cookie = "0.18.1"
-crossterm = "0.27.0"
-directories = "5.0.1"
+crossterm = "0.28.1"
+directories = "6.0.0"
 edit = "0.1.5"
 jiff = "0.2.1"
 linkify = "0.10.0"
-log = { version = "0.4.21", features = ["std"] }
-once_cell = "1.19.0"
-open = "5.1.3"
-parking_lot = "0.12.2"
-proc-macro2 = "1.0.83"
-quote = "1.0.36"
+log = { version = "0.4.25", features = ["std"] }
+once_cell = "1.20.2"
+open = "5.3.2"
+parking_lot = "0.12.3"
+proc-macro2 = "1.0.93"
+quote = "1.0.38"
 rusqlite = { version = "0.31.0", features = ["bundled", "time"] }
-rustls = "0.23.19"
-serde = { version = "1.0.202", features = ["derive"] }
+rustls = "0.23.23"
+serde = { version = "1.0.218", features = ["derive"] }
 serde_either = "0.2.1"
-serde_json = "1.0.117"
-syn = "2.0.65"
-thiserror = "1.0.61"
-tokio = { version = "1.37.0", features = ["full"] }
-toml = "0.8.13"
-unicode-width = "0.1.12"
+serde_json = "1.0.139"
+syn = "2.0.98"
+thiserror = "2.0.11"
+tokio = { version = "1.43.0", features = ["full"] }
+toml = "0.8.20"
+unicode-width = "0.2.0"
 
 [workspace.dependencies.euphoxide]
 git = "https://github.com/Garmelon/euphoxide.git"
+tag = "v0.6.0"
 features = ["bot"]
 
 [workspace.dependencies.toss]
 git = "https://github.com/Garmelon/toss.git"
-tag = "v0.2.3"
+tag = "v0.3.1"
 
 [workspace.dependencies.vault]
 git = "https://github.com/Garmelon/vault.git"
