@@ -23,9 +23,9 @@ pub struct EuphRoom {
     /// associated with the current session.
     pub username: Option<String>,
 
-    /// If `euph.rooms.<room>.username` is set, this will force cove to set the
-    /// username even if there is already a different username associated with
-    /// the current session.
+    /// If `euph.servers.<domain>.rooms.<room>.username` is set, this will force
+    /// cove to set the username even if there is already a different username
+    /// associated with the current session.
     #[serde(default)]
     pub force_username: bool,
 
