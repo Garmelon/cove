@@ -22,7 +22,10 @@ open = "5.3.2"
 parking_lot = "0.12.3"
 proc-macro2 = "1.0.93"
 quote = "1.0.38"
-rusqlite = { version = "0.33.0", features = ["bundled", "time"] }
+rusqlite = { version = "0.31.0", features = [
+    # "bundled",
+    "time",
+] }
 rustls = "0.23.23"
 serde = { version = "1.0.218", features = ["derive"] }
 serde_either = "0.2.1"
@@ -46,7 +49,7 @@ path = "../toss"
 [workspace.dependencies.vault]
 path = "../vault"
 # git = "https://github.com/Garmelon/vault.git"
-# tag = "v0.4.0"
+# tag = "v0.5.0"
 features = ["tokio"]
 
 [workspace.lints]
@@ -74,3 +77,11 @@ clippy.use_self = "warn"
 
 [profile.dev.package."*"]
 opt-level = 3
+
+# For profiling
+
+[profile.release]
+debug = 1
+
+[rust]
+debuginfo-level = 1

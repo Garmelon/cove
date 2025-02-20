@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::time::Instant;
 use std::{fmt, mem};
 
 use async_trait::async_trait;
@@ -686,12 +687,12 @@ impl Action for GetTree {
     type Error = rusqlite::Error;
 
     fn run(self, conn: &mut Connection) -> Result<Self::Output, Self::Error> {
-        let msgs = conn
-            .prepare(
-                "
+        let start = Instant::now();
+
+        let query = "
                 WITH RECURSIVE
                 tree (domain, room, id) AS (
-                    VALUES (?, ?, ?)
+                    VALUES (:domain, :room, :id)
                 UNION
                     SELECT euph_msgs.domain, euph_msgs.room, euph_msgs.id
                     FROM euph_msgs
@@ -700,14 +701,35 @@ impl Action for GetTree {
                         AND tree.room = euph_msgs.room
                         AND tree.id = euph_msgs.parent
                 )
-                SELECT id, parent, time, name, content, seen
+                SELECT id, parent, time, 'name', 'content', 1
                 FROM euph_msgs
                 JOIN tree USING (domain, room, id)
                 ORDER BY id ASC
-                ",
-            )?
+                ";
+
+        let mut statement = conn.prepare(&format!("EXPLAIN QUERY PLAN {query}"))?;
+        let mut rows = statement.query(named_params! {
+            ":domain": self.room.domain,
+            ":room": self.room.name,
+            ":id": WSnowflake(self.root_id.0),
+        })?;
+
+        while let Some(row) = rows.next()? {
+            let id = row.get::<_, i64>("id")?;
+            let parent = row.get::<_, i64>("parent")?;
+            let notused = row.get::<_, i64>("notused")?;
+            let detail = row.get::<_, String>("detail")?;
+            eprintln!("{parent:3} -> {id:3} (notused {notused:3}): {detail}");
+        }
+
+        let msgs = conn
+            .prepare(query)?
             .query_map(
-                params![self.room.domain, self.room.name, WSnowflake(self.root_id.0)],
+                named_params! {
+                    ":domain": self.room.domain,
+                    ":room": self.room.name,
+                    ":id": WSnowflake(self.root_id.0),
+                },
                 |row| {
                     Ok(SmallMessage {
                         id: MessageId(row.get::<_, WSnowflake>(0)?.0),
@@ -720,6 +742,8 @@ impl Action for GetTree {
                 },
             )?
             .collect::<rusqlite::Result<_>>()?;
+        let end = Instant::now();
+        eprintln!("{:10}", end.duration_since(start).as_micros());
         Ok(Tree::new(self.root_id, msgs))
     }
 }
