@@ -14,7 +14,7 @@ pub fn widget<'a>(
     list: &'a mut ListState<SessionId>,
     joined: &Joined,
     focused: bool,
-) -> impl Widget<UiError> + 'a {
+) -> impl Widget<UiError> + use<'a> {
     let mut list_builder = ListBuilder::new();
     render_rows(&mut list_builder, joined, focused);
     list_builder.build(list)

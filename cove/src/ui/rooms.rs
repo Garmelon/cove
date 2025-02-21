@@ -423,7 +423,7 @@ impl Rooms {
         list: &'a mut ListState<RoomIdentifier>,
         order: Order,
         euph_rooms: &HashMap<RoomIdentifier, EuphRoom>,
-    ) -> impl Widget<UiError> + 'a {
+    ) -> impl Widget<UiError> + use<'a> {
         let version_info = Styled::new_plain("Welcome to ")
             .then(format!("{NAME} {VERSION}"), Style::new().yellow().bold())
             .then_plain("!");

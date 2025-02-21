@@ -69,7 +69,7 @@ fn render_group_info(builder: &mut Builder, group_info: KeyGroupInfo<'_>) {
 pub fn widget<'a>(
     list: &'a mut ListState<Infallible>,
     config: &Config,
-) -> impl Widget<UiError> + 'a {
+) -> impl Widget<UiError> + use<'a> {
     let mut list_builder = ListBuilder::new();
 
     for group_info in config.keys.groups() {

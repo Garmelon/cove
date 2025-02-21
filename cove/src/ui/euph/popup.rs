@@ -12,7 +12,7 @@ pub enum RoomPopup {
 }
 
 impl RoomPopup {
-    fn server_error_widget(description: &str, reason: &str) -> impl Widget<UiError> {
+    fn server_error_widget(description: &str, reason: &str) -> impl Widget<UiError> + use<> {
         let border_style = Style::new().red().bold();
         let text = Styled::new_plain(description)
             .then_plain("\n\n")
@@ -23,7 +23,7 @@ impl RoomPopup {
         Popup::new(Text::new(text), ("Error", border_style)).with_border_style(border_style)
     }
 
-    pub fn widget(&self) -> impl Widget<UiError> {
+    pub fn widget(&self) -> impl Widget<UiError> + use<> {
         match self {
             Self::Error {
                 description,

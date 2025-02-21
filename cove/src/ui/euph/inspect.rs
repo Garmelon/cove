@@ -91,7 +91,7 @@ fn message_lines(mut text: Styled, msg: &Message) -> Styled {
     text
 }
 
-pub fn session_widget(session: &SessionInfo) -> impl Widget<UiError> {
+pub fn session_widget(session: &SessionInfo) -> impl Widget<UiError> + use<> {
     let heading_style = Style::new().bold();
 
     let text = match session {
@@ -108,7 +108,7 @@ pub fn session_widget(session: &SessionInfo) -> impl Widget<UiError> {
     Popup::new(Text::new(text), "Inspect session")
 }
 
-pub fn message_widget(msg: &Message) -> impl Widget<UiError> {
+pub fn message_widget(msg: &Message) -> impl Widget<UiError> + use<> {
     let heading_style = Style::new().bold();
 
     let mut text = Styled::new("Message", heading_style).then_plain("\n");

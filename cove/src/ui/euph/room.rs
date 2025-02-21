@@ -287,7 +287,7 @@ impl EuphRoom {
         .boxed_async()
     }
 
-    async fn status_widget(&self, state: Option<&euph::State>) -> impl Widget<UiError> {
+    async fn status_widget(&self, state: Option<&euph::State>) -> impl Widget<UiError> + use<> {
         let room_style = Style::new().bold().blue();
         let mut info = Styled::new(format!("{} ", self.domain()), Style::new().grey())
             .then(format!("&{}", self.name()), room_style);

@@ -66,7 +66,7 @@ impl LoggedOut {
 pub struct LoggedIn(PersonalAccountView);
 
 impl LoggedIn {
-    fn widget(&self) -> impl Widget<UiError> {
+    fn widget(&self) -> impl Widget<UiError> + use<> {
         let bold = Style::new().bold();
         Join5::vertical(
             Text::new(("Logged in", bold.green())).segment(),

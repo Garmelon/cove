@@ -437,7 +437,7 @@ where
 
     pub fn into_visible_blocks(
         self,
-    ) -> impl Iterator<Item = (Range<i32>, Block<TreeBlockId<M::Id>>)> {
+    ) -> impl Iterator<Item = (Range<i32>, Block<TreeBlockId<M::Id>>)> + use<M, S> {
         let area = renderer::visible_area(&self);
         self.blocks
             .into_iter()
