@@ -1,10 +1,10 @@
 [workspace]
-resolver = "2"
+resolver = "3"
 members = ["cove", "cove-*"]
 
 [workspace.package]
 version = "0.8.3"
-edition = "2021"
+edition = "2024"
 
 [workspace.dependencies]
 anyhow = "1.0.96"
@@ -68,11 +68,6 @@ rust.unused_lifetimes = "warn"
 rust.unused_qualifications = "warn"
 # Clippy
 clippy.use_self = "warn"
-# Migrating to the 2024 edition
-rust.rust_2024_compatibility = "warn"
-rust.edition_2024_expr_fragment_specifier = { level = "allow", priority = 1 }
-rust.if_let_rescope = { level = "allow", priority = 1 }
-rust.tail_expr_drop_order = { level = "allow", priority = 1 }
 
 [profile.dev.package."*"]
 opt-level = 3
