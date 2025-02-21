@@ -84,7 +84,7 @@ impl ConnectState {
         ConnectResult::Unhandled
     }
 
-    pub fn widget(&mut self) -> impl Widget<UiError> + '_ {
+    pub fn widget(&mut self) -> impl Widget<UiError> {
         let room_style = Style::new().bold().blue();
         let domain_style = Style::new().grey();
 

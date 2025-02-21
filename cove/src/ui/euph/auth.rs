@@ -13,7 +13,7 @@ pub fn new() -> EditorState {
     EditorState::new()
 }
 
-pub fn widget(editor: &mut EditorState) -> impl Widget<UiError> + '_ {
+pub fn widget(editor: &mut EditorState) -> impl Widget<UiError> {
     Popup::new(
         editor.widget().with_hidden_default_placeholder(),
         "Enter password",

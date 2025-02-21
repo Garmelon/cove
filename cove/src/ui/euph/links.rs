@@ -38,7 +38,7 @@ impl LinksState {
         }
     }
 
-    pub fn widget(&mut self) -> impl Widget<UiError> + '_ {
+    pub fn widget(&mut self) -> impl Widget<UiError> {
         let style_selected = Style::new().black().on_white();
 
         let mut list_builder = ListBuilder::new();

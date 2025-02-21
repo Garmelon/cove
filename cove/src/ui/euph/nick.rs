@@ -14,7 +14,7 @@ pub fn new(joined: Joined) -> EditorState {
     EditorState::with_initial_text(joined.session.name)
 }
 
-pub fn widget(editor: &mut EditorState) -> impl Widget<UiError> + '_ {
+pub fn widget(editor: &mut EditorState) -> impl Widget<UiError> {
     let inner = editor
         .widget()
         .with_highlight(|s| euph::style_nick_exact(s, Style::new()));

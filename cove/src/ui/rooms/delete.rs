@@ -47,7 +47,7 @@ impl DeleteState {
         DeleteResult::Unhandled
     }
 
-    pub fn widget(&mut self) -> impl Widget<UiError> + '_ {
+    pub fn widget(&mut self) -> impl Widget<UiError> {
         let warn_style = Style::new().bold().red();
         let room_style = Style::new().bold().blue();
         let text = Styled::new_plain("Are you sure you want to delete ")

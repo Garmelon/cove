@@ -35,7 +35,7 @@ impl LoggedOut {
         }
     }
 
-    fn widget(&mut self) -> impl Widget<UiError> + '_ {
+    fn widget(&mut self) -> impl Widget<UiError> {
         let bold = Style::new().bold();
         Join4::vertical(
             Text::new(("Not logged in", bold.yellow())).segment(),
@@ -111,7 +111,7 @@ impl AccountUiState {
         }
     }
 
-    pub fn widget(&mut self) -> impl Widget<UiError> + '_ {
+    pub fn widget(&mut self) -> impl Widget<UiError> {
         let inner = match self {
             Self::LoggedOut(logged_out) => logged_out.widget().first2(),
             Self::LoggedIn(logged_in) => logged_in.widget().second2(),
