@@ -5,7 +5,7 @@ use toss::widgets::{EditorState, Empty, Join2, Text};
 use toss::{Style, Styled, Widget, WidgetExt};
 
 use crate::ui::widgets::Popup;
-use crate::ui::{util, UiError};
+use crate::ui::{UiError, util};
 use crate::vault::RoomIdentifier;
 
 pub struct DeleteState {

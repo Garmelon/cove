@@ -28,7 +28,7 @@ use self::delete::{DeleteResult, DeleteState};
 
 use super::euph::room::EuphRoom;
 use super::widgets::{ListBuilder, ListState};
-use super::{key_bindings, util, UiError, UiEvent};
+use super::{UiError, UiEvent, key_bindings, util};
 
 enum State {
     ShowList,

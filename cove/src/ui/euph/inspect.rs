@@ -6,8 +6,8 @@ use euphoxide::conn::SessionInfo;
 use toss::widgets::Text;
 use toss::{Style, Styled, Widget};
 
-use crate::ui::widgets::Popup;
 use crate::ui::UiError;
+use crate::ui::widgets::Popup;
 
 use super::popup::PopupResult;
 

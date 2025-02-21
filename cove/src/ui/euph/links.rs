@@ -7,7 +7,7 @@ use toss::widgets::{Join2, Text};
 use toss::{Style, Styled, Widget, WidgetExt};
 
 use crate::ui::widgets::{ListBuilder, ListState, Popup};
-use crate::ui::{key_bindings, util, UiError};
+use crate::ui::{UiError, key_bindings, util};
 
 use super::popup::PopupResult;
 

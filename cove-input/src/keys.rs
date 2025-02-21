@@ -3,7 +3,7 @@ use std::num::ParseIntError;
 use std::str::FromStr;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use serde::{de::Error, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, de::Error};
 use serde::{Serialize, Serializer};
 use serde_either::SingleOrVec;
 
@@ -117,7 +117,7 @@ impl KeyPress {
             "alt" if !self.alt => self.alt = true,
             "any" if !self.shift && !self.ctrl && !self.alt => self.any = true,
             m @ ("shift" | "ctrl" | "alt" | "any") => {
-                return Err(ParseKeysError::ConflictingModifier(m.to_string()))
+                return Err(ParseKeysError::ConflictingModifier(m.to_string()));
             }
             m => return Err(ParseKeysError::UnknownModifier(m.to_string())),
         }

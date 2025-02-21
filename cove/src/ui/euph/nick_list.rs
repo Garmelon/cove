@@ -7,8 +7,8 @@ use toss::widgets::{Background, Text};
 use toss::{Style, Styled, Widget, WidgetExt};
 
 use crate::euph;
-use crate::ui::widgets::{ListBuilder, ListState};
 use crate::ui::UiError;
+use crate::ui::widgets::{ListBuilder, ListState};
 
 pub fn widget<'a>(
     list: &'a mut ListState<SessionId>,

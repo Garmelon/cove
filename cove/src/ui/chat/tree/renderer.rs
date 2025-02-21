@@ -9,10 +9,10 @@ use toss::widgets::{EditorState, Empty, Predrawn, Resize};
 use toss::{Size, Widget, WidthDb};
 
 use crate::store::{Msg, MsgStore, Tree};
+use crate::ui::ChatMsg;
 use crate::ui::chat::blocks::{Block, Blocks, Range};
 use crate::ui::chat::cursor::Cursor;
-use crate::ui::chat::renderer::{self, overlaps, Renderer};
-use crate::ui::ChatMsg;
+use crate::ui::chat::renderer::{self, Renderer, overlaps};
 use crate::util::InfallibleExt;
 
 use super::widgets;

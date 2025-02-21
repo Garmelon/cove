@@ -1,6 +1,6 @@
 //! Common rendering logic.
 
-use std::collections::{vec_deque, VecDeque};
+use std::collections::{VecDeque, vec_deque};
 
 use toss::widgets::Predrawn;
 

@@ -6,8 +6,8 @@ use toss::widgets::{Boxed, EditorState, Join2, Join4, Join5, Text};
 use toss::{Style, Styled, WidgetExt};
 
 use crate::store::Msg;
-use crate::ui::chat::widgets::{Indent, Seen, Time};
 use crate::ui::ChatMsg;
+use crate::ui::chat::widgets::{Indent, Seen, Time};
 use crate::util;
 
 pub const PLACEHOLDER: &str = "[...]";

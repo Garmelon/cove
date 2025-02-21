@@ -6,8 +6,8 @@ use std::fs;
 use std::path::Path;
 
 use rusqlite::Connection;
-use vault::tokio::TokioVault;
 use vault::Action;
+use vault::tokio::TokioVault;
 
 pub use self::euph::{EuphRoomVault, EuphVault, RoomIdentifier};
 

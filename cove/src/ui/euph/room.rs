@@ -16,7 +16,7 @@ use crate::euph;
 use crate::macros::logging_unwrap;
 use crate::ui::chat::{ChatState, Reaction};
 use crate::ui::widgets::ListState;
-use crate::ui::{util, UiError, UiEvent};
+use crate::ui::{UiError, UiEvent, util};
 use crate::vault::EuphRoomVault;
 
 use super::account::AccountUiState;

@@ -15,8 +15,8 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use clap::Parser;
-use cove_config::doc::Document;
 use cove_config::Config;
+use cove_config::doc::Document;
 use directories::{BaseDirs, ProjectDirs};
 use log::info;
 use tokio::sync::mpsc;

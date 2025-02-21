@@ -16,13 +16,13 @@ use toss::widgets::EditorState;
 use toss::{AsyncWidget, Frame, Pos, Size, WidgetExt, WidthDb};
 
 use crate::store::{Msg, MsgStore};
-use crate::ui::{util, ChatMsg, UiError};
+use crate::ui::{ChatMsg, UiError, util};
 use crate::util::InfallibleExt;
 
 use self::renderer::{TreeContext, TreeRenderer};
 
-use super::cursor::Cursor;
 use super::Reaction;
+use super::cursor::Cursor;
 
 pub struct TreeViewState<M: Msg, S: MsgStore<M>> {
     store: S,

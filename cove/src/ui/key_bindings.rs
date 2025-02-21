@@ -9,7 +9,7 @@ use toss::widgets::{Either2, Join2, Padding, Text};
 use toss::{Style, Styled, Widget, WidgetExt};
 
 use super::widgets::{ListBuilder, ListState, Popup};
-use super::{util, UiError};
+use super::{UiError, util};
 
 type Line = Either2<Text, Join2<Padding<Text>, Text>>;
 type Builder = ListBuilder<'static, Infallible, Line>;

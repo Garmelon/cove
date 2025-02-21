@@ -8,7 +8,7 @@ use toss::{Style, Widget, WidgetExt};
 
 use crate::euph::{self, Room};
 use crate::ui::widgets::Popup;
-use crate::ui::{util, UiError};
+use crate::ui::{UiError, util};
 
 use super::popup::PopupResult;
 

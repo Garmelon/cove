@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use cookie::{Cookie, CookieJar};
 use euphoxide::api::{Message, MessageId, SessionId, SessionView, Snowflake, Time, UserId};
 use rusqlite::types::{FromSql, FromSqlError, ToSqlOutput, Value, ValueRef};
-use rusqlite::{named_params, params, Connection, OptionalExtension, Row, ToSql, Transaction};
+use rusqlite::{Connection, OptionalExtension, Row, ToSql, Transaction, named_params, params};
 use vault::Action;
 
 use crate::euph::SmallMessage;
@@ -16,7 +16,7 @@ struct WSnowflake(Snowflake);
 
 impl ToSql for WSnowflake {
     fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-        self.0 .0.to_sql()
+        self.0.0.to_sql()
     }
 }
 
@@ -31,7 +31,7 @@ struct WTime(Time);
 
 impl ToSql for WTime {
     fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-        let timestamp = self.0 .0;
+        let timestamp = self.0.0;
         Ok(ToSqlOutput::Owned(Value::Integer(timestamp)))
     }
 }

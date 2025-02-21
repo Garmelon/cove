@@ -6,8 +6,8 @@ mod widgets;
 
 use cove_config::Keys;
 use cove_input::InputEvent;
-use jiff::tz::TimeZone;
 use jiff::Timestamp;
+use jiff::tz::TimeZone;
 use toss::widgets::{BoxedAsync, EditorState};
 use toss::{Styled, WidgetExt};
 
