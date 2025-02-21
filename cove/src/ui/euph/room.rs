@@ -3,26 +3,40 @@ use std::collections::VecDeque;
 use cove_config::{Config, Keys};
 use cove_input::InputEvent;
 use crossterm::style::Stylize;
-use euphoxide::api::{Data, Message, MessageId, PacketType, SessionId};
-use euphoxide::bot::instance::{Event, ServerConfig};
-use euphoxide::conn::{self, Joined, Joining, SessionInfo};
+use euphoxide::{
+    api::{Data, Message, MessageId, PacketType, SessionId},
+    bot::instance::{Event, ServerConfig},
+    conn::{self, Joined, Joining, SessionInfo},
+};
 use jiff::tz::TimeZone;
-use tokio::sync::oneshot::error::TryRecvError;
-use tokio::sync::{mpsc, oneshot};
-use toss::widgets::{BoxedAsync, EditorState, Join2, Layer, Text};
-use toss::{Style, Styled, Widget, WidgetExt};
+use tokio::sync::{
+    mpsc,
+    oneshot::{self, error::TryRecvError},
+};
+use toss::{
+    Style, Styled, Widget, WidgetExt,
+    widgets::{BoxedAsync, EditorState, Join2, Layer, Text},
+};
 
-use crate::euph;
-use crate::macros::logging_unwrap;
-use crate::ui::chat::{ChatState, Reaction};
-use crate::ui::widgets::ListState;
-use crate::ui::{UiError, UiEvent, util};
-use crate::vault::EuphRoomVault;
+use crate::{
+    euph,
+    macros::logging_unwrap,
+    ui::{
+        UiError, UiEvent,
+        chat::{ChatState, Reaction},
+        util,
+        widgets::ListState,
+    },
+    vault::EuphRoomVault,
+};
 
-use super::account::AccountUiState;
-use super::links::LinksState;
-use super::popup::{PopupResult, RoomPopup};
-use super::{auth, inspect, nick, nick_list};
+use super::{
+    account::AccountUiState,
+    auth, inspect,
+    links::LinksState,
+    nick, nick_list,
+    popup::{PopupResult, RoomPopup},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Focus {

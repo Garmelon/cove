@@ -1,7 +1,6 @@
 //! Auto-generate markdown documentation.
 
-use std::collections::HashMap;
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use cove_input::KeyBinding;
 pub use cove_macro::Document;

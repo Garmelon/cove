@@ -1,7 +1,4 @@
-mod keys;
-
-use std::io;
-use std::sync::Arc;
+use std::{io, sync::Arc};
 
 pub use cove_macro::KeyGroup;
 use crossterm::event::{Event, KeyEvent, KeyEventKind};
@@ -9,6 +6,8 @@ use parking_lot::FairMutex;
 use toss::{Frame, Terminal, WidthDb};
 
 pub use crate::keys::*;
+
+mod keys;
 
 pub struct KeyBindingInfo<'a> {
     pub name: &'static str,

@@ -1,5 +1,4 @@
-use std::convert::Infallible;
-use std::env;
+use std::{convert::Infallible, env};
 
 use jiff::tz::TimeZone;
 

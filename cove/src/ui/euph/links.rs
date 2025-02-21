@@ -1,13 +1,16 @@
 use cove_config::{Config, Keys};
 use cove_input::InputEvent;
-use crossterm::event::KeyCode;
-use crossterm::style::Stylize;
+use crossterm::{event::KeyCode, style::Stylize};
 use linkify::{LinkFinder, LinkKind};
-use toss::widgets::{Join2, Text};
-use toss::{Style, Styled, Widget, WidgetExt};
+use toss::{
+    Style, Styled, Widget, WidgetExt,
+    widgets::{Join2, Text},
+};
 
-use crate::ui::widgets::{ListBuilder, ListState, Popup};
-use crate::ui::{UiError, key_bindings, util};
+use crate::ui::{
+    UiError, key_bindings, util,
+    widgets::{ListBuilder, ListState, Popup},
+};
 
 use super::popup::PopupResult;
 

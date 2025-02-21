@@ -1,15 +1,18 @@
-use std::str::FromStr;
-use std::{fmt, mem};
+use std::{fmt, mem, str::FromStr};
 
 use async_trait::async_trait;
 use cookie::{Cookie, CookieJar};
 use euphoxide::api::{Message, MessageId, SessionId, SessionView, Snowflake, Time, UserId};
-use rusqlite::types::{FromSql, FromSqlError, ToSqlOutput, Value, ValueRef};
-use rusqlite::{Connection, OptionalExtension, Row, ToSql, Transaction, named_params, params};
+use rusqlite::{
+    Connection, OptionalExtension, Row, ToSql, Transaction, named_params, params,
+    types::{FromSql, FromSqlError, ToSqlOutput, Value, ValueRef},
+};
 use vault::Action;
 
-use crate::euph::SmallMessage;
-use crate::store::{MsgStore, Path, Tree};
+use crate::{
+    euph::SmallMessage,
+    store::{MsgStore, Path, Tree},
+};
 
 /// Wrapper for [`Snowflake`] that implements useful rusqlite traits.
 struct WSnowflake(Snowflake);

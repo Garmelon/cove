@@ -1,11 +1,11 @@
 use cove_config::Keys;
 use cove_input::InputEvent;
-use toss::Widget;
-use toss::widgets::EditorState;
+use toss::{Widget, widgets::EditorState};
 
-use crate::euph::Room;
-use crate::ui::widgets::Popup;
-use crate::ui::{UiError, util};
+use crate::{
+    euph::Room,
+    ui::{UiError, util, widgets::Popup},
+};
 
 use super::popup::PopupResult;
 

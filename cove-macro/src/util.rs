@@ -1,8 +1,9 @@
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::parse::Parse;
-use syn::punctuated::Punctuated;
-use syn::{Attribute, Expr, ExprLit, ExprPath, Field, Lit, LitStr, Path, Token, Type};
+use syn::{
+    Attribute, Expr, ExprLit, ExprPath, Field, Lit, LitStr, Path, Token, Type, parse::Parse,
+    punctuated::Punctuated,
+};
 
 pub fn bail<T>(span: Span, message: &str) -> syn::Result<T> {
     Err(syn::Error::new(span, message))

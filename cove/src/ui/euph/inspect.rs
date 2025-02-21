@@ -1,13 +1,13 @@
 use cove_config::Keys;
 use cove_input::InputEvent;
 use crossterm::style::Stylize;
-use euphoxide::api::{Message, NickEvent, SessionView};
-use euphoxide::conn::SessionInfo;
-use toss::widgets::Text;
-use toss::{Style, Styled, Widget};
+use euphoxide::{
+    api::{Message, NickEvent, SessionView},
+    conn::SessionInfo,
+};
+use toss::{Style, Styled, Widget, widgets::Text};
 
-use crate::ui::UiError;
-use crate::ui::widgets::Popup;
+use crate::ui::{UiError, widgets::Popup};
 
 use super::popup::PopupResult;
 

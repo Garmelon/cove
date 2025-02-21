@@ -1,34 +1,36 @@
+use std::{
+    convert::Infallible,
+    io,
+    sync::{Arc, Weak},
+    time::{Duration, Instant},
+};
+
+use cove_config::Config;
+use cove_input::InputEvent;
+use jiff::tz::TimeZone;
+use parking_lot::FairMutex;
+use tokio::{
+    sync::mpsc::{self, UnboundedReceiver, UnboundedSender, error::TryRecvError},
+    task,
+};
+use toss::{Terminal, WidgetExt, widgets::BoxedAsync};
+
+use crate::{
+    logger::{LogMsg, Logger},
+    macros::logging_unwrap,
+    util::InfallibleExt,
+    vault::Vault,
+};
+
+pub use self::chat::ChatMsg;
+use self::{chat::ChatState, rooms::Rooms, widgets::ListState};
+
 mod chat;
 mod euph;
 mod key_bindings;
 mod rooms;
 mod util;
 mod widgets;
-
-use std::convert::Infallible;
-use std::io;
-use std::sync::{Arc, Weak};
-use std::time::{Duration, Instant};
-
-use cove_config::Config;
-use cove_input::InputEvent;
-use jiff::tz::TimeZone;
-use parking_lot::FairMutex;
-use tokio::sync::mpsc::error::TryRecvError;
-use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
-use tokio::task;
-use toss::widgets::BoxedAsync;
-use toss::{Terminal, WidgetExt};
-
-use crate::logger::{LogMsg, Logger};
-use crate::macros::logging_unwrap;
-use crate::util::InfallibleExt;
-use crate::vault::Vault;
-
-pub use self::chat::ChatMsg;
-use self::chat::ChatState;
-use self::rooms::Rooms;
-use self::widgets::ListState;
 
 /// Time to spend batch processing events before redrawing the screen.
 const EVENT_PROCESSING_TIME: Duration = Duration::from_millis(1000 / 15); // 15 fps

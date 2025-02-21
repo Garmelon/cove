@@ -1,12 +1,14 @@
 //! Export logs from the vault to plain text files.
 
-mod json;
-mod text;
-
-use std::fs::File;
-use std::io::{self, BufWriter, Write};
+use std::{
+    fs::File,
+    io::{self, BufWriter, Write},
+};
 
 use crate::vault::{EuphRoomVault, EuphVault, RoomIdentifier};
+
+mod json;
+mod text;
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
 pub enum Format {

@@ -1,19 +1,26 @@
 //! A [`Renderer`] for message trees.
 
-use std::collections::HashSet;
-use std::convert::Infallible;
+use std::{collections::HashSet, convert::Infallible};
 
 use async_trait::async_trait;
 use jiff::tz::TimeZone;
-use toss::widgets::{EditorState, Empty, Predrawn, Resize};
-use toss::{Size, Widget, WidthDb};
+use toss::{
+    Size, Widget, WidthDb,
+    widgets::{EditorState, Empty, Predrawn, Resize},
+};
 
-use crate::store::{Msg, MsgStore, Tree};
-use crate::ui::ChatMsg;
-use crate::ui::chat::blocks::{Block, Blocks, Range};
-use crate::ui::chat::cursor::Cursor;
-use crate::ui::chat::renderer::{self, Renderer, overlaps};
-use crate::util::InfallibleExt;
+use crate::{
+    store::{Msg, MsgStore, Tree},
+    ui::{
+        ChatMsg,
+        chat::{
+            blocks::{Block, Blocks, Range},
+            cursor::Cursor,
+            renderer::{self, Renderer, overlaps},
+        },
+    },
+    util::InfallibleExt,
+};
 
 use super::widgets;
 

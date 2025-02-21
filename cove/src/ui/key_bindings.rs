@@ -5,11 +5,15 @@ use std::convert::Infallible;
 use cove_config::{Config, Keys};
 use cove_input::{InputEvent, KeyBinding, KeyBindingInfo, KeyGroupInfo};
 use crossterm::style::Stylize;
-use toss::widgets::{Either2, Join2, Padding, Text};
-use toss::{Style, Styled, Widget, WidgetExt};
+use toss::{
+    Style, Styled, Widget, WidgetExt,
+    widgets::{Either2, Join2, Padding, Text},
+};
 
-use super::widgets::{ListBuilder, ListState, Popup};
-use super::{UiError, util};
+use super::{
+    UiError, util,
+    widgets::{ListBuilder, ListState, Popup},
+};
 
 type Line = Either2<Text, Join2<Padding<Text>, Text>>;
 type Builder = ListBuilder<'static, Infallible, Line>;

@@ -1,12 +1,15 @@
 use cove_config::Keys;
 use cove_input::InputEvent;
 use crossterm::style::Stylize;
-use toss::widgets::{EditorState, Empty, Join2, Join3, Text};
-use toss::{Style, Styled, Widget, WidgetExt};
+use toss::{
+    Style, Styled, Widget, WidgetExt,
+    widgets::{EditorState, Empty, Join2, Join3, Text},
+};
 
-use crate::ui::widgets::Popup;
-use crate::ui::{UiError, util};
-use crate::vault::RoomIdentifier;
+use crate::{
+    ui::{UiError, util, widgets::Popup},
+    vault::RoomIdentifier,
+};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Focus {

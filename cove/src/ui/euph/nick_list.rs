@@ -1,14 +1,22 @@
 use std::iter;
 
 use crossterm::style::{Color, Stylize};
-use euphoxide::api::{NickEvent, SessionId, SessionType, SessionView, UserId};
-use euphoxide::conn::{Joined, SessionInfo};
-use toss::widgets::{Background, Text};
-use toss::{Style, Styled, Widget, WidgetExt};
+use euphoxide::{
+    api::{NickEvent, SessionId, SessionType, SessionView, UserId},
+    conn::{Joined, SessionInfo},
+};
+use toss::{
+    Style, Styled, Widget, WidgetExt,
+    widgets::{Background, Text},
+};
 
-use crate::euph;
-use crate::ui::UiError;
-use crate::ui::widgets::{ListBuilder, ListState};
+use crate::{
+    euph,
+    ui::{
+        UiError,
+        widgets::{ListBuilder, ListState},
+    },
+};
 
 pub fn widget<'a>(
     list: &'a mut ListState<SessionId>,

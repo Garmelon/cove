@@ -1,15 +1,13 @@
+use std::{fs, path::Path};
+
+use rusqlite::Connection;
+use vault::{Action, tokio::TokioVault};
+
+pub use self::euph::{EuphRoomVault, EuphVault, RoomIdentifier};
+
 mod euph;
 mod migrate;
 mod prepare;
-
-use std::fs;
-use std::path::Path;
-
-use rusqlite::Connection;
-use vault::Action;
-use vault::tokio::TokioVault;
-
-pub use self::euph::{EuphRoomVault, EuphVault, RoomIdentifier};
 
 #[derive(Debug, Clone)]
 pub struct Vault {

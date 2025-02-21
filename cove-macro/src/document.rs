@@ -1,7 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::spanned::Spanned;
-use syn::{Data, DataEnum, DataStruct, DeriveInput, Field, Ident, LitStr};
+use syn::{Data, DataEnum, DataStruct, DeriveInput, Field, Ident, LitStr, spanned::Spanned};
 
 use crate::util::{self, SerdeDefault};
 

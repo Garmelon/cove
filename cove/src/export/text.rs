@@ -3,9 +3,7 @@ use std::io::Write;
 use euphoxide::api::MessageId;
 use unicode_width::UnicodeWidthStr;
 
-use crate::euph::SmallMessage;
-use crate::store::Tree;
-use crate::vault::EuphRoomVault;
+use crate::{euph::SmallMessage, store::Tree, vault::EuphRoomVault};
 
 const TIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 const TIME_EMPTY: &str = "                   ";

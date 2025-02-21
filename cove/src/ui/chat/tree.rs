@@ -2,27 +2,27 @@
 
 // TODO Focusing on sub-trees
 
-mod renderer;
-mod scroll;
-mod widgets;
-
 use std::collections::HashSet;
 
 use async_trait::async_trait;
 use cove_config::Keys;
 use cove_input::InputEvent;
 use jiff::tz::TimeZone;
-use toss::widgets::EditorState;
-use toss::{AsyncWidget, Frame, Pos, Size, WidgetExt, WidthDb};
+use toss::{AsyncWidget, Frame, Pos, Size, WidgetExt, WidthDb, widgets::EditorState};
 
-use crate::store::{Msg, MsgStore};
-use crate::ui::{ChatMsg, UiError, util};
-use crate::util::InfallibleExt;
+use crate::{
+    store::{Msg, MsgStore},
+    ui::{UiError, util},
+    util::InfallibleExt,
+};
+
+use super::{ChatMsg, Reaction, cursor::Cursor};
 
 use self::renderer::{TreeContext, TreeRenderer};
 
-use super::Reaction;
-use super::cursor::Cursor;
+mod renderer;
+mod scroll;
+mod widgets;
 
 pub struct TreeViewState<M: Msg, S: MsgStore<M>> {
     store: S,

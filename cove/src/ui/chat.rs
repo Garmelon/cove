@@ -1,23 +1,25 @@
+use cove_config::Keys;
+use cove_input::InputEvent;
+use jiff::{Timestamp, tz::TimeZone};
+use toss::{
+    Styled, WidgetExt,
+    widgets::{BoxedAsync, EditorState},
+};
+
+use crate::{
+    store::{Msg, MsgStore},
+    util,
+};
+
+use super::UiError;
+
+use self::{cursor::Cursor, tree::TreeViewState};
+
 mod blocks;
 mod cursor;
 mod renderer;
 mod tree;
 mod widgets;
-
-use cove_config::Keys;
-use cove_input::InputEvent;
-use jiff::Timestamp;
-use jiff::tz::TimeZone;
-use toss::widgets::{BoxedAsync, EditorState};
-use toss::{Styled, WidgetExt};
-
-use crate::store::{Msg, MsgStore};
-use crate::util;
-
-use self::cursor::Cursor;
-use self::tree::TreeViewState;
-
-use super::UiError;
 
 pub trait ChatMsg {
     fn time(&self) -> Option<Timestamp>;

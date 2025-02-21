@@ -1,10 +1,7 @@
-use std::fmt;
-use std::num::ParseIntError;
-use std::str::FromStr;
+use std::{fmt, num::ParseIntError, str::FromStr};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use serde::{Deserialize, Deserializer, de::Error};
-use serde::{Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error};
 use serde_either::SingleOrVec;
 
 #[derive(Debug, thiserror::Error)]

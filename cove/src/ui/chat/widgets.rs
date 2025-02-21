@@ -2,8 +2,10 @@ use std::convert::Infallible;
 
 use crossterm::style::Stylize;
 use jiff::Zoned;
-use toss::widgets::{Boxed, Empty, Text};
-use toss::{Frame, Pos, Size, Style, Widget, WidgetExt, WidthDb};
+use toss::{
+    Frame, Pos, Size, Style, Widget, WidgetExt, WidthDb,
+    widgets::{Boxed, Empty, Text},
+};
 
 use crate::util::InfallibleExt;
 

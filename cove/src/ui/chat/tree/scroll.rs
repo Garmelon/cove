@@ -1,12 +1,14 @@
-use toss::WidthDb;
-use toss::widgets::EditorState;
+use toss::{WidthDb, widgets::EditorState};
 
-use crate::store::{Msg, MsgStore};
-use crate::ui::ChatMsg;
-use crate::ui::chat::cursor::Cursor;
+use crate::{
+    store::{Msg, MsgStore},
+    ui::{ChatMsg, chat::cursor::Cursor},
+};
 
-use super::TreeViewState;
-use super::renderer::{TreeContext, TreeRenderer};
+use super::{
+    TreeViewState,
+    renderer::{TreeContext, TreeRenderer},
+};
 
 impl<M, S> TreeViewState<M, S>
 where

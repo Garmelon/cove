@@ -1,34 +1,46 @@
-mod connect;
-mod delete;
-
-use std::collections::hash_map::Entry;
-use std::collections::{HashMap, HashSet};
-use std::iter;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::{
+    collections::{HashMap, HashSet, hash_map::Entry},
+    iter,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use cove_config::{Config, Keys, RoomsSortOrder};
 use cove_input::InputEvent;
 use crossterm::style::Stylize;
-use euphoxide::api::SessionType;
-use euphoxide::bot::instance::{Event, ServerConfig};
-use euphoxide::conn::{self, Joined};
+use euphoxide::{
+    api::SessionType,
+    bot::instance::{Event, ServerConfig},
+    conn::{self, Joined},
+};
 use jiff::tz::TimeZone;
 use tokio::sync::mpsc;
-use toss::widgets::{BoxedAsync, Empty, Join2, Text};
-use toss::{Style, Styled, Widget, WidgetExt};
+use toss::{
+    Style, Styled, Widget, WidgetExt,
+    widgets::{BoxedAsync, Empty, Join2, Text},
+};
 
-use crate::euph;
-use crate::macros::logging_unwrap;
-use crate::vault::{EuphVault, RoomIdentifier, Vault};
-use crate::version::{NAME, VERSION};
+use crate::{
+    euph,
+    macros::logging_unwrap,
+    vault::{EuphVault, RoomIdentifier, Vault},
+    version::{NAME, VERSION},
+};
 
-use self::connect::{ConnectResult, ConnectState};
-use self::delete::{DeleteResult, DeleteState};
+use super::{
+    UiError, UiEvent,
+    euph::room::EuphRoom,
+    key_bindings, util,
+    widgets::{ListBuilder, ListState},
+};
 
-use super::euph::room::EuphRoom;
-use super::widgets::{ListBuilder, ListState};
-use super::{UiError, UiEvent, key_bindings, util};
+use self::{
+    connect::{ConnectResult, ConnectState},
+    delete::{DeleteResult, DeleteState},
+};
+
+mod connect;
+mod delete;
 
 enum State {
     ShowList,

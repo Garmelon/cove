@@ -1,11 +1,9 @@
 use std::io;
 
 use crossterm::style::Stylize;
-use toss::widgets::Text;
-use toss::{Style, Styled, Widget};
+use toss::{Style, Styled, Widget, widgets::Text};
 
-use crate::ui::UiError;
-use crate::ui::widgets::Popup;
+use crate::ui::{UiError, widgets::Popup};
 
 pub enum RoomPopup {
     Error { description: String, reason: String },

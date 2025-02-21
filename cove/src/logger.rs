@@ -1,6 +1,4 @@
-use std::convert::Infallible;
-use std::sync::Arc;
-use std::vec;
+use std::{convert::Infallible, sync::Arc, vec};
 
 use async_trait::async_trait;
 use crossterm::style::Stylize;
@@ -10,8 +8,10 @@ use parking_lot::Mutex;
 use tokio::sync::mpsc;
 use toss::{Style, Styled};
 
-use crate::store::{Msg, MsgStore, Path, Tree};
-use crate::ui::ChatMsg;
+use crate::{
+    store::{Msg, MsgStore, Path, Tree},
+    ui::ChatMsg,
+};
 
 #[derive(Debug, Clone)]
 pub struct LogMsg {

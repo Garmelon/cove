@@ -1,5 +1,7 @@
-use toss::widgets::{Background, Border, Desync, Float, Layer2, Padding, Text};
-use toss::{Frame, Size, Style, Styled, Widget, WidgetExt, WidthDb};
+use toss::{
+    Frame, Size, Style, Styled, Widget, WidgetExt, WidthDb,
+    widgets::{Background, Border, Desync, Float, Layer2, Padding, Text},
+};
 
 type Body<I> = Background<Border<Padding<I>>>;
 type Title = Float<Padding<Background<Padding<Text>>>>;

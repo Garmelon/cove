@@ -1,16 +1,17 @@
-pub mod doc;
-mod euph;
-mod keys;
-
-use std::io::ErrorKind;
-use std::path::{Path, PathBuf};
-use std::{fs, io};
+use std::{
+    fs,
+    io::{self, ErrorKind},
+    path::{Path, PathBuf},
+};
 
 use doc::Document;
 use serde::Deserialize;
 
-pub use crate::euph::*;
-pub use crate::keys::*;
+pub use crate::{euph::*, keys::*};
+
+pub mod doc;
+mod euph;
+mod keys;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

@@ -5,8 +5,7 @@ use euphoxide::api::{MessageId, Snowflake, Time};
 use jiff::Timestamp;
 use toss::{Style, Styled};
 
-use crate::store::Msg;
-use crate::ui::ChatMsg;
+use crate::{store::Msg, ui::ChatMsg};
 
 use super::util;
 

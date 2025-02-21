@@ -2,13 +2,19 @@ use std::convert::Infallible;
 
 use crossterm::style::Stylize;
 use jiff::tz::TimeZone;
-use toss::widgets::{Boxed, EditorState, Join2, Join4, Join5, Text};
-use toss::{Style, Styled, WidgetExt};
+use toss::{
+    Style, Styled, WidgetExt,
+    widgets::{Boxed, EditorState, Join2, Join4, Join5, Text},
+};
 
-use crate::store::Msg;
-use crate::ui::ChatMsg;
-use crate::ui::chat::widgets::{Indent, Seen, Time};
-use crate::util;
+use crate::{
+    store::Msg,
+    ui::{
+        ChatMsg,
+        chat::widgets::{Indent, Seen, Time},
+    },
+    util,
+};
 
 pub const PLACEHOLDER: &str = "[...]";
 

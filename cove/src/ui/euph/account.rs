@@ -1,14 +1,16 @@
 use cove_config::Keys;
 use cove_input::InputEvent;
 use crossterm::style::Stylize;
-use euphoxide::api::PersonalAccountView;
-use euphoxide::conn;
-use toss::widgets::{EditorState, Empty, Join3, Join4, Join5, Text};
-use toss::{Style, Widget, WidgetExt};
+use euphoxide::{api::PersonalAccountView, conn};
+use toss::{
+    Style, Widget, WidgetExt,
+    widgets::{EditorState, Empty, Join3, Join4, Join5, Text},
+};
 
-use crate::euph::{self, Room};
-use crate::ui::widgets::Popup;
-use crate::ui::{UiError, util};
+use crate::{
+    euph::{self, Room},
+    ui::{UiError, util, widgets::Popup},
+};
 
 use super::popup::PopupResult;
 

@@ -1,21 +1,19 @@
 // TODO Remove rl2dev-specific code
 
-use std::convert::Infallible;
-use std::time::Duration;
+use std::{convert::Infallible, time::Duration};
 
-use euphoxide::api::packet::ParsedPacket;
-use euphoxide::api::{
-    Auth, AuthOption, Data, Log, Login, Logout, MessageId, Nick, Send, SendEvent, SendReply, Time,
-    UserId,
+use euphoxide::{
+    api::{
+        Auth, AuthOption, Data, Log, Login, Logout, MessageId, Nick, Send, SendEvent, SendReply,
+        Time, UserId, packet::ParsedPacket,
+    },
+    bot::instance::{ConnSnapshot, Event, Instance, InstanceConfig},
+    conn::{self, ConnTx, Joined},
 };
-use euphoxide::bot::instance::{ConnSnapshot, Event, Instance, InstanceConfig};
-use euphoxide::conn::{self, ConnTx, Joined};
-use log::{debug, error, info, warn};
-use tokio::select;
-use tokio::sync::oneshot;
+use log::{debug, info, warn};
+use tokio::{select, sync::oneshot};
 
-use crate::macros::logging_unwrap;
-use crate::vault::EuphRoomVault;
+use crate::{macros::logging_unwrap, vault::EuphRoomVault};
 
 const LOG_INTERVAL: Duration = Duration::from_secs(10);
 

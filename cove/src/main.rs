@@ -1,6 +1,23 @@
 // TODO Remove unnecessary Debug impls and compare compile times
 // TODO Invoke external notification command?
 
+use std::path::PathBuf;
+
+use anyhow::Context;
+use clap::Parser;
+use cove_config::{Config, doc::Document};
+use directories::{BaseDirs, ProjectDirs};
+use log::info;
+use tokio::sync::mpsc;
+use toss::Terminal;
+
+use crate::{
+    logger::Logger,
+    ui::Ui,
+    vault::Vault,
+    version::{NAME, VERSION},
+};
+
 mod euph;
 mod export;
 mod logger;
@@ -10,22 +27,6 @@ mod ui;
 mod util;
 mod vault;
 mod version;
-
-use std::path::PathBuf;
-
-use anyhow::Context;
-use clap::Parser;
-use cove_config::Config;
-use cove_config::doc::Document;
-use directories::{BaseDirs, ProjectDirs};
-use log::info;
-use tokio::sync::mpsc;
-use toss::Terminal;
-
-use crate::logger::Logger;
-use crate::ui::Ui;
-use crate::vault::Vault;
-use crate::version::{NAME, VERSION};
 
 #[derive(Debug, clap::Parser)]
 enum Command {
