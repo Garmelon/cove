@@ -1,0 +1,72 @@
+# What software is installed by default:
+# https://docs.github.com/en/actions/using-github-hosted-runners/using-github-hosted-runners/about-github-hosted-runners#supported-runners-and-hardware-resources
+
+name: build
+
+on:
+  push:
+  pull_request:
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+          - macos-13
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up rust
+        run: rustup update
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Record target triple
+        run: rustc -vV | awk '/^host/ { print $2 }' > target/release/host
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: cove-${{ matrix.os }}
+          path: |
+            target/release/cove
+            target/release/cove.exe
+            target/release/host
+
+  release:
+    runs-on: ubuntu-latest
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    needs:
+      - build
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Zip artifacts
+        run: |
+          chmod +x cove-ubuntu-latest/cove
+          chmod +x cove-windows-latest/cove.exe
+          chmod +x cove-macos-latest/cove
+          chmod +x cove-macos-13/cove
+          zip -jr "cove-$(cat cove-ubuntu-latest/host).zip"  cove-ubuntu-latest/cove
+          zip -jr "cove-$(cat cove-windows-latest/host).zip" cove-windows-latest/cove.exe
+          zip -jr "cove-$(cat cove-macos-latest/host).zip"   cove-macos-latest/cove
+          zip -jr "cove-$(cat cove-macos-13/host).zip"       cove-macos-13/cove
+
+      - name: Create new release
+        uses: softprops/action-gh-release@v2
+        with:
+          body: Automated release, see [CHANGELOG.md](CHANGELOG.md) for more details.
+          files: "*.zip"
