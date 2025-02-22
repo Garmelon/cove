@@ -1,9 +1,10 @@
+use std::sync::LazyLock;
+
 use crossterm::style::{Color, Stylize};
 use euphoxide::Emoji;
-use once_cell::sync::Lazy;
 use toss::{Style, Styled};
 
-pub static EMOJI: Lazy<Emoji> = Lazy::new(Emoji::load);
+pub static EMOJI: LazyLock<Emoji> = LazyLock::new(Emoji::load);
 
 /// Convert HSL to RGB following [this approach from wikipedia][1].
 ///

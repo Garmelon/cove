@@ -17,7 +17,6 @@ euphoxide.workspace = true
 jiff.workspace = true
 linkify.workspace = true
 log.workspace = true
-once_cell.workspace = true
 open.workspace = true
 parking_lot.workspace = true
 rusqlite.workspace = true

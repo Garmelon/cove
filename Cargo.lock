@@ -344,7 +344,6 @@ dependencies = [
  "jiff",
  "linkify",
  "log",
- "once_cell",
  "open",
  "parking_lot",
  "rusqlite",
