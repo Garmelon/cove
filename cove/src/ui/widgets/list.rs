@@ -239,6 +239,12 @@ impl<Id: Clone + Eq> ListState<Id> {
             })
     }
 
+    pub fn move_cursor_to_id(&mut self, id: &Id) {
+        if let Some(new_cursor) = self.selectable_of_id(id) {
+            self.move_cursor_to(new_cursor);
+        }
+    }
+
     fn fix_cursor(&mut self) {
         let new_cursor = if let Some(cursor) = &self.cursor {
             self.selectable_of_id(&cursor.id)

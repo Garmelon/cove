@@ -589,6 +589,7 @@ impl Rooms {
                     return true;
                 }
                 ConnectResult::Connect(room) => {
+                    self.list.move_cursor_to_id(&room);
                     self.connect_to_room(room.clone()).await;
                     self.state = State::ShowRoom(room);
                     return true;
