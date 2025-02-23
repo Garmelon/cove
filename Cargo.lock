@@ -520,8 +520,8 @@ dependencies = [
 
 [[package]]
 name = "euphoxide"
-version = "0.6.0"
-source = "git+https://github.com/Garmelon/euphoxide.git?rev=095d2cea86a574732e82385e217381b35cf65e4d#095d2cea86a574732e82385e217381b35cf65e4d"
+version = "0.6.1"
+source = "git+https://github.com/Garmelon/euphoxide.git?tag=v0.6.1#7a292c429ad44aa6aa52fc381e3168841d6303b0"
 dependencies = [
  "async-trait",
  "caseless",
@@ -865,9 +865,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.25"
+version = "0.4.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04cbf5b083de1c7e0222a7a51dbfdba1cbe1c6ab0b15e29fff3f6c077fd9cd9f"
+checksum = "30bde2b3dc3671ae49d8e2e9f044c7c005836e7a023ee57cffa25ab82764bb9e"
 
 [[package]]
 name = "memchr"
@@ -1646,8 +1646,8 @@ dependencies = [
 
 [[package]]
 name = "toss"
-version = "0.3.1"
-source = "git+https://github.com/Garmelon/toss.git?rev=423dd100c1360decffc5107ea4757d751ac0f4db#423dd100c1360decffc5107ea4757d751ac0f4db"
+version = "0.3.2"
+source = "git+https://github.com/Garmelon/toss.git?tag=v0.3.2#d28ce90ec7590778e6035a7b00b1d85064f03dbf"
 dependencies = [
  "async-trait",
  "crossterm",
