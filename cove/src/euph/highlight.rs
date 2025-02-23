@@ -148,7 +148,7 @@ pub fn apply_spans(
                 if let Some(Some(replacement)) = util::EMOJI.get(name) {
                     result.then(replacement, base)
                 } else {
-                    result.then(name, base.magenta())
+                    result.then(text, base.magenta())
                 }
             }
         };
