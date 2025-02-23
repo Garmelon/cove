@@ -55,3 +55,17 @@ pub fn style_nick(nick: &str, base: Style) -> Styled {
 pub fn style_nick_exact(nick: &str, base: Style) -> Styled {
     Styled::new(nick, nick_style(nick, base))
 }
+
+pub fn style_mention(mention: &str, base: Style) -> Styled {
+    let nick = mention
+        .strip_prefix('@')
+        .expect("mention must start with @");
+    Styled::new(EMOJI.replace(mention), nick_style(nick, base))
+}
+
+pub fn style_mention_exact(mention: &str, base: Style) -> Styled {
+    let nick = mention
+        .strip_prefix('@')
+        .expect("mention must start with @");
+    Styled::new(mention, nick_style(nick, base))
+}

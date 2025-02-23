@@ -138,8 +138,8 @@ pub fn apply_spans(
 
         let text = &content[range.start..range.end];
         result = match span {
-            SpanType::Mention if exact => result.and_then(util::style_nick_exact(text, base)),
-            SpanType::Mention => result.and_then(util::style_nick(text, base)),
+            SpanType::Mention if exact => result.and_then(util::style_mention_exact(text, base)),
+            SpanType::Mention => result.and_then(util::style_mention(text, base)),
             SpanType::Room => result.then(text, base.blue().bold()),
             SpanType::Emoji if exact => result.then(text, base.magenta()),
             SpanType::Emoji => {
