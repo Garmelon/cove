@@ -34,7 +34,7 @@ unicode-width = "0.2.0"
 
 [workspace.dependencies.euphoxide]
 git = "https://github.com/Garmelon/euphoxide.git"
-rev = "6eea194d52fb63d7fb260d06e61d0625addf8c67"
+rev = "095d2cea86a574732e82385e217381b35cf65e4d"
 features = ["bot"]
 
 [workspace.dependencies.toss]

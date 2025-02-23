@@ -33,6 +33,10 @@ Procedure when bumping the version number:
 
 - Special handling of &rl2dev
 
+### Fixed
+
+- Nick color in rare edge cases
+
 ## v0.8.3 - 2024-05-20
 
 ### Changed
