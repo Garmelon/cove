@@ -132,7 +132,7 @@ pub fn apply_spans(
         assert!(range.end <= content.len());
 
         if i < range.start {
-            result = result.then_plain(&content[i..range.start]);
+            result = result.then(&content[i..range.start], base);
         }
 
         let text = &content[range.start..range.end];
@@ -145,7 +145,7 @@ pub fn apply_spans(
                 let name = text.strip_prefix(':').unwrap_or(text);
                 let name = name.strip_suffix(':').unwrap_or(name);
                 if let Some(Some(replacement)) = util::EMOJI.get(name) {
-                    result.then_plain(replacement)
+                    result.then(replacement, base)
                 } else {
                     result.then(name, base.magenta())
                 }
@@ -156,7 +156,7 @@ pub fn apply_spans(
     }
 
     if i < content.len() {
-        result = result.then_plain(&content[i..]);
+        result = result.then(&content[i..], base);
     }
 
     result
