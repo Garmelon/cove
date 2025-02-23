@@ -101,7 +101,7 @@ impl LinksState {
                     Link::Room(name) => text.then(format!("&{name}"), Style::new().blue().bold()),
                 };
 
-                Text::new(text)
+                Text::new(text).with_wrap(false)
             });
         }
 

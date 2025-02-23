@@ -36,6 +36,7 @@ Procedure when bumping the version number:
 ### Fixed
 
 - Nick color in rare edge cases
+- Message link list rendering bug
 
 ## v0.8.3 - 2024-05-20
 
