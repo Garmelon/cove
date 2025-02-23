@@ -93,9 +93,9 @@ Whether to automatically join this room on startup.
 **Type:** boolean  
 **Default:** `false`
 
-If `euph.rooms.<room>.username` is set, this will force cove to set the
-username even if there is already a different username associated with
-the current session.
+If `euph.servers.<domain>.rooms.<room>.username` is set, this will force
+cove to set the username even if there is already a different username
+associated with the current session.
 
 ### `euph.servers.<domain>.rooms.<room>.password`
 
@@ -607,12 +607,11 @@ Move to root.
 **Type:** boolean  
 **Default:** `false`
 
-Whether to measure the width of characters as displayed by the terminal
-emulator instead of guessing the width.
+Whether to measure the width of graphemes (i.e. characters) as displayed
+by the terminal emulator instead of estimating the width.
 
 Enabling this makes rendering a bit slower but more accurate. The screen
-might also flash when encountering new characters (or, more accurately,
-graphemes).
+might also flash when encountering new graphemes.
 
 See also the `--measure-widths` command line option.
 
@@ -656,18 +655,41 @@ order of priority):
 
 Time zone that chat timestamps should be displayed in.
 
-This option is interpreted as a POSIX TZ string. It is described here in
-further detail:
-<https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap08.html>
+This option can either be the string `"localtime"`, a [POSIX TZ string],
+or a [tz identifier] from the [tz database].
 
-On a normal system, the string `"localtime"` as well as any value from
-the "TZ identifier" column of the following wikipedia article should be
-valid TZ strings:
-<https://en.wikipedia.org/wiki/List_of_tz_database_time_zones>
+When not set or when set to `"localtime"`, cove attempts to use your
+system's configured time zone, falling back to UTC.
 
-If the `TZ` environment variable exists, it overrides this option. If
-neither exist, cove uses the system's local time zone.
+When the string begins with a colon or doesn't match the a POSIX TZ
+string format, it is interpreted as a tz identifier and looked up in
+your system's tz database (or a bundled tz database on Windows).
 
-**Warning:** On Windows, cove can't get the local time zone and uses UTC
-instead. However, you can still specify a path to a tz data file or a
-custom time zone string.
+If the `TZ` environment variable exists, it overrides this option.
+
+[POSIX TZ string]: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap08.html#tag_08_03
+[tz identifier]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+[tz database]: https://en.wikipedia.org/wiki/Tz_database
+
+### `width_estimation_method`
+
+**Required:** yes  
+**Type:** string  
+**Values:** `"legacy"`, `"unicode"`  
+**Default:** `"legacy"`
+
+How to estimate the width of graphemes (i.e. characters) as displayed by
+the terminal emulator.
+
+`"legacy"`: Use a legacy method that should mostly work on most terminal
+emulators. This method will never be correct in all cases since every
+terminal emulator handles grapheme widths slightly differently. However,
+those cases are usually rare (unless you view a lot of emoji).
+
+`"unicode"`: Use the unicode standard in a best-effort manner to
+determine grapheme widths. Some terminals (e.g. ghostty) can make use of
+this.
+
+This method is used when `measure_widths` is set to `false`.
+
+See also the `--width-estimation-method` command line option.
