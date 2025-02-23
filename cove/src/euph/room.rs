@@ -1,5 +1,3 @@
-// TODO Remove rl2dev-specific code
-
 use std::{convert::Infallible, time::Duration};
 
 use euphoxide::{
@@ -71,20 +69,13 @@ impl Room {
     where
         F: Fn(Event) + std::marker::Send + Sync + 'static,
     {
-        // &rl2dev's message history is broken and requesting old messages past
-        // a certain point results in errors. Cove should not keep retrying log
-        // requests when hitting that limit, so &rl2dev is always opened in
-        // ephemeral mode.
-        let is_rl2dev = vault.room().domain == "euphoria.io" && vault.room().name == "rl2dev";
-        let ephemeral = vault.vault().vault().ephemeral() || is_rl2dev;
-
         Self {
-            vault,
-            ephemeral,
+            ephemeral: vault.vault().vault().ephemeral(),
             instance: instance_config.build(on_event),
             state: State::Disconnected,
             last_msg_id: None,
             log_request_canary: None,
+            vault,
         }
     }
 
@@ -192,14 +183,7 @@ impl Room {
 
         debug!("{:?}: requesting logs", vault.room());
 
-        // &rl2dev's message history is broken and requesting old messages past
-        // a certain point results in errors. By reducing the amount of messages
-        // in each log request, we can get closer to this point. Since &rl2dev
-        // is fairly low in activity, this should be fine.
-        let is_rl2dev = vault.room().domain == "euphoria.io" && vault.room().name == "rl2dev";
-        let n = if is_rl2dev { 50 } else { 1000 };
-
-        let _ = conn_tx.send(Log { n, before }).await;
+        let _ = conn_tx.send(Log { n: 1000, before }).await;
         // The code handling incoming events and replies also handles
         // `LogReply`s, so we don't need to do anything special here.
     }

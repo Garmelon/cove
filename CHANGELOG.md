@@ -21,6 +21,10 @@ Procedure when bumping the version number:
 - Documentation for `time_zone` config option
 - When connecting to a room using `n` in the room list, the cursor now moves to that room
 
+### Removed
+
+- Special handling of &rl2dev
+
 ## v0.8.3 - 2024-05-20
 
 ### Changed
