@@ -16,9 +16,9 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
-### Updated
+### Changed
 
-- Documentation for `time_zone` config option
+- Updated documentation for `time_zone` config option
 - When connecting to a room using `n` in the room list, the cursor now moves to that room
 
 ### Removed
