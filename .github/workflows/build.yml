@@ -31,6 +31,9 @@ jobs:
       - name: Build
         run: cargo build --release
 
+      - name: Test
+        run: cargo test --release
+
       - name: Record target triple
         run: rustc -vV | awk '/^host/ { print $2 }' > target/release/host
 
