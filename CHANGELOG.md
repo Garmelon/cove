@@ -27,6 +27,7 @@ Procedure when bumping the version number:
 
 - Updated documentation for `time_zone` config option
 - When connecting to a room using `n` in the room list, the cursor now moves to that room
+- Updated list of emoji names
 
 ### Removed
 
