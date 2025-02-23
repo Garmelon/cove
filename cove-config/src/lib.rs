@@ -62,6 +62,8 @@ pub struct Config {
     /// this.
     ///
     /// This method is used when `measure_widths` is set to `false`.
+    ///
+    /// See also the `--width-estimation-method` command line option.
     #[serde(default)]
     pub width_estimation_method: WidthEstimationMethod,
 
