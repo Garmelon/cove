@@ -58,7 +58,8 @@ pub struct Config {
     /// those cases are usually rare (unless you view a lot of emoji).
     ///
     /// `"unicode"`: Use the unicode standard in a best-effort manner to
-    /// determine grapheme widths.
+    /// determine grapheme widths. Some terminals (e.g. ghostty) can make use of
+    /// this.
     ///
     /// This method is used when `measure_widths` is set to `false`.
     #[serde(default)]
