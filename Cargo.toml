@@ -39,7 +39,7 @@ features = ["bot"]
 
 [workspace.dependencies.toss]
 git = "https://github.com/Garmelon/toss.git"
-tag = "v0.3.1"
+rev = "423dd100c1360decffc5107ea4757d751ac0f4db"
 
 [workspace.dependencies.vault]
 git = "https://github.com/Garmelon/vault.git"

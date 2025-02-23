@@ -16,6 +16,12 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Added
+
+- Unicode-based grapheme width estimation method
+  - `width_estimation_method` config option
+  - `--width-estimation-method` option
+
 ### Changed
 
 - Updated documentation for `time_zone` config option

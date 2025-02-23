@@ -46,6 +46,12 @@ enum Command {
     HelpConfig,
 }
 
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+enum WidthEstimationMethod {
+    Legacy,
+    Unicode,
+}
+
 impl Default for Command {
     fn default() -> Self {
         Self::Run
@@ -78,6 +84,11 @@ struct Args {
     /// If set, cove will ignore the autojoin config option.
     #[arg(long, short)]
     offline: bool,
+
+    /// Method for estimating the width of characters as displayed by the
+    /// terminal emulator.
+    #[arg(long, short)]
+    width_estimation_method: Option<WidthEstimationMethod>,
 
     /// Measure the width of characters as displayed by the terminal emulator
     /// instead of guessing the width.
@@ -114,6 +125,12 @@ fn update_config_with_args(config: &mut Config, args: &Args) {
     }
 
     config.ephemeral |= args.ephemeral;
+    if let Some(method) = args.width_estimation_method {
+        config.width_estimation_method = match method {
+            WidthEstimationMethod::Legacy => cove_config::WidthEstimationMethod::Legacy,
+            WidthEstimationMethod::Unicode => cove_config::WidthEstimationMethod::Unicode,
+        }
+    }
     config.measure_widths |= args.measure_widths;
     config.offline |= args.offline;
 }
@@ -182,6 +199,10 @@ async fn run(
 
     let mut terminal = Terminal::new()?;
     terminal.set_measuring(config.measure_widths);
+    terminal.set_width_estimation_method(match config.width_estimation_method {
+        cove_config::WidthEstimationMethod::Legacy => toss::WidthEstimationMethod::Legacy,
+        cove_config::WidthEstimationMethod::Unicode => toss::WidthEstimationMethod::Unicode,
+    });
     Ui::run(config, tz, &mut terminal, vault.clone(), logger, logger_rx).await?;
     drop(terminal);
 

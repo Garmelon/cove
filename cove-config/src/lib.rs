@@ -5,7 +5,7 @@ use std::{
 };
 
 use doc::Document;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 pub use crate::{euph::*, keys::*};
 
@@ -19,6 +19,14 @@ pub enum Error {
     Io(#[from] io::Error),
     #[error("failed to parse config file")]
     Toml(#[from] toml::de::Error),
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Document)]
+#[serde(rename_all = "snake_case")]
+pub enum WidthEstimationMethod {
+    #[default]
+    Legacy,
+    Unicode,
 }
 
 #[derive(Debug, Default, Deserialize, Document)]
@@ -41,12 +49,26 @@ pub struct Config {
     #[serde(default)]
     pub ephemeral: bool,
 
-    /// Whether to measure the width of characters as displayed by the terminal
-    /// emulator instead of guessing the width.
+    /// How to estimate the width of graphemes (i.e. characters) as displayed by
+    /// the terminal emulator.
+    ///
+    /// `"legacy"`: Use a legacy method that should mostly work on most terminal
+    /// emulators. This method will never be correct in all cases since every
+    /// terminal emulator handles grapheme widths slightly differently. However,
+    /// those cases are usually rare (unless you view a lot of emoji).
+    ///
+    /// `"unicode"`: Use the unicode standard in a best-effort manner to
+    /// determine grapheme widths.
+    ///
+    /// This method is used when `measure_widths` is set to `false`.
+    #[serde(default)]
+    pub width_estimation_method: WidthEstimationMethod,
+
+    /// Whether to measure the width of graphemes (i.e. characters) as displayed
+    /// by the terminal emulator instead of estimating the width.
     ///
     /// Enabling this makes rendering a bit slower but more accurate. The screen
-    /// might also flash when encountering new characters (or, more accurately,
-    /// graphemes).
+    /// might also flash when encountering new graphemes.
     ///
     /// See also the `--measure-widths` command line option.
     #[serde(default)]
