@@ -77,6 +77,7 @@ impl<'a> SpanFinder<'a> {
 
     fn step(&mut self, idx: usize, char: char) {
         match (char, self.span) {
+            ('@', Some((SpanType::Mention, _))) => {} // Continue the mention
             ('@', _) if self.room_or_mention_possible => self.open_span(SpanType::Mention, idx),
             ('&', _) if self.room_or_mention_possible => self.open_span(SpanType::Room, idx),
             (':', None) => self.open_span(SpanType::Emoji, idx),
@@ -180,8 +181,9 @@ mod tests {
     #[test]
     fn mentions() {
         assert_eq!(find_spans("@foo"), vec![(SpanType::Mention, 0..4)]);
+        assert_eq!(find_spans("&@foo"), vec![(SpanType::Mention, 1..5)]);
         assert_eq!(find_spans("a @foo b"), vec![(SpanType::Mention, 2..6)]);
-        assert_eq!(find_spans("@@foo@"), vec![(SpanType::Mention, 1..6)]);
+        assert_eq!(find_spans("@@foo@@"), vec![(SpanType::Mention, 0..7)]);
         assert_eq!(find_spans("a @b@c d"), vec![(SpanType::Mention, 2..6)]);
         assert_eq!(
             find_spans("a @b @c d"),
@@ -192,12 +194,18 @@ mod tests {
     #[test]
     fn rooms() {
         assert_eq!(find_spans("&foo"), vec![(SpanType::Room, 0..4)]);
+        assert_eq!(find_spans("@&foo"), vec![(SpanType::Room, 1..5)]);
         assert_eq!(find_spans("a &foo b"), vec![(SpanType::Room, 2..6)]);
-        assert_eq!(find_spans("&&foo&"), vec![(SpanType::Room, 1..5)]);
+        assert_eq!(find_spans("&&foo&&"), vec![(SpanType::Room, 1..5)]);
         assert_eq!(find_spans("a &b&c d"), vec![(SpanType::Room, 2..4)]);
         assert_eq!(
             find_spans("a &b &c d"),
             vec![(SpanType::Room, 2..4), (SpanType::Room, 5..7)]
         );
+    }
+
+    #[test]
+    fn emoji_in_mentions() {
+        assert_eq!(find_spans(" @a:b:c "), vec![(SpanType::Mention, 1..7)]);
     }
 }
