@@ -35,5 +35,6 @@ pub enum PopupResult {
     NotHandled,
     Handled,
     Close,
+    SwitchToRoom { name: String },
     ErrorOpeningLink { link: String, error: io::Error },
 }

@@ -27,7 +27,7 @@ use crate::{
         util,
         widgets::ListState,
     },
-    vault::EuphRoomVault,
+    vault::{EuphRoomVault, RoomIdentifier},
 };
 
 use super::{
@@ -500,18 +500,22 @@ impl EuphRoom {
         false
     }
 
-    pub async fn handle_input_event(&mut self, event: &mut InputEvent<'_>, keys: &Keys) -> bool {
+    pub async fn handle_input_event(
+        &mut self,
+        event: &mut InputEvent<'_>,
+        keys: &Keys,
+    ) -> RoomResult {
         if !self.popups.is_empty() {
             if event.matches(&keys.general.abort) {
                 self.popups.pop_back();
-                return true;
+                return RoomResult::Handled;
             }
             // Prevent event from reaching anything below the popup
-            return false;
+            return RoomResult::NotHandled;
         }
 
         let result = match &mut self.state {
-            State::Normal => return self.handle_normal_input_event(event, keys).await,
+            State::Normal => return self.handle_normal_input_event(event, keys).await.into(),
             State::Auth(editor) => auth::handle_input_event(event, keys, &self.room, editor),
             State::Nick(editor) => nick::handle_input_event(event, keys, &self.room, editor),
             State::Account(account) => account.handle_input_event(event, keys, &self.room),
@@ -522,18 +526,24 @@ impl EuphRoom {
         };
 
         match result {
-            PopupResult::NotHandled => false,
-            PopupResult::Handled => true,
+            PopupResult::NotHandled => RoomResult::NotHandled,
+            PopupResult::Handled => RoomResult::Handled,
             PopupResult::Close => {
                 self.state = State::Normal;
-                true
+                RoomResult::Handled
             }
+            PopupResult::SwitchToRoom { name } => RoomResult::SwitchToRoom {
+                room: RoomIdentifier {
+                    domain: self.vault().room().domain.clone(),
+                    name,
+                },
+            },
             PopupResult::ErrorOpeningLink { link, error } => {
                 self.popups.push_front(RoomPopup::Error {
                     description: format!("Failed to open link: {link}"),
                     reason: format!("{error}"),
                 });
-                true
+                RoomResult::Handled
             }
         }
     }
@@ -636,5 +646,20 @@ impl EuphRoom {
             reason: reason.to_string(),
         });
         true
+    }
+}
+
+pub enum RoomResult {
+    NotHandled,
+    Handled,
+    SwitchToRoom { room: RoomIdentifier },
+}
+
+impl From<bool> for RoomResult {
+    fn from(value: bool) -> Self {
+        match value {
+            true => Self::Handled,
+            false => Self::NotHandled,
+        }
     }
 }

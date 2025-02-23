@@ -29,7 +29,7 @@ use crate::{
 
 use super::{
     UiError, UiEvent,
-    euph::room::EuphRoom,
+    euph::room::{EuphRoom, RoomResult},
     key_bindings, util,
     widgets::{ListBuilder, ListState},
 };
@@ -574,8 +574,15 @@ impl Rooms {
             }
             State::ShowRoom(name) => {
                 if let Some(room) = self.euph_rooms.get_mut(name) {
-                    if room.handle_input_event(event, keys).await {
-                        return true;
+                    match room.handle_input_event(event, keys).await {
+                        RoomResult::NotHandled => {}
+                        RoomResult::Handled => return true,
+                        RoomResult::SwitchToRoom { room } => {
+                            self.list.move_cursor_to_id(&room);
+                            self.connect_to_room(room.clone()).await;
+                            self.state = State::ShowRoom(room);
+                            return true;
+                        }
                     }
                     if event.matches(&keys.general.abort) {
                         self.state = State::ShowList;

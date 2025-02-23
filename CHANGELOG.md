@@ -21,6 +21,7 @@ Procedure when bumping the version number:
 - Unicode-based grapheme width estimation method
   - `width_estimation_method` config option
   - `--width-estimation-method` option
+- Room links are now included in the `I` message links list
 
 ### Changed
 

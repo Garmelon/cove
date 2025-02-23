@@ -7,16 +7,25 @@ use toss::{
     widgets::{Join2, Text},
 };
 
-use crate::ui::{
-    UiError, key_bindings, util,
-    widgets::{ListBuilder, ListState, Popup},
+use crate::{
+    euph::{self, SpanType},
+    ui::{
+        UiError, key_bindings, util,
+        widgets::{ListBuilder, ListState, Popup},
+    },
 };
 
 use super::popup::PopupResult;
 
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum Link {
+    Url(String),
+    Room(String),
+}
+
 pub struct LinksState {
     config: &'static Config,
-    links: Vec<String>,
+    links: Vec<Link>,
     list: ListState<usize>,
 }
 
@@ -24,12 +33,34 @@ const NUMBER_KEYS: [char; 10] = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0
 
 impl LinksState {
     pub fn new(config: &'static Config, content: &str) -> Self {
-        let links = LinkFinder::new()
+        let mut links = vec![];
+
+        // Collect URL-like links
+        for link in LinkFinder::new()
             .url_must_have_scheme(false)
             .kinds(&[LinkKind::Url])
             .links(content)
-            .map(|l| l.as_str().to_string())
-            .collect();
+        {
+            links.push((
+                link.start(),
+                link.end(),
+                Link::Url(link.as_str().to_string()),
+            ));
+        }
+
+        // Collect room links
+        for (span, range) in euph::find_spans(content) {
+            if span == SpanType::Room {
+                let name = &content[range.start + 1..range.end];
+                links.push((range.start, range.end, Link::Room(name.to_string())));
+            }
+        }
+
+        links.sort();
+        let links = links
+            .into_iter()
+            .map(|(_, _, link)| link)
+            .collect::<Vec<_>>();
 
         Self {
             config,
@@ -49,29 +80,29 @@ impl LinksState {
 
         for (id, link) in self.links.iter().enumerate() {
             let link = link.clone();
-            if let Some(&number_key) = NUMBER_KEYS.get(id) {
-                list_builder.add_sel(id, move |selected| {
-                    let text = if selected {
-                        Styled::new(format!("[{number_key}]"), style_selected.bold())
-                            .then(" ", style_selected)
-                            .then(link, style_selected)
-                    } else {
-                        Styled::new(format!("[{number_key}]"), Style::new().dark_grey().bold())
-                            .then_plain(" ")
-                            .then_plain(link)
-                    };
-                    Text::new(text)
-                });
-            } else {
-                list_builder.add_sel(id, move |selected| {
-                    let text = if selected {
-                        Styled::new(format!("    {link}"), style_selected)
-                    } else {
-                        Styled::new_plain(format!("    {link}"))
-                    };
-                    Text::new(text)
-                });
-            }
+            list_builder.add_sel(id, move |selected| {
+                let mut text = Styled::default();
+
+                // Number key indicator
+                text = match NUMBER_KEYS.get(id) {
+                    None if selected => text.then("    ", style_selected),
+                    None => text.then_plain("    "),
+                    Some(key) if selected => text.then(format!("[{key}] "), style_selected.bold()),
+                    Some(key) => text.then(format!("[{key}] "), Style::new().dark_grey().bold()),
+                };
+
+                // The link itself
+                text = match link {
+                    Link::Url(url) if selected => text.then(url, style_selected),
+                    Link::Url(url) => text.then_plain(url),
+                    Link::Room(name) if selected => {
+                        text.then(format!("&{name}"), style_selected.bold())
+                    }
+                    Link::Room(name) => text.then(format!("&{name}"), Style::new().blue().bold()),
+                };
+
+                Text::new(text)
+            });
         }
 
         let hint_style = Style::new().grey().italic();
@@ -95,18 +126,24 @@ impl LinksState {
     }
 
     fn open_link_by_id(&self, id: usize) -> PopupResult {
-        if let Some(link) = self.links.get(id) {
-            // The `http://` or `https://` schema is necessary for open::that to
-            // successfully open the link in the browser.
-            let link = if link.starts_with("http://") || link.starts_with("https://") {
-                link.clone()
-            } else {
-                format!("https://{link}")
-            };
+        match self.links.get(id) {
+            Some(Link::Url(url)) => {
+                // The `http://` or `https://` schema is necessary for
+                // open::that to successfully open the link in the browser.
+                let link = if url.starts_with("http://") || url.starts_with("https://") {
+                    url.clone()
+                } else {
+                    format!("https://{url}")
+                };
 
-            if let Err(error) = open::that(&link) {
-                return PopupResult::ErrorOpeningLink { link, error };
+                if let Err(error) = open::that(&link) {
+                    return PopupResult::ErrorOpeningLink { link, error };
+                }
             }
+
+            Some(Link::Room(name)) => return PopupResult::SwitchToRoom { name: name.clone() },
+
+            _ => {}
         }
         PopupResult::Handled
     }
