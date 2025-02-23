@@ -7,6 +7,11 @@ real-time chat platform.
 
 It runs on Linux, Windows, and macOS.
 
+## Installing cove
+
+Download a binary of your choice from the
+[latest release on GitHub](https://github.com/Garmelon/cove/releases/latest).
+
 ## Using cove
 
 To start cove, simply run `cove` in your terminal. For more info about the
@@ -26,61 +31,3 @@ file or via `cove help-config`.
 When launched, cove prints the location it is loading its config file from. To
 configure cove, create a config file at that location. This location can be
 changed via the `--config` command line option.
-
-## Installation
-
-At this point, cove is not available via any package manager.
-
-Cove is available as a Nix Flake. To try it out, you can use
-```bash
-$ nix run --override-input nixpkgs nixpkgs github:Garmelon/cove/latest
-```
-
-## Manual installation
-
-This section contains instructions on how to install cove by compiling it yourself.
-It doesn't assume you know how to program, but it does assume basic familiarity with the command line on your platform of choice.
-Cove runs in the terminal, after all.
-
-### Installing rustup
-
-Cove is written in Rust, so the first step is to install rustup. Either install
-it from your package manager of choice (if you have one) or use the
-[installer](https://rustup.rs/).
-
-Test your installation by running `rustup --version` and `cargo --version`. If
-rustup is installed correctly, both of these should show a version number.
-
-Cove is designed on the current version of the stable toolchain. If cove doesn't
-compile, you can try switching to the stable toolchain and updating it using the
-following commands:
-```bash
-$ rustup default stable
-$ rustup update
-```
-
-### Installing cove
-
-To install or update to the latest release of cove, run the following command:
-
-```bash
-$ cargo install --force --git https://github.com/Garmelon/cove --branch latest
-```
-
-If you like to live dangerously and want to install or update to the latest,
-bleeding-edge, possibly-broken commit from the repo's main branch, run the
-following command.
-
-**Warning:** This could corrupt your vault. Make sure to make a backup before
-running the command.
-
-```bash
-$ cargo install --force --git https://github.com/Garmelon/cove
-```
-
-To install a specific version of cove, run the following command and substitute
-in the full version you want to install:
-
-```bash
-$ cargo install --force --git https://github.com/Garmelon/cove --tag v0.1.0
-```
