@@ -9,7 +9,7 @@ edition = "2024"
 [workspace.dependencies]
 anyhow = "1.0.96"
 async-trait = "0.1.86"
-clap = { version = "4.5.30", features = ["derive", "deprecated"] }
+clap = { version = "4.5.31", features = ["derive", "deprecated"] }
 cookie = "0.18.1"
 crossterm = "0.28.1"
 directories = "6.0.0"
