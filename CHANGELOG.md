@@ -15,6 +15,8 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+## v0.9.1 - 2025-03-01
+
 ### Fixed
 
 - Rendering glitches with unicode-based width estimation
