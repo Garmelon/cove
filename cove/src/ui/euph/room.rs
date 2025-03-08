@@ -4,8 +4,8 @@ use cove_config::{Config, Keys};
 use cove_input::InputEvent;
 use crossterm::style::Stylize;
 use euphoxide::{
-    api::{Data, Message, MessageId, PacketType, SessionId},
-    bot::instance::{Event, ServerConfig},
+    api::{Data, Message, MessageId, PacketType, SessionId, packet::ParsedPacket},
+    bot::instance::{ConnSnapshot, Event, ServerConfig},
     conn::{self, Joined, Joining, SessionInfo},
 };
 use jiff::tz::TimeZone;
@@ -19,7 +19,7 @@ use toss::{
 };
 
 use crate::{
-    euph,
+    euph::{self, SpanType},
     macros::logging_unwrap,
     ui::{
         UiError, UiEvent,
@@ -73,6 +73,8 @@ pub struct EuphRoom {
     last_msg_sent: Option<oneshot::Receiver<MessageId>>,
 
     nick_list: ListState<SessionId>,
+
+    mentioned: bool,
 }
 
 impl EuphRoom {
@@ -96,6 +98,7 @@ impl EuphRoom {
             chat: ChatState::new(vault, tz),
             last_msg_sent: None,
             nick_list: ListState::new(),
+            mentioned: false,
         }
     }
 
@@ -162,6 +165,12 @@ impl EuphRoom {
                 self.room = None;
             }
         }
+    }
+
+    pub fn retrieve_mentioned(&mut self) -> bool {
+        let mentioned = self.mentioned;
+        self.mentioned = false;
+        mentioned
     }
 
     pub async fn unseen_msgs_count(&self) -> usize {
@@ -555,6 +564,35 @@ impl EuphRoom {
             // If we allowed names other than the current one, old instances
             // that haven't yet shut down properly could mess up our state.
             return false;
+        }
+
+        if let Event::Packet(
+            _,
+            ParsedPacket {
+                content: Ok(Data::SendEvent(send)),
+                ..
+            },
+            ConnSnapshot {
+                state: conn::State::Joined(joined),
+                ..
+            },
+        ) = &event
+        {
+            let normalized_name = euphoxide::nick::normalize(&joined.session.name);
+            let content = &*send.0.content;
+            for (rtype, rspan) in euph::find_spans(content) {
+                if rtype != SpanType::Mention {
+                    continue;
+                }
+                let Some(mention) = content[rspan].strip_prefix('@') else {
+                    continue;
+                };
+                let normalized_mention = euphoxide::nick::normalize(mention);
+                if normalized_name == normalized_mention {
+                    self.mentioned = true;
+                    break;
+                }
+            }
         }
 
         // We handle the packet internally first because the room event handling

@@ -100,6 +100,10 @@ pub struct Config {
     #[serde(default)]
     pub rooms_sort_order: RoomsSortOrder,
 
+    /// Ring the bell (character 0x07) when you are mentioned in a room.
+    #[serde(default)]
+    pub bell_on_mention: bool,
+
     /// Time zone that chat timestamps should be displayed in.
     ///
     /// This option can either be the string `"localtime"`, a [POSIX TZ string],

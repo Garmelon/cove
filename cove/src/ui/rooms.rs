@@ -17,7 +17,7 @@ use jiff::tz::TimeZone;
 use tokio::sync::mpsc;
 use toss::{
     Style, Styled, Widget, WidgetExt,
-    widgets::{BoxedAsync, Empty, Join2, Text},
+    widgets::{BellState, BoxedAsync, Empty, Join2, Text},
 };
 
 use crate::{
@@ -95,6 +95,7 @@ pub struct Rooms {
 
     list: ListState<RoomIdentifier>,
     order: Order,
+    bell: BellState,
 
     euph_servers: HashMap<String, EuphServer>,
     euph_rooms: HashMap<RoomIdentifier, EuphRoom>,
@@ -115,6 +116,7 @@ impl Rooms {
             state: State::ShowList,
             list: ListState::new(),
             order: Order::from_rooms_sort_order(config.rooms_sort_order),
+            bell: BellState::new(),
             euph_servers: HashMap::new(),
             euph_rooms: HashMap::new(),
         };
@@ -244,7 +246,9 @@ impl Rooms {
             .retain(|n, r| !r.stopped() || rooms_set.contains(n));
 
         for room in rooms_set {
-            self.get_or_insert_room(room).await.retain();
+            let room = self.get_or_insert_room(room).await;
+            room.retain();
+            self.bell.ring |= room.retrieve_mentioned();
         }
     }
 
@@ -254,7 +258,7 @@ impl Rooms {
             _ => self.stabilize_rooms().await,
         }
 
-        match &mut self.state {
+        let widget = match &mut self.state {
             State::ShowList => Self::rooms_widget(
                 &self.vault,
                 self.config,
@@ -297,6 +301,12 @@ impl Rooms {
             .below(delete.widget())
             .desync()
             .boxed_async(),
+        };
+
+        if self.config.bell_on_mention {
+            widget.above(self.bell.widget().desync()).boxed_async()
+        } else {
+            widget
         }
     }
 
