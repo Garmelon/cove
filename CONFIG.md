@@ -53,6 +53,14 @@ Available modifiers:
 
 ## Available options
 
+### `bell_on_mention`
+
+**Required:** yes  
+**Type:** boolean  
+**Default:** `false`
+
+Ring the bell (character 0x07) when you are mentioned in a room.
+
 ### `data_dir`
 
 **Required:** no  

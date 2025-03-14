@@ -15,6 +15,8 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+## v0.9.2 - 2025-03-14
+
 ### Added
 
 - `bell_on_mention` config option
