@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Procedure when bumping the version number:
 
-1. Update dependencies and flake in a separate commit
+1. Update dependencies in a separate commit
 2. Set version number in `Cargo.toml`
 3. Add new section in this changelog
 4. Run `cargo run help-config > CONFIG.md`
