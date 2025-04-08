@@ -536,7 +536,10 @@ impl Rooms {
         }
         if event.matches(&keys.rooms.action.connect_autojoin) {
             for (domain, server) in &self.config.euph.servers {
-                for name in server.rooms.keys() {
+                for (name, room) in &server.rooms {
+                    if !room.autojoin {
+                        continue;
+                    }
                     let id = RoomIdentifier::new(domain.clone(), name.clone());
                     self.connect_to_room(id).await;
                 }

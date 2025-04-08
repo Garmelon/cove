@@ -15,6 +15,10 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Fixed
+
+- `keys.rooms.action.connect_autojoin` connecting to non-autojoin rooms
+
 ## v0.9.2 - 2025-03-14
 
 ### Added
