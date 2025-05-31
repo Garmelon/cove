@@ -50,6 +50,7 @@ impl From<Infallible> for UiError {
     }
 }
 
+#[expect(clippy::large_enum_variant)]
 pub enum UiEvent {
     GraphemeWidthsChanged,
     LogChanged,
