@@ -80,6 +80,7 @@ pub struct TreeContext<Id> {
     pub size: Size,
     pub nick: String,
     pub focused: bool,
+    pub nick_emoji: bool,
     pub caesar: i8,
     pub last_cursor: Cursor<Id>,
     pub last_cursor_top: i32,
@@ -207,6 +208,7 @@ where
             self.tz.clone(),
             indent,
             msg,
+            self.context.nick_emoji,
             self.context.caesar,
             folded_info,
         );

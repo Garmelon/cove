@@ -1,10 +1,23 @@
-use std::sync::LazyLock;
+use std::{collections::HashSet, sync::LazyLock};
 
 use crossterm::style::{Color, Stylize};
 use euphoxide::Emoji;
 use toss::{Style, Styled};
 
 pub static EMOJI: LazyLock<Emoji> = LazyLock::new(Emoji::load);
+
+pub static EMOJI_LIST: LazyLock<Vec<String>> = LazyLock::new(|| {
+    let mut list = EMOJI
+        .0
+        .values()
+        .flatten()
+        .cloned()
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    list.sort_unstable();
+    list
+});
 
 /// Convert HSL to RGB following [this approach from wikipedia][1].
 ///

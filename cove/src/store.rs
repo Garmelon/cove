@@ -8,6 +8,10 @@ pub trait Msg {
     fn parent(&self) -> Option<Self::Id>;
     fn seen(&self) -> bool;
 
+    fn nick_emoji(&self) -> Option<String> {
+        None
+    }
+
     fn last_possible_id() -> Self::Id;
 }
 

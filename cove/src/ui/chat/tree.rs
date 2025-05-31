@@ -389,6 +389,7 @@ impl<M: Msg, S: MsgStore<M>> TreeViewState<M, S> {
         editor: &'a mut EditorState,
         nick: String,
         focused: bool,
+        nick_emoji: bool,
         caesar: i8,
     ) -> TreeView<'a, M, S> {
         TreeView {
@@ -397,6 +398,7 @@ impl<M: Msg, S: MsgStore<M>> TreeViewState<M, S> {
             editor,
             nick,
             focused,
+            nick_emoji,
             caesar,
         }
     }
@@ -410,6 +412,8 @@ pub struct TreeView<'a, M: Msg, S: MsgStore<M>> {
 
     nick: String,
     focused: bool,
+
+    nick_emoji: bool,
     caesar: i8,
 }
 
@@ -438,6 +442,7 @@ where
             size,
             nick: self.nick.clone(),
             focused: self.focused,
+            nick_emoji: self.nick_emoji,
             caesar: self.caesar,
             last_cursor: self.state.last_cursor.clone(),
             last_cursor_top: self.state.last_cursor_top,

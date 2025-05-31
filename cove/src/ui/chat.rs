@@ -37,6 +37,7 @@ pub struct ChatState<M: Msg, S: MsgStore<M>> {
 
     cursor: Cursor<M::Id>,
     editor: EditorState,
+    nick_emoji: bool,
     caesar: i8,
 
     mode: Mode,
@@ -48,6 +49,7 @@ impl<M: Msg, S: MsgStore<M> + Clone> ChatState<M, S> {
         Self {
             cursor: Cursor::Bottom,
             editor: EditorState::new(),
+            nick_emoji: false,
             caesar: 0,
 
             mode: Mode::Tree,
@@ -79,6 +81,7 @@ impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
                     &mut self.editor,
                     nick,
                     focused,
+                    self.nick_emoji,
                     self.caesar,
                 )
                 .boxed_async(),
@@ -115,6 +118,11 @@ impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
             Reaction::Composed { parent, content } if self.caesar != 0 => {
                 let content = util::caesar(&content, self.caesar);
                 Reaction::Composed { parent, content }
+            }
+
+            Reaction::NotHandled if event.matches(&keys.tree.action.toggle_nick_emoji) => {
+                self.nick_emoji = !self.nick_emoji;
+                Reaction::Handled
             }
 
             Reaction::NotHandled if event.matches(&keys.tree.action.increase_caesar) => {

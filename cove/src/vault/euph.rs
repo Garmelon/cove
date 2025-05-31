@@ -611,7 +611,7 @@ impl Action for GetMsg {
         let msg = conn
             .query_row(
                 "
-                SELECT id, parent, time, name, content, seen
+                SELECT id, parent, time, user_id, name, content, seen
                 FROM euph_msgs
                 WHERE domain = ?
                 AND room = ?
@@ -623,9 +623,10 @@ impl Action for GetMsg {
                         id: MessageId(row.get::<_, WSnowflake>(0)?.0),
                         parent: row.get::<_, Option<WSnowflake>>(1)?.map(|s| MessageId(s.0)),
                         time: row.get::<_, WTime>(2)?.0,
-                        nick: row.get(3)?,
-                        content: row.get(4)?,
-                        seen: row.get(5)?,
+                        user_id: UserId(row.get(3)?),
+                        nick: row.get(4)?,
+                        content: row.get(5)?,
+                        seen: row.get(6)?,
                     })
                 },
             )
@@ -703,7 +704,7 @@ impl Action for GetTree {
                         AND tree.room = euph_msgs.room
                         AND tree.id = euph_msgs.parent
                 )
-                SELECT id, parent, time, name, content, seen
+                SELECT id, parent, time, user_id, name, content, seen
                 FROM euph_msgs
                 JOIN tree USING (domain, room, id)
                 ORDER BY id ASC
@@ -716,9 +717,10 @@ impl Action for GetTree {
                         id: MessageId(row.get::<_, WSnowflake>(0)?.0),
                         parent: row.get::<_, Option<WSnowflake>>(1)?.map(|s| MessageId(s.0)),
                         time: row.get::<_, WTime>(2)?.0,
-                        nick: row.get(3)?,
-                        content: row.get(4)?,
-                        seen: row.get(5)?,
+                        user_id: UserId(row.get(3)?),
+                        nick: row.get(4)?,
+                        content: row.get(5)?,
+                        seen: row.get(6)?,
                     })
                 },
             )?

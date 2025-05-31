@@ -15,6 +15,10 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Added
+
+- Key bindings for emoji-based user id hashing
+
 ### Fixed
 
 - `keys.rooms.action.connect_autojoin` connecting to non-autojoin rooms

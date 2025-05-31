@@ -104,6 +104,7 @@ default_bindings! {
         pub fn mark_older_seen => ["ctrl+s"];
         pub fn info => ["i"];
         pub fn links => ["I"];
+        pub fn toggle_nick_emoji => ["e"];
         pub fn increase_caesar => ["c"];
         pub fn decrease_caesar => ["C"];
     }
@@ -356,6 +357,9 @@ pub struct TreeAction {
     /// List links found in message.
     #[serde(default = "default::tree_action::links")]
     pub links: KeyBinding,
+    /// Toggle agent id based nick emoji.
+    #[serde(default = "default::tree_action::toggle_nick_emoji")]
+    pub toggle_nick_emoji: KeyBinding,
     /// Increase caesar cipher rotation.
     #[serde(default = "default::tree_action::increase_caesar")]
     pub increase_caesar: KeyBinding,

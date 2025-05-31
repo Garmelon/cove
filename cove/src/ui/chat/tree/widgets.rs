@@ -59,10 +59,17 @@ pub fn msg<M: Msg + ChatMsg>(
     tz: TimeZone,
     indent: usize,
     msg: &M,
+    nick_emoji: bool,
     caesar: i8,
     folded_info: Option<usize>,
 ) -> Boxed<'static, Infallible> {
-    let (nick, mut content) = msg.styled();
+    let (mut nick, mut content) = msg.styled();
+
+    if nick_emoji {
+        if let Some(emoji) = msg.nick_emoji() {
+            nick = nick.then_plain("(").then_plain(emoji).then_plain(")");
+        }
+    }
 
     if caesar != 0 {
         // Apply caesar in inverse because we're decoding
