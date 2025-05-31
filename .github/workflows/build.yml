@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         os:
-          - ubuntu-latest
+          - ubuntu-22.04
           - windows-latest
           - macos-latest
           - macos-13
@@ -59,11 +59,11 @@ jobs:
 
       - name: Zip artifacts
         run: |
-          chmod +x cove-ubuntu-latest/cove
+          chmod +x cove-ubuntu-22.04/cove
           chmod +x cove-windows-latest/cove.exe
           chmod +x cove-macos-latest/cove
           chmod +x cove-macos-13/cove
-          zip -jr "cove-$(cat cove-ubuntu-latest/host).zip"  cove-ubuntu-latest/cove
+          zip -jr "cove-$(cat cove-ubuntu-22.04/host).zip"  cove-ubuntu-22.04/cove
           zip -jr "cove-$(cat cove-windows-latest/host).zip" cove-windows-latest/cove.exe
           zip -jr "cove-$(cat cove-macos-latest/host).zip"   cove-macos-latest/cove
           zip -jr "cove-$(cat cove-macos-13/host).zip"       cove-macos-13/cove
