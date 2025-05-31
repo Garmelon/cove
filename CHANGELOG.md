@@ -15,6 +15,8 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+## v0.9.3 - 2025-05-31
+
 ### Added
 
 - Key bindings for emoji-based user id hashing

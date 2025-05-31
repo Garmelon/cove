@@ -537,6 +537,14 @@ Reply to message, inline if possible.
 
 Reply opposite to normal reply.
 
+### `keys.tree.action.toggle_nick_emoji`
+
+**Required:** yes  
+**Type:** key binding  
+**Default:** `"e"`
+
+Toggle agent id based nick emoji.
+
 ### `keys.tree.action.toggle_seen`
 
 **Required:** yes  
