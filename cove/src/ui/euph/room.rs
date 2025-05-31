@@ -291,11 +291,16 @@ impl EuphRoom {
         joined: &Joined,
         focus: Focus,
     ) -> BoxedAsync<'a, UiError> {
-        let nick_list_widget = nick_list::widget(nick_list, joined, focus == Focus::NickList)
-            .padding()
-            .with_right(1)
-            .border()
-            .desync();
+        let nick_list_widget = nick_list::widget(
+            nick_list,
+            joined,
+            focus == Focus::NickList,
+            chat.nick_emoji(),
+        )
+        .padding()
+        .with_right(1)
+        .border()
+        .desync();
 
         let chat_widget = chat.widget(joined.session.name.clone(), focus == Focus::Chat);
 

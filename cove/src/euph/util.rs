@@ -1,7 +1,11 @@
-use std::{collections::HashSet, sync::LazyLock};
+use std::{
+    collections::HashSet,
+    hash::{DefaultHasher, Hash, Hasher},
+    sync::LazyLock,
+};
 
 use crossterm::style::{Color, Stylize};
-use euphoxide::Emoji;
+use euphoxide::{Emoji, api::UserId};
 use toss::{Style, Styled};
 
 pub static EMOJI: LazyLock<Emoji> = LazyLock::new(Emoji::load);
@@ -81,4 +85,12 @@ pub fn style_mention_exact(mention: &str, base: Style) -> Styled {
         .strip_prefix('@')
         .expect("mention must start with @");
     Styled::new(mention, nick_style(nick, base))
+}
+
+pub fn user_id_emoji(user_id: &UserId) -> String {
+    let mut hasher = DefaultHasher::new();
+    user_id.0.hash(&mut hasher);
+    let hash = hasher.finish();
+    let emoji = &EMOJI_LIST[hash as usize % EMOJI_LIST.len()];
+    emoji.clone()
 }

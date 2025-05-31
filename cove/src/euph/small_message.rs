@@ -1,5 +1,3 @@
-use std::hash::{DefaultHasher, Hash, Hasher};
-
 use crossterm::style::Stylize;
 use euphoxide::api::{MessageId, Snowflake, Time, UserId};
 use jiff::Timestamp;
@@ -77,11 +75,7 @@ impl Msg for SmallMessage {
     }
 
     fn nick_emoji(&self) -> Option<String> {
-        let mut hasher = DefaultHasher::new();
-        self.user_id.0.hash(&mut hasher);
-        let hash = hasher.finish();
-        let emoji = &util::EMOJI_LIST[hash as usize % util::EMOJI_LIST.len()];
-        Some(emoji.clone())
+        Some(util::user_id_emoji(&self.user_id))
     }
 }
 

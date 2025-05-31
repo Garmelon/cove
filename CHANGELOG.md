@@ -15,6 +15,10 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Changed
+
+- Display emoji user id hashes in the nick list
+
 ## v0.9.3 - 2025-05-31
 
 ### Added

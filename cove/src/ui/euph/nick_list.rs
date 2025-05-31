@@ -22,9 +22,10 @@ pub fn widget<'a>(
     list: &'a mut ListState<SessionId>,
     joined: &Joined,
     focused: bool,
+    nick_emoji: bool,
 ) -> impl Widget<UiError> + use<'a> {
     let mut list_builder = ListBuilder::new();
-    render_rows(&mut list_builder, joined, focused);
+    render_rows(&mut list_builder, joined, focused, nick_emoji);
     list_builder.build(list)
 }
 
@@ -70,6 +71,7 @@ fn render_rows(
     list_builder: &mut ListBuilder<'_, SessionId, Background<Text>>,
     joined: &Joined,
     focused: bool,
+    nick_emoji: bool,
 ) {
     let mut people = vec![];
     let mut bots = vec![];
@@ -95,10 +97,38 @@ fn render_rows(
     lurkers.sort_unstable();
     nurkers.sort_unstable();
 
-    render_section(list_builder, "People", &people, &joined.session, focused);
-    render_section(list_builder, "Bots", &bots, &joined.session, focused);
-    render_section(list_builder, "Lurkers", &lurkers, &joined.session, focused);
-    render_section(list_builder, "Nurkers", &nurkers, &joined.session, focused);
+    render_section(
+        list_builder,
+        "People",
+        &people,
+        &joined.session,
+        focused,
+        nick_emoji,
+    );
+    render_section(
+        list_builder,
+        "Bots",
+        &bots,
+        &joined.session,
+        focused,
+        nick_emoji,
+    );
+    render_section(
+        list_builder,
+        "Lurkers",
+        &lurkers,
+        &joined.session,
+        focused,
+        nick_emoji,
+    );
+    render_section(
+        list_builder,
+        "Nurkers",
+        &nurkers,
+        &joined.session,
+        focused,
+        nick_emoji,
+    );
 }
 
 fn render_section(
@@ -107,6 +137,7 @@ fn render_section(
     sessions: &[HalfSession],
     own_session: &SessionView,
     focused: bool,
+    nick_emoji: bool,
 ) {
     if sessions.is_empty() {
         return;
@@ -124,7 +155,7 @@ fn render_section(
     list_builder.add_unsel(Text::new(row).background());
 
     for session in sessions {
-        render_row(list_builder, session, own_session, focused);
+        render_row(list_builder, session, own_session, focused, nick_emoji);
     }
 }
 
@@ -133,6 +164,7 @@ fn render_row(
     session: &HalfSession,
     own_session: &SessionView,
     focused: bool,
+    nick_emoji: bool,
 ) {
     let (name, style, style_inv, perms_style_inv) = if session.name.is_empty() {
         let name = "lurk".to_string();
@@ -166,16 +198,24 @@ fn render_row(
         " "
     };
 
+    let emoji = if nick_emoji {
+        format!(" ({})", euph::user_id_emoji(&session.id))
+    } else {
+        "".to_string()
+    };
+
     list_builder.add_sel(session.session_id.clone(), move |selected| {
         if focused && selected {
             let text = Styled::new_plain(owner)
                 .then(name, style_inv)
-                .then(perms, perms_style_inv);
+                .then(perms, perms_style_inv)
+                .then(emoji, perms_style_inv);
             Text::new(text).background().with_style(style_inv)
         } else {
             let text = Styled::new_plain(owner)
                 .then(&name, style)
-                .then_plain(perms);
+                .then_plain(perms)
+                .then_plain(emoji);
             Text::new(text).background()
         }
     });

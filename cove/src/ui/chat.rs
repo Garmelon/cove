@@ -58,6 +58,10 @@ impl<M: Msg, S: MsgStore<M> + Clone> ChatState<M, S> {
             store,
         }
     }
+
+    pub fn nick_emoji(&self) -> bool {
+        self.nick_emoji
+    }
 }
 
 impl<M: Msg, S: MsgStore<M>> ChatState<M, S> {
