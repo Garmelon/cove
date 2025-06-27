@@ -121,7 +121,7 @@ impl EuphRoom {
                 .server_config
                 .clone()
                 .room(self.vault().room().name.clone())
-                .name(format!("{room:?}-{}", next_instance_id))
+                .name(format!("{room:?}-{next_instance_id}"))
                 .human(true)
                 .username(self.room_config.username.clone())
                 .force_username(self.room_config.force_username)
