@@ -81,6 +81,7 @@ default_bindings! {
         pub fn nick => ["n"];
         pub fn more_messages => ["m"];
         pub fn account => ["A"];
+        pub fn toggle_nick_list => ["N"];
     }
 
     pub mod tree_cursor {
@@ -288,6 +289,9 @@ pub struct RoomAction {
     /// Manage account.
     #[serde(default = "default::room_action::account")]
     pub account: KeyBinding,
+    /// Show or hide nick list.
+    #[serde(default = "default::room_action::toggle_nick_list")]
+    pub toggle_nick_list: KeyBinding,
 }
 
 #[derive(Debug, Default, Deserialize, Document)]

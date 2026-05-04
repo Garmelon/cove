@@ -15,6 +15,10 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+### Added
+
+- Key binding to toggle nick list visibility
+
 ### Changed
 
 - Display emoji user id hashes in the nick list

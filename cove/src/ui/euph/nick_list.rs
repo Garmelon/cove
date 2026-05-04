@@ -6,8 +6,8 @@ use euphoxide::{
     client::{Joined, SessionInfo},
 };
 use toss::{
-    Style, Styled, Widget, WidgetExt,
-    widgets::{Background, Text},
+    Style, Styled, WidgetExt,
+    widgets::{Background, BoxedAsync, Text},
 };
 
 use crate::{
@@ -23,10 +23,15 @@ pub fn widget<'a>(
     joined: &Joined,
     focused: bool,
     nick_emoji: bool,
-) -> impl Widget<UiError> + use<'a> {
-    let mut list_builder = ListBuilder::new();
-    render_rows(&mut list_builder, joined, focused, nick_emoji);
-    list_builder.build(list)
+    collapsed: bool,
+) -> BoxedAsync<'a, UiError> {
+    if collapsed {
+        render_summary(joined).desync().boxed_async()
+    } else {
+        let mut list_builder = ListBuilder::new();
+        render_rows(&mut list_builder, joined, focused, nick_emoji);
+        list_builder.build(list).desync().boxed_async()
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -64,6 +69,45 @@ impl HalfSession {
             SessionInfo::Full(sess) => Self::from_session_view(sess),
             SessionInfo::Partial(nick) => Self::from_nick_event(nick),
         }
+    }
+}
+
+fn render_summary(joined: &Joined) -> Background<Text> {
+    let mut people = 0;
+    let mut bots = 0;
+    let mut lurkers = 0;
+    let mut nurkers = 0;
+
+    let sessions = joined
+        .listing
+        .values()
+        .map(HalfSession::from_session_info)
+        .chain(iter::once(HalfSession::from_session_view(&joined.session)));
+    for sess in sessions {
+        match sess.id.user_type() {
+            Some(UserType::Bot) if sess.name.is_empty() => nurkers += 1,
+            Some(UserType::Bot) => bots += 1,
+            _ if sess.name.is_empty() => lurkers += 1,
+            _ => people += 1,
+        }
+    }
+
+    // n.b. summary must have a leading space
+    let mut summary = Styled::new_plain("");
+    add_summary_bit(&mut summary, "P", people);
+    add_summary_bit(&mut summary, "B", bots);
+    add_summary_bit(&mut summary, "L", lurkers);
+    add_summary_bit(&mut summary, "N", nurkers);
+
+    Text::new(summary).background()
+}
+
+fn add_summary_bit(so_far: &mut Styled, initial: &str, count: usize) {
+    if count > 0 {
+        *so_far = std::mem::take(so_far)
+            .then_plain(" ")
+            .then(initial, Style::new().bold())
+            .then_plain(format!("{count}"));
     }
 }
 

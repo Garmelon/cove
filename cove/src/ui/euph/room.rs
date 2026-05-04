@@ -72,6 +72,7 @@ pub struct EuphRoom {
     last_msg_sent: Option<oneshot::Receiver<MessageId>>,
 
     nick_list: ListState<SessionId>,
+    nick_list_collapsed: bool,
 
     mentioned: bool,
 }
@@ -97,6 +98,7 @@ impl EuphRoom {
             chat: ChatState::new(vault, tz),
             last_msg_sent: None,
             nick_list: ListState::new(),
+            nick_list_collapsed: false,
             mentioned: false,
         }
     }
@@ -211,6 +213,9 @@ impl EuphRoom {
         if self.room_state_joined().is_none() {
             self.focus = Focus::Chat; // There is no nick list to focus on
         }
+        if self.nick_list_collapsed {
+            self.focus = Focus::Chat; // One-line nick list summary isn't focusable
+        }
     }
 
     fn stabilize_state(&mut self) {
@@ -265,6 +270,7 @@ impl EuphRoom {
                 &mut self.nick_list,
                 joined,
                 self.focus,
+                self.nick_list_collapsed,
             ),
             None => Self::widget_without_nick_list(&mut self.chat, status_widget),
         };
@@ -311,29 +317,43 @@ impl EuphRoom {
         nick_list: &'a mut ListState<SessionId>,
         joined: &Joined,
         focus: Focus,
+        nick_list_collapsed: bool,
     ) -> BoxedAsync<'a, UiError> {
         let nick_list_widget = nick_list::widget(
             nick_list,
             joined,
             focus == Focus::NickList,
             chat.nick_emoji(),
+            nick_list_collapsed,
         )
         .padding()
         .with_right(1)
-        .border()
-        .desync();
+        .border();
 
         let chat_widget = chat.widget(joined.session.name.clone(), focus == Focus::Chat);
 
-        Join2::horizontal(
+        if nick_list_collapsed {
             Join2::vertical(
-                status_widget.desync().segment().with_fixed(true),
+                Join2::horizontal(
+                    status_widget.desync().segment(),
+                    nick_list_widget.segment().with_fixed(true),
+                )
+                .segment()
+                .with_fixed(true),
                 chat_widget.segment(),
             )
-            .segment(),
-            nick_list_widget.segment().with_fixed(true),
-        )
-        .boxed_async()
+            .boxed_async()
+        } else {
+            Join2::horizontal(
+                Join2::vertical(
+                    status_widget.desync().segment().with_fixed(true),
+                    chat_widget.segment(),
+                )
+                .segment(),
+                nick_list_widget.segment().with_fixed(true),
+            )
+            .boxed_async()
+        }
     }
 
     async fn status_widget(&self, state: Option<&euph::State>) -> impl Widget<UiError> + use<> {
@@ -442,6 +462,10 @@ impl EuphRoom {
                 }
                 if event.matches(&keys.room.action.account) {
                     self.state = State::Account(AccountUiState::new());
+                    return true;
+                }
+                if event.matches(&keys.room.action.toggle_nick_list) {
+                    self.nick_list_collapsed = !self.nick_list_collapsed;
                     return true;
                 }
             }
