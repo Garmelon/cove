@@ -201,6 +201,8 @@ impl<Id: Clone> ListState<Id> {
             && let Some(new_cursor) = self.selectable_before_index(cursor.idx)
         {
             self.move_cursor_to(new_cursor);
+        } else {
+            self.scroll_up(1);
         }
     }
 
@@ -210,11 +212,14 @@ impl<Id: Clone> ListState<Id> {
             && let Some(new_cursor) = self.selectable_after_index(cursor.idx)
         {
             self.move_cursor_to(new_cursor);
+        } else {
+            self.scroll_down(1);
         }
     }
 
     /// Move the cursor to the first selectable row.
     pub fn move_cursor_to_top(&mut self) {
+        self.scroll_to(0);
         if let Some(new_cursor) = self.first_selectable() {
             self.move_cursor_to(new_cursor);
         }
@@ -222,6 +227,7 @@ impl<Id: Clone> ListState<Id> {
 
     /// Move the cursor to the last selectable row.
     pub fn move_cursor_to_bottom(&mut self) {
+        self.scroll_to(self.last_rows.len());
         if let Some(new_cursor) = self.last_selectable() {
             self.move_cursor_to(new_cursor);
         }

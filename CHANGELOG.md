@@ -28,6 +28,8 @@ Procedure when bumping the version number:
 ### Fixed
 
 - Emoji shortcodes not always being highlighted or replaced correctly
+- Unselectable items at the start/end of a list were hard to scroll into view
+- Home/End keys did not work in F1 help popup
 
 ## v0.9.3 - 2025-05-31
 
