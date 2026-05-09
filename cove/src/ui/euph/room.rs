@@ -395,10 +395,14 @@ impl EuphRoom {
                 .then_plain(")");
         }
 
+        let archive_specifier = match state {
+            None | Some(euph::State::Stopped) => ", archive",
+            _ => "",
+        };
         let title = if unseen > 0 {
-            format!("&{} ({unseen})", self.name())
+            format!("&{}{} ({unseen})", self.name(), archive_specifier)
         } else {
-            format!("&{}", self.name())
+            format!("&{}{}", self.name(), archive_specifier)
         };
 
         Text::new(info)
