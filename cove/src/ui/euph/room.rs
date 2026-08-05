@@ -238,7 +238,6 @@ impl EuphRoom {
             (State::Nick(_), _) => self.state = State::Normal,
 
             (State::Account(account), state) => {
-                #[expect(clippy::collapsible_match)] // State is being modified
                 if !account.stabilize(state) {
                     self.state = State::Normal
                 }

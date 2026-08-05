@@ -123,7 +123,7 @@ impl MsgStore<LogMsg> for Logger {
 
     async fn first_root_id(&self) -> Result<Option<usize>, Self::Error> {
         let empty = self.messages.lock().is_empty();
-        Ok(Some(0).filter(|_| !empty))
+        Ok((!empty).then_some(0))
     }
 
     async fn last_root_id(&self) -> Result<Option<usize>, Self::Error> {
