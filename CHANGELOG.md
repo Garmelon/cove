@@ -19,6 +19,7 @@ Procedure when bumping the version number:
 
 - Display emoji user id hashes in the nick list
 - Compile linux binary with older glibc version
+- Update emoji list
 
 ### Fixed
 
