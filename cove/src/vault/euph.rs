@@ -19,13 +19,22 @@ struct WSnowflake(Snowflake);
 
 impl ToSql for WSnowflake {
     fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-        self.0.0.to_sql()
+        // This should match the existing IDs as long as they're within the
+        // range of an i64, and convert larger u64s into negative i64s. This
+        // way, we're backwards compatible to any existing values in older DBs,
+        // but also we can use the full 64 bits.
+        let unsigned = self.0.0;
+        let signed = i64::from_ne_bytes(unsigned.to_ne_bytes());
+        Ok(ToSqlOutput::Owned(Value::Integer(signed)))
     }
 }
 
 impl FromSql for WSnowflake {
     fn column_result(value: ValueRef<'_>) -> Result<Self, FromSqlError> {
-        u64::column_result(value).map(|v| Self(Snowflake(v)))
+        // Inverse of the ToSql implementation, see comment there for more info.
+        let signed = i64::column_result(value)?;
+        let unsigned = u64::from_ne_bytes(i64::to_ne_bytes(signed));
+        Ok(Self(Snowflake(unsigned)))
     }
 }
 
@@ -224,7 +233,10 @@ impl Action for GetTotalUnseenMsgsCount {
                 FROM euph_unseen_counts
                 ",
         )?
-        .query_row([], |row| row.get(0))
+        .query_row([], |row| {
+            let count: i64 = row.get(0)?;
+            Ok(count.try_into().unwrap())
+        })
     }
 }
 
@@ -1046,7 +1058,10 @@ impl Action for GetUnseenMsgsCount {
                 AND room = ?
                 ",
             )?
-            .query_row(params![self.room.domain, self.room.name], |row| row.get(0))
+            .query_row(params![self.room.domain, self.room.name], |row| {
+                let amount: i64 = row.get(0)?;
+                Ok(amount.try_into().unwrap())
+            })
             .optional()?
             .unwrap_or(0);
         Ok(amount)
@@ -1132,6 +1147,7 @@ impl Action for GetChunkAfter {
             })
         }
 
+        let amount: i64 = self.amount.try_into().unwrap();
         let messages = if let Some(id) = self.id {
             conn.prepare("
                 SELECT
@@ -1144,7 +1160,7 @@ impl Action for GetChunkAfter {
                 ORDER BY id ASC
                 LIMIT ?
             ")?
-            .query_map(params![self.room.domain, self.room.name, WSnowflake(id.0), self.amount], row2msg)?
+            .query_map(params![self.room.domain, self.room.name, WSnowflake(id.0), amount], row2msg)?
             .collect::<rusqlite::Result<_>>()?
         } else {
             conn.prepare("
@@ -1157,7 +1173,7 @@ impl Action for GetChunkAfter {
                 ORDER BY id ASC
                 LIMIT ?
             ")?
-            .query_map(params![self.room.domain, self.room.name, self.amount], row2msg)?
+            .query_map(params![self.room.domain, self.room.name, amount], row2msg)?
             .collect::<rusqlite::Result<_>>()?
         };
 
