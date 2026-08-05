@@ -107,7 +107,7 @@ fn add_summary_bit(so_far: &mut Styled, initial: &str, count: usize) {
         *so_far = std::mem::take(so_far)
             .then_plain(" ")
             .then(initial, Style::new().bold())
-            .then_plain(format!("{count}"));
+            .then_plain(format!("({count})"));
     }
 }
 
