@@ -267,7 +267,7 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "cove"
-version = "0.9.3"
+version = "0.10.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -296,7 +296,7 @@ dependencies = [
 
 [[package]]
 name = "cove-config"
-version = "0.9.3"
+version = "0.10.0"
 dependencies = [
  "cove-input",
  "cove-macro",
@@ -307,7 +307,7 @@ dependencies = [
 
 [[package]]
 name = "cove-input"
-version = "0.9.3"
+version = "0.10.0"
 dependencies = [
  "cove-macro",
  "crossterm",
@@ -321,7 +321,7 @@ dependencies = [
 
 [[package]]
 name = "cove-macro"
-version = "0.9.3"
+version = "0.10.0"
 dependencies = [
  "proc-macro2",
  "quote",

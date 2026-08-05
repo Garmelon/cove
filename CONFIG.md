@@ -329,6 +329,14 @@ Download more messages.
 
 Change nick.
 
+### `keys.room.action.toggle_nick_list`
+
+**Required:** yes  
+**Type:** key binding  
+**Default:** `"N"`
+
+Show or hide nick list.
+
 ### `keys.rooms.action.change_sort_order`
 
 **Required:** yes  

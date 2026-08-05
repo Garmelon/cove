@@ -15,6 +15,8 @@ Procedure when bumping the version number:
 
 ## Unreleased
 
+## v0.10.0 - 2026-08-05
+
 ### Added
 
 - Key binding to toggle nick list visibility
