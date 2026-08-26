@@ -91,8 +91,10 @@ impl<'a> SpanFinder<'a> {
                     self.open_span(SpanType::Emoji, idx);
                 }
             }
-            (c, Some((SpanType::Mention, _))) if !nick_char(c) => {
-                self.close_span(idx);
+            (c, Some((SpanType::Mention, span_start))) if !nick_char(c) => {
+                if idx != span_start + 1 {
+                    self.close_span(idx);
+                }
             }
             (c, Some((SpanType::Room, _))) if !room_char(c) => {
                 self.close_span(idx);
